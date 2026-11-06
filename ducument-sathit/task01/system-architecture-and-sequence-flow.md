@@ -1,272 +1,248 @@
 # สถาปัตยกรรมระบบ แผนผังเส้นทางผู้ใช้ และลำดับการทำงาน (System Architecture, User Flow & Sequence Diagrams)
-**โครงการ**: SWU Open House - AI Photo Booth & Event Experience Platform  
-**เวอร์ชัน**: 1.0 (Comprehensive Engineering Design)  
+## ระบบ AI Photo Booth สำหรับงานเปิดบ้าน มศว (SWU Open House)
+**โครงการ**: SWU Open House - Pure AI Photo Booth System  
+**เวอร์ชัน**: 2.0 (Approved via `/grill-me` - 100% Photo Booth Core Architecture)  
 **วันที่**: 7 พฤศจิกายน 2026  
 **มาตรฐานอ้างอิง**:
 - **IEEE 1016-2009** (Standard for Information Technology - Systems Design - Software Design Descriptions)
-- **C4 Model** for Visualizing Software Architecture
-- **UML 2.5** (Unified Modeling Language - Sequence & Activity Diagrams)
+- **C4 Model** (Context, Container, Component, Code)
+- **UML 2.5** (Unified Modeling Language - Activity & Sequence Diagrams)
 
 ---
 
-## 📑 สารบัญ (Table of Contents)
-1. [ส่วนที่ 1: ภาพรวมสถาปัตยกรรมระบบ (High-Level System Architecture - C4 Context & Container)](#ส่วนที่-1-ภาพรวมสถาปัตยกรรมระบบ-high-level-system-architecture)
-2. [ส่วนที่ 2: สถาปัตยกรรมเชิงลึก (Low-Level Architecture - Components & Data Flow)](#ส่วนที่-2-สถาปัตยกรรมเชิงลึก-low-level-architecture)
-3. [ส่วนที่ 3: แผนผังเส้นทางการใช้งานของผู้ใช้แต่ละกลุ่ม (User Flow Diagrams)](#ส่วนที่-3-แผนผังเส้นทางการใช้งานของผู้ใช้แต่ละกลุ่ม-user-flow-diagrams)
-   - 3.1 Flow สำหรับผู้ร่วมงาน / นักเรียน / ผู้ปกครอง (Visitor Flow)
-   - 3.2 Flow สำหรับสตาฟประจำบูท (Staff Flow)
-   - 3.3 Flow สำหรับผู้ดูแลระบบ (Admin Flow)
-4. [ส่วนที่ 4: ลำดับการทำงานของกระบวนการสำคัญ (Sequence Diagrams)](#ส่วนที่-4-ลำดับการทำงานของกระบวนการสำคัญ-sequence-diagrams)
-   - 4.1 Sequence 01: Touchless Hand Gesture Capture & Countdown Loop
-   - 4.2 Sequence 02: Image Capture, Preview & Retake Logic
-   - 4.3 Sequence 03: Storage Upload, Short Code & QR Generation (พร้อม Offline Fallback)
-   - 4.4 Sequence 04: Mobile Customization (Color Grading + 3 Frame Templates + Download)
-   - 4.5 Sequence 05: Retroactive Photo Retrieval (`/find`) & Open House Verification
-   - 4.6 Sequence 06: Staff PIN Authentication & Remote Kiosk Control
-5. [ส่วนที่ 5: การจัดการข้อผิดพลาดและข้อยกเว้น (Error Handling & Edge Cases)](#ส่วนที่-5-การจัดการข้อผิดพลาดและข้อยกเว้น-error-handling--edge-cases)
+## 📌 บทนำและขอบเขตสถาปัตยกรรม (Architectural Scope)
+สถาปัตยกรรมนี้มุ่งเน้น **ระบบ AI Photo Booth อย่างเป็นรูปธรรม 100%** (ตัดส่วนงานลงทะเบียน/เกียรติบัตรที่ไม่เกี่ยวข้องออกทั้งหมดตามมติ `/grill-me`) โดยกำหนดโครงสร้างฮาร์ดแวร์ ซอฟต์แวร์ และกระบวนการทำงานของผู้ใช้ 3 กลุ่มหลัก:
+1. **ผู้ร่วมงาน / นักเรียน / ผู้ปกครอง (Visitors)**: ถ่ายภาพด้วยท่ามือ ➜ สแกน QR ➜ แต่งสีภาพ ➜ เลือก 1 ใน 3 กรอบ ➜ เซฟรูป
+2. **เจ้าหน้าที่สตาฟประจำบูท (Staff Operators)**: ควบคุมตู้, ปลดล็อก Staff Modal ด้วย PIN, แก้ปัญหาเฉพาะหน้า และดูแลการซิงค์
+3. **ผู้ดูแลระบบ (System Admin)**: บริหารจัดการ Cloud Storage, กฎหมาย PDPA และวงจรอายุภาพถ่าย 7 วัน
 
 ---
 
-## ส่วนที่ 1: ภาพรวมสถาปัตยกรรมระบบ (High-Level System Architecture)
+## ส่วนที่ 1: แผนผังโครงสร้างระบบภาพรวม (High-Level Architecture - C4 Context & Container)
 
-### 1.1 C4 System Context Diagram
-แผนผังแสดงบริบทของระบบ ผู้ใช้งานทุกกลุ่ม และการเชื่อมต่อกับระบบภายนอก:
+### 1.1 C4 Context Diagram (บริบทของระบบ Photo Booth)
 
 ```mermaid
 flowchart TD
-    subgraph Users["กลุ่มผู้ใช้งาน (Actors)"]
-        U1["นักเรียนมัธยม / ผู้ปกครอง<br>(Visitor)"]
-        U2["พี่สตาฟประจำบูท<br>(Staff Operator)"]
-        U3["ผู้ดูแลระบบ<br>(System Admin)"]
+    subgraph Actors["กลุ่มผู้ใช้งาน (Actors)"]
+        V["นักเรียนมัธยม / ผู้ปกครอง<br>[Visitor]"]
+        S["เจ้าหน้าที่สตาฟประจำบูท<br>[Staff Operator]"]
+        A["ผู้ดูแลระบบคลาวด์<br>[System Admin]"]
     end
 
-    subgraph SWUSystem["ระบบ SWU Open House AI Photo Booth"]
-        KioskApp["ตู้ถ่ายภาพอัจฉริยะ<br>(Kiosk Web App /booth)"]
-        MobileApp["เว็บพอร์ทัลมือถือ<br>(Mobile Web Portal /p/[code], /find)"]
-        AdminApp["แดชบอร์ดจัดการระบบ<br>(Staff Admin Portal /admin)"]
-        BackendAPI["API Serverless Engine<br>(Next.js Route Handlers)"]
+    subgraph PhotoBoothSystem["ระบบ SWU AI Photo Booth System (Next.js Monorepo)"]
+        Kiosk["หน้าจอถ่ายภาพตู้ Kiosk<br>(/booth - 16:9 Landscape)"]
+        Mobile["เว็บแอปแต่งภาพบนมือถือ<br>(/p/[code], /find)"]
+        AdminPortal["แดชบอร์ดสตาฟบนมือถือ<br>(/admin - PIN Protected)"]
+        API["Serverless API Routes<br>(/api/upload, /api/photo, /api/admin)"]
     end
 
-    subgraph CloudInfra["โครงสร้างพื้นฐานคลาวด์ (Cloud & Storage)"]
-        CloudflareR2["Cloudflare R2<br>(S3-Compatible Object Storage)<br>[TTL 7 Days Auto-Purge]"]
-        VercelEdge["Vercel Edge Network<br>(Global CDN & SSL)"]
-        MetadataDB["Supabase / KV Store<br>(Session & Code Metadata)"]
+    subgraph HardwareLayer["ฮาร์ดแวร์หน้าตู้ (Onsite Hardware)"]
+        Webcam["USB Webcam 1080p<br>(Logitech C920/C922)"]
+        Screen["มอนิเตอร์ 16:9 แนวนอน<br>(Chrome Kiosk Mode)"]
     end
 
-    subgraph Hardware["ฮาร์ดแวร์หน้าตู้ (Booth Hardware)"]
-        Webcam["USB Webcam 1080p<br>(Logitech Full HD)"]
-        Screen["16:9 Landscape Monitor<br>(Full Screen Preview)"]
+    subgraph CloudLayer["ระบบคลาวด์และพื้นที่จัดเก็บ (Cloud Infrastructure)"]
+        R2["Cloudflare R2 Storage<br>(S3-Compatible, Egress Free)<br>[TTL 7 Days Auto-Purge]"]
+        VercelEdge["Vercel Edge Network<br>(Global CDN, HTTPS & SSL)"]
+        KV["Cloudflare KV / Supabase<br>(Short Code Map: SWU-XXXX)"]
     end
 
-    U1 -->|1. โพสท่าแบมือ 5 นิ้ว| Webcam
-    Webcam -->|WebRTC Video Stream| KioskApp
-    KioskApp -->|แสดงภาพพรีวิว & QR Code| Screen
-    U1 -->|2. สแกน QR Code ด้วยมือถือ| MobileApp
+    V -->|1. ยืนระยะ 1.5 ม. แบมือ 5 นิ้ว| Webcam
+    Webcam -->|สตรีม WebRTC 1080p| Kiosk
+    Kiosk -->|แสดง Viewfinder & QR Code| Screen
+    V -->|2. สแกน QR Code ด้วยมือถือ| Mobile
 
-    MobileApp -->|ดึงรูปภาพต้นฉบับ| CloudflareR2
-    MobileApp -->|ส่งคำขอปรับแต่ง/ดาวน์โหลด| BackendAPI
+    Mobile -->|ดึงรูปภาพต้นฉบับ 1080p| R2
+    Mobile -->|ประมวลผล Canvas บนมือถือ| Mobile
 
-    U2 -->|แตะโลโก้ 5 ครั้ง + ใส่ PIN| KioskApp
-    U2 -->|เข้าจัดการผ่านมือถือ /admin| AdminApp
-    AdminApp -->|มอนิเตอร์ยอด & สั่งรีเซ็ต| BackendAPI
+    S -->|แตะโลโก้ 5 ครั้ง + ใส่ PIN| Kiosk
+    S -->|เข้าผ่าน Wi-Fi บูท| AdminPortal
+    AdminPortal -->|สั่งรีเซ็ต / ดูสถิติ| API
 
-    U3 -->|จัดการ Lifecycle & Logs| CloudflareR2
-    U3 -->|ตรวจสอบความปลอดภัย| MetadataDB
+    A -->|ตรวจสอบความปลอดภัย & PDPA| R2
+    A -->|Audit Log| KV
 
-    BackendAPI -->|อัปโหลดรูปภาพพร้อม Pre-signed Key| CloudflareR2
-    BackendAPI -->|บันทึกรหัส SWU-XXXX| MetadataDB
-    VercelEdge -->|เสิร์ฟเว็บแอพความเร็วสูง| MobileApp
-    VercelEdge -->|เสิร์ฟเว็บหน้าตู้| KioskApp
+    Kiosk -->|อัปโหลดรูปภาพผ่าน Pre-signed URL| API
+    API -->|บันทึกไฟล์ภาพต้นฉบับ| R2
+    API -->|แมป Short Code 6 หลัก| KV
+    VercelEdge -->|เสิร์ฟ Static Assets & Web App| Kiosk
+    VercelEdge -->|เสิร์ฟ Web App บนมือถือ| Mobile
 ```
 
-### 1.2 C4 Container Diagram
-แผนผังโครงสร้าง Container และเทคโนโลยีที่ใช้ในแต่ละส่วน:
+### 1.2 C4 Container Diagram (Frontend, Backend, Cache, Storage & CDN)
 
 ```mermaid
 flowchart LR
-    subgraph ClientLayer["Client Layer (Frontend)"]
-        subgraph KioskContainer["Kiosk Client (Next.js App)"]
-            UIKiosk["Viewfinder & Touchless UI<br>(React 18 + TailwindCSS)"]
-            AIEngine["Google MediaPipe Hand Landmarker<br>(WebGL Tasks-Vision 60 FPS)"]
-            LocalQueue["Local Storage / IndexedDB<br>(Offline-first Image Buffer)"]
+    subgraph ClientContainers["ฝั่งผู้ใช้งาน (Client Applications)"]
+        subgraph KioskApp["Kiosk Web Application (/booth)"]
+            K_UI["React Viewfinder UI<br>(TailwindCSS + Framer Motion)"]
+            K_AI["MediaPipe Hand Landmarker<br>(WebGL Tasks-Vision 60 FPS)"]
+            K_FSM["Kiosk Finite State Machine<br>(Idle -> Detect -> Count -> QR)"]
+            K_Cache["Local Buffer (IndexedDB)<br>(Offline Resilience Queue)"]
         end
 
-        subgraph MobileContainer["Mobile Web Client"]
-            UIMobile["Mobile Customizer UI<br>(React + Touch Carousel)"]
-            CanvasEngine["HTML5 Canvas 2D Engine<br>(Color Grading & Frame Layering)"]
-        end
-    end
-
-    subgraph ServerLayer["Serverless Backend Layer"]
-        subgraph NextServer["Next.js Serverless Environment"]
-            UploadAPI["/api/upload<br>(Multipart Form / Stream)"]
-            PhotoAPI["/api/photo/[code]<br>(Metadata & CDN Proxy)"]
-            HealthAPI["/api/health<br>(Heartbeat & Status)"]
-            AdminAPI["/api/admin/*<br>(PIN Auth & Reset Signals)"]
+        subgraph MobileApp["Mobile Web Application (/p/[code])"]
+            M_UI["Mobile Step-by-Step UI<br>(Step 1: Color -> Step 2: Frame)"]
+            M_Canvas["HTML5 Canvas 2D Engine<br>(Color Presets + Brightness + PNG Frames)"]
+            M_Exporter["Blob & File Exporter<br>(Camera Roll Saver)"]
         end
     end
 
-    subgraph StorageLayer["Data & Storage Layer"]
-        R2Bucket["Cloudflare R2 Bucket<br>/photos/original/[id].jpg<br>/photos/composite/[code].webp"]
-        KVStore["Metadata & Cache Store<br>(Short Code Map: SWU-XXXX)"]
+    subgraph ServerContainers["ฝั่งเซิร์ฟเวอร์ (Serverless Architecture)"]
+        subgraph NextServer["Next.js Route Handlers"]
+            UploadHandler["/api/upload<br>(Multipart Form Streamer)"]
+            PhotoHandler["/api/photo/[code]<br>(Metadata Resolver)"]
+            AdminHandler["/api/admin/*<br>(PIN Auth Guard & Stats)"]
+        end
     end
 
-    UIKiosk --> AIEngine
-    UIKiosk --> LocalQueue
-    LocalQueue -.->|Async Background Sync| UploadAPI
-    UploadAPI --> R2Bucket
-    UploadAPI --> KVStore
+    subgraph DataContainers["ฝั่งจัดเก็บข้อมูล (Data & Storage)"]
+        R2Bucket["Cloudflare R2 Object Storage<br>/photos/original/SWU-XXXX.jpg<br>(Retention: 7 Days)"]
+        KVStore["Metadata & Short Code Store<br>SWU-XXXX -> {createdAt, status}"]
+        EdgeCDN["Vercel Edge / Cloudflare CDN<br>(Caching & Asset Delivery)"]
+    end
 
-    UIMobile --> CanvasEngine
-    UIMobile --> PhotoAPI
-    PhotoAPI --> KVStore
-    PhotoAPI --> R2Bucket
-    AdminAPI --> KVStore
+    K_UI --> K_AI
+    K_AI --> K_FSM
+    K_FSM --> K_Cache
+    K_Cache -.->|Async Background Upload| UploadHandler
+
+    UploadHandler --> R2Bucket
+    UploadHandler --> KVStore
+
+    M_UI --> M_Canvas
+    M_Canvas --> M_Exporter
+    M_UI --> PhotoHandler
+    PhotoHandler --> KVStore
+    PhotoHandler --> R2Bucket
+
+    EdgeCDN --> K_UI
+    EdgeCDN --> M_UI
 ```
 
 ---
 
-## ส่วนที่ 2: สถาปัตยกรรมเชิงลึก (Low-Level Architecture & Components)
+## ส่วนที่ 2: สถาปัตยกรรมเชิงลึก (Low-Level Architecture: State Machine & Component Tree)
 
-### 2.1 โครงสร้างคอมโพเนนต์และการจัดเก็บไฟล์ (Next.js Component Tree)
+### 2.1 State Machine ของตู้ถ่ายภาพ (Kiosk Finite State Machine - FSM)
+ตู้ทำงานแบบ Stateless & Resilient แยกจากมือถือโดยสิ้นเชิง:
 
-```text
-src/
-├── app/
-│   ├── layout.tsx                 # Root Layout (Fonts, Locale Context)
-│   ├── page.tsx                   # Landing Page / Redirection
-│   ├── booth/
-│   │   └── page.tsx               # Kiosk Viewfinder Screen (Full Screen 16:9)
-│   ├── p/
-│   │   └── [code]/
-│   │       └── page.tsx           # Mobile Customization & Download Screen
-│   ├── find/
-│   │   └── page.tsx               # Retroactive Short Code Lookup Page
-│   ├── admin/
-│   │   └── page.tsx               # Staff Mobile Management Dashboard
-│   └── api/
-│       ├── upload/route.ts        # Image Upload Endpoint (with Pre-signed URLs)
-│       ├── photo/[code]/route.ts  # Photo Lookup & CDN URL Resolver
-│       └── admin/
-│           ├── stats/route.ts     # Real-time Visitor Stats
-│           └── reset/route.ts     # Kiosk Reset Signal Dispatcher
-├── components/
-│   ├── kiosk/
-│   │   ├── CameraStream.tsx       # WebRTC getUserMedia Component
-│   │   ├── HandLandmarkCanvas.tsx # Visual Hand Skeletal Overlay
-│   │   ├── CountdownOverlay.tsx   # 3..2..1.. Timer & White Flash
-│   │   ├── RetakeTimerModal.tsx   # 5-8s Preview & Retake Button
-│   │   ├── QRCodeDisplay.tsx      # SVG QR Code & Short Code Banner
-│   │   └── StaffSecretModal.tsx   # Hidden Trigger PIN Modal
-│   ├── mobile/
-│   │   ├── ColorFilterSlider.tsx  # 6 Presets + Brightness Adjuster
-│   │   ├── FrameSelector.tsx      # 3 Pre-made SWU Frame Selector
-│   │   ├── CanvasCompositor.tsx   # High-resolution Layering Canvas
-│   │   └── DownloadButton.tsx     # Native Camera Roll Saver
-│   └── common/
-│       ├── LanguageToggle.tsx     # TH | EN Switcher
-│       └── PrivacyNoticeModal.tsx # PDPA Consent Banner
-└── lib/
-    ├── mediapipe/
-    │   └── handLandmarker.ts      # WebGL MediaPipe Hand Detection Engine
-    ├── gesture/
-    │   ├── classifier.ts          # Open Palm & Multi-pose Keypoint Heuristics
-    │   └── debounceController.ts  # 1.5s Hold Duration Filter
-    ├── storage/
-    │   ├── offlineQueue.ts        # IndexedDB Offline Sync Buffer
-    │   └── r2Client.ts            # Cloudflare R2 S3 Client SDK
-    └── utils/
-        ├── shortCode.ts           # Non-ambiguous 6-char Code Generator
-        └── dateExpiry.ts          # PDPA 7-day TTL Date Calculator
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE : เริ่มต้นระบบ / รีเซ็ต
+
+    IDLE --> DETECTING_HAND : กล้องตรวจพบมือขวา/ซ้าย
+    DETECTING_HAND --> IDLE : มือหลุดเฟรม / ไม่ครบ 1.5 วินาที
+    DETECTING_HAND --> COUNTDOWN : แบมือ 5 นิ้วค้างต่อเนื่องครบ 1.5 วินาที
+    IDLE --> COUNTDOWN : ผู้ใช้แตะปุ่ม "แตะเพื่อถ่าย (Touch Fallback)"
+
+    COUNTDOWN --> FLASH_CAPTURE : นับถอยหลัง 3.. 2.. 1.. ถึงศูนย์
+    FLASH_CAPTURE --> PREVIEW_RETAKE : บันทึกภาพ 1080p + แสดงจอขาว Flash 100ms
+
+    PREVIEW_RETAKE --> COUNTDOWN : ผู้ใช้กด "ถ่ายใหม่ (Retake)" [จำกัด 1 ครั้ง]
+    PREVIEW_RETAKE --> QR_DISPLAY : ผู้ใช้กด "ยืนยัน" หรือ ปล่อยเวลานับถอยหลัง 8 วินาทีหมดลง
+
+    QR_DISPLAY --> IDLE : ผู้ใช้กดปุ่ม "เสร็จสิ้น / คนถัดไป (Done)" หรือ หมดเวลา 15-20 วินาที
+    
+    state STAFF_OVERRIDE {
+        [*] --> STAFF_MENU : แตะโลโก้ 5 ครั้ง + ใส่ PIN ถูกต้อง
+        STAFF_MENU --> IDLE : สั่งรีเซ็ตตู้ / บังคับคืนสถานะ
+    }
+
+    IDLE --> STAFF_OVERRIDE : แตะโลโก้ 5 ครั้ง
+    QR_DISPLAY --> STAFF_OVERRIDE : แตะโลโก้ 5 ครั้ง
+    PREVIEW_RETAKE --> STAFF_OVERRIDE : แตะโลโก้ 5 ครั้ง
 ```
 
 ---
 
 ## ส่วนที่ 3: แผนผังเส้นทางการใช้งานของผู้ใช้แต่ละกลุ่ม (User Flow Diagrams)
 
-### 3.1 User Flow สำหรับผู้ร่วมงาน (Visitor Journey)
-แสดงเส้นทาง Happy Path และ Unhappy Path เมื่อเกิดเหตุขัดข้อง:
+### 3.1 Visitor Flow: เส้นทางการถ่ายรูปและดาวน์โหลดของนักเรียน/ผู้ปกครอง
 
 ```mermaid
 flowchart TD
-    Start(["ผู้ใช้เดินเข้ามาหน้าตู้ Photo Booth"]) --> StandFront["ยืนหน้ากล้องในระยะ 1.2 - 2.0 เมตร"]
-    StandFront --> DetectMode{"เลือกสั่งถ่ายภาพด้วยวิธีใด?"}
+    Start(["เดินเข้าสู่บูท Photo Booth"]) --> Front["ยืนหน้ากล้อง 1080p ในระยะ 1.5 เมตร"]
+    Front --> ChooseTrigger{"เลือกวิธีสั่งถ่ายภาพ"}
     
-    DetectMode -->|วิธีหลัก: AI Gesture| PoseHand["แบมือ 5 นิ้ว (Open Palm) เข้าหากล้อง"]
-    DetectMode -->|วิธีสำรอง: Touch| TapScreen["แตะปุ่ม 'แตะเพื่อถ่าย' บนหน้าจอ"]
+    ChooseTrigger -->|วิธีที่ 1 (หลัก)| PalmPose["แบมือ 5 นิ้ว (Open Palm) เข้าหากล้อง"]
+    ChooseTrigger -->|วิธีที่ 2 (สำรอง)| TouchTap["แตะปุ่ม 'แตะเพื่อถ่าย' บนหน้าจอ"]
 
-    PoseHand --> HoldCheck{"ทำท่ามือค้างต่อเนื่อง<br>ครบ 1.5 วินาทีหรือไม่?"}
-    HoldCheck -->|ไม่ครบ / คนเดินผ่าน| ResetPose["ยกเลิกการนับ กลับสู่สถานะรอ (Idle)"]
-    ResetPose --> StandFront
-    HoldCheck -->|ครบ 1.5 วิ| StartCountdown["เริ่มนับถอยหลัง Visual Timer 3.. 2.. 1.."]
-    TapScreen --> StartCountdown
+    PalmPose --> HoldCheck{"ทำท่ามือค้างต่อเนื่อง<br>ครบ 1.5 วินาทีหรือไม่?"}
+    HoldCheck -->|คนเดินผ่าน / ชักมือกลับ| ResetIdle["ยกเลิกการนับ กลับสู่หน้าพร้อมถ่าย (Idle)"]
+    ResetIdle --> Front
+    HoldCheck -->|ครบ 1.5 วินาที| StartTimer["เริ่มนับถอยหลัง 3.. 2.. 1.. พร้อมเสียง Beep"]
+    TouchTap --> StartTimer
 
-    StartCountdown --> FlashCapture["แชะ! หน้าจอกะพริบ Flash 100ms และบันทึกภาพ"]
-    FlashCapture --> ShowPreview["แสดงภาพพรีวิวทันที + ปุ่ม 'ถ่ายใหม่' (นับถอยหลัง 5-8 วิ)"]
+    StartTimer --> Flash["แชะ! หน้าจอกะพริบขาว 100ms และบันทึกภาพ"]
+    Flash --> Preview["แสดงภาพพรีวิวทันที + ปุ่ม 'ถ่ายใหม่' (นับถอยหลัง 8 วิ)"]
 
-    ShowPreview --> RetakeCheck{"ผู้ใช้ต้องการถ่ายใหม่หรือไม่?"}
-    RetakeCheck -->|กดถ่ายใหม่ (สิทธิ์ 1 ครั้ง)| StartCountdown
-    RetakeCheck -->|ไม่กด / ปล่อยเวลาหมด| GenQR["สร้าง Short Code (SWU-XXXX) และแสดง QR Code"]
+    Preview --> RetakeCheck{"ต้องการถ่ายใหม่หรือไม่?"}
+    RetakeCheck -->|กดถ่ายใหม่ (สิทธิ์ 1 ครั้ง)| StartTimer
+    RetakeCheck -->|ไม่กด / ปล่อยเวลาหมด 8 วิ| GenQR["สร้าง Short Code (SWU-XXXX) และแสดง QR Code"]
 
-    GenQR --> ScanOrNote{"ผู้ใช้เลือกรับภาพอย่างไร?"}
-    ScanOrNote -->|สแกนทันที| MobileWeb["เปิดเว็บเบราว์เซอร์บนมือถือ (/p/[code])"]
-    ScanOrNote -->|สแกนไม่ทัน / เน็ตหมุน| PhotoScreen["ใช้มือถือถ่ายรูปหน้าจอที่มีรหัส SWU-XXXX เก็บไว้"]
+    GenQR --> ShowQRScreen["หน้าจอแสดง QR Code ขนาดใหญ่ + รหัส SWU-XXXX<br>(นับถอยหลัง 15-20 วิ + ปุ่ม 'คนถัดไป')"]
 
-    PhotoScreen --> GoHome["เปิดเว็บ /find ภายใน 7 วัน แล้วกรอกรหัส"]
-    GoHome --> MobileWeb
+    ShowQRScreen --> VisitorAction{"ผู้ใช้งานดำเนินการอย่างไร?"}
+    VisitorAction -->|สแกนด้วยมือถือทันที| ScanQR["เปิดเว็บเบราว์เซอร์บนมือถือ (/p/SWU-XXXX)"]
+    VisitorAction -->|ถ่ายรูปหน้าจอเก็บไว้| SnapCode["ถ่ายรูปหน้าจอที่มีรหัส SWU-XXXX ไว้"]
+    VisitorAction -->|กดปุ่ม 'คนถัดไป'| DoneKiosk["ตู้พร้อมให้บริการคิวถัดไปทันที (ใช้เวลาหน้าตู้ ~30 วิ)"]
 
-    subgraph MobileFlow["ขั้นตอนการแต่งภาพบนมือถือ (ไม่ขวางคิวตู้)"]
-        MobileWeb --> Step1["ขั้นตอนที่ 1: เลือกฟิลเตอร์แต่งสี (6 พรีเซ็ต + ปรับสว่าง)"]
-        Step1 --> Step2["ขั้นตอนที่ 2: เลือกกรอบรูป มศว (1 ใน 3 แบบ)"]
-        Step2 --> Step3["ขั้นตอนที่ 3: กด 'ดาวน์โหลดรูปภาพ' ลง Camera Roll"]
-        Step3 --> ShareSocial["แชร์ลง Instagram Story / TikTok พร้อมแฮชแท็ก #SWUOpenHouse"]
+    SnapCode --> LaterVisit["กลับบ้านเปิดเว็บ /find ภายใน 7 วัน แล้วกรอกรหัส"]
+    LaterVisit --> ScanQR
+
+    subgraph MobileExperience["ขั้นตอนแต่งภาพบนมือถือของผู้ใช้ (ไม่ขวางคิวตู้)"]
+        ScanQR --> Step1["ขั้นตอนที่ 1 (แต่งสี): แตะเลือก 1 ใน 6 พรีเซ็ต หรือปรับ Brightness Slider"]
+        Step1 --> Step2["ขั้นตอนที่ 2 (เลือกกรอบ): สลับเลือก 1 ใน 3 กรอบรูป มศว"]
+        Step2 --> Step3["ขั้นตอนที่ 3 (ดาวน์โหลด): กดปุ่ม 'บันทึกรูปภาพ' ลง Camera Roll"]
+        Step3 --> Share["แชร์ลง Instagram Story / TikTok ทันที"]
     end
 
-    ShareSocial --> End(["เสร็จสิ้นประสบการณ์"])
+    Share --> End(["จบกิจกรรมอย่างประทับใจ"])
 ```
 
-### 3.2 User Flow สำหรับสตาฟประจำบูท (Staff Journey)
+### 3.2 Staff Flow: เส้นทางการปฏิบัติงานและการควบคุมของสตาฟประจำบูท
 
 ```mermaid
 flowchart TD
-    StaffStart(["สตาฟประจำบูทเข้าปฏิบัติงาน"]) --> AccessMethod{"เลือกเข้าถึงระบบด้วยวิธีใด?"}
-    
-    AccessMethod -->|หน้าตู้ Kiosk| TouchLogo["แตะที่โลโก้ มศว มุมบนซ้าย 5 ครั้งติดกัน<br>(หรือกด Ctrl+Shift+A)"]
-    AccessMethod -->|มือถือสตาฟ| OpenAdmin["เปิดเว็บ https://<domain>/admin ผ่าน Local Wi-Fi"]
+    StaffStart(["สตาฟประจำบูทเข้าควบคุมตู้"]) --> ChooseMethod{"เลือกช่องทางจัดการ"}
 
-    TouchLogo --> EnterPIN["กรอกรหัส Staff PIN 4-6 หลัก"]
-    OpenAdmin --> EnterPIN
+    ChooseMethod -->|หน้าจอตู้ Kiosk| TapLogo["แตะโลโก้ มศว มุมซ้ายบน 5 ครั้งติดกัน<br>(หรือกดปุ่ม Ctrl+Shift+A)"]
+    ChooseMethod -->|มือถือสตาฟ| OpenPhone["เปิดเว็บ https://<domain>/admin ผ่าน Wi-Fi บูท"]
 
-    EnterPIN --> PINCheck{"รหัส PIN ถูกต้องหรือไม่?"}
-    PINCheck -->|ไม่ถูกต้องเกิน 5 ครั้ง| Lockout["ล็อกหน้าจอ 1 นาที (Rate Limit Protection)"]
-    PINCheck -->|ถูกต้อง| StaffDashboard["เข้าสู่ Staff Control Panel"]
+    TapLogo --> PromptPIN["กรอกรหัส Staff PIN 4-6 หลัก"]
+    OpenPhone --> PromptPIN
 
-    StaffDashboard --> ActionSelect{"เลือกคำสั่งที่ต้องการทำ"}
-    ActionSelect --> ResetKiosk["1. สั่งรีเซ็ตตู้กลับสู่หน้าแรกทันที (Clear Session)"]
-    ActionSelect --> SwitchCam["2. สลับกล้อง หรือปรับ Calibration ความไวของมือ"]
-    ActionSelect --> ViewStats["3. ดูสถิติจำนวนผู้ถ่ายและคิวที่ยังไม่อัปโหลด"]
-    ActionSelect --> ForceSync["4. สั่ง Force Sync อัปโหลดรูปภาพที่ค้างในเครื่องตู้"]
+    PromptPIN --> CheckPIN{"ตรวจสอบรหัส PIN"}
+    CheckPIN -->|ผิดเกิน 5 ครั้ง| Lockout["ล็อกหน้าจอชั่วคราว 60 วินาที (Brute-force Guard)"]
+    CheckPIN -->|ถูกต้อง| Panel["เข้าสู่ Staff Control Panel"]
 
-    ResetKiosk --> LogAction["บันทึก Audit Log"]
-    SwitchCam --> LogAction
-    ViewStats --> LogAction
-    ForceSync --> LogAction
-    LogAction --> StaffEnd(["ปิดหน้าต่างสตาฟ ตู้พร้อมใช้งานต่อ"])
+    Panel --> SelectCommand{"เลือกคำสั่งควบคุม"}
+    SelectCommand --> CmdReset["1. สั่งรีเซ็ตตู้กลับสู่หน้าแรกทันที (Clear Stuck Session)"]
+    SelectCommand --> CmdCam["2. สลับอุปกรณ์กล้อง Webcam หรือ Calibrate ท่ามือ"]
+    SelectCommand --> CmdStats["3. ดูสถิติจำนวนคนถ่าย และตรวจสอบคิวอัปโหลด"]
+    SelectCommand --> CmdSync["4. สั่ง Force Sync อัปโหลดรูปภาพที่ค้างในเครื่องตู้"]
+
+    CmdReset --> StaffDone(["เสร็จสิ้นคำสั่ง ตู้พร้อมใช้งานต่อ"])
+    CmdCam --> StaffDone
+    CmdStats --> StaffDone
+    CmdSync --> StaffDone
 ```
 
-### 3.3 User Flow สำหรับผู้ดูแลระบบ (Admin Journey - PDPA Lifecycle)
+### 3.3 Admin Flow: การทำลายข้อมูลอัตโนมัติ 7 วันตามมาตรฐาน PDPA
 
 ```mermaid
 flowchart TD
-    AdminStart(["Cron Job อัตโนมัติทุกเที่ยงคืน (00:00 UTC)"]) --> ScanDB["สแกนหารายการภาพที่มี CreatedAt เกิน 7 วัน"]
-    ScanDB --> ExpiredFound{"พบภาพถ่ายที่หมดอายุหรือไม่?"}
-    
-    ExpiredFound -->|ไม่พบ| SleepJob["สิ้นสุดรอบ รอรอบถัดไป"]
-    ExpiredFound -->|พบ N รายการ| DeleteR2["ลบไฟล์ภาพต้นฉบับและภาพคอมโพสิตใน Cloudflare R2"]
+    CronStart(["Cron Job ทำงานอัตโนมัติทุกวันเวลา 00:00 น."]) --> Query["ค้นหารูปภาพที่มี CreatedAt เกิน 7 วันในฐานข้อมูล"]
+    Query --> CheckExpired{"พบรูปภาพที่หมดอายุหรือไม่?"}
 
-    DeleteR2 --> DeleteMetadata["ลบรหัส Short Code และ Session ในฐานข้อมูล"]
-    DeleteMetadata --> RecordRoPA["บันทึก Log การทำลายข้อมูลส่วนบุคคลตามกฎหมาย PDPA"]
-    RecordRoPA --> SleepJob
+    CheckExpired -->|ไม่พบ| CronEnd(["สิ้นสุดรอบการตรวจสอบ"])
+    CheckExpired -->|พบรูปหมดอายุ| DeleteCloud["ลบไฟล์ภาพต้นฉบับใน Cloudflare R2 Bucket"]
+
+    DeleteCloud --> DeleteMeta["ลบรหัส Short Code ออกจาก Metadata Store"]
+    DeleteMeta --> WriteLog["บันทึก RoPA Audit Log การลบทำลายข้อมูลตาม PDPA"]
+    WriteLog --> CronEnd
 ```
 
 ---
@@ -274,204 +250,201 @@ flowchart TD
 ## ส่วนที่ 4: ลำดับการทำงานของกระบวนการสำคัญ (Sequence Diagrams)
 
 ### 4.1 Sequence 01: Touchless Hand Gesture Capture & Countdown Loop
-ลำดับการทำงานเมื่อผู้ใช้ยกมือสั่งถ่ายภาพ:
+กระบวนการตรวจจับท่าทางมือแบบ Real-time:
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Visitor as ผู้ร่วมงาน (Visitor)
-    participant Camera as กล้อง USB 1080p
-    participant MediaPipe as MediaPipe Engine (WebGL)
-    participant Controller as Gesture Controller
-    participant UI as Kiosk UI Viewfinder
+    participant Cam as กล้อง USB Webcam
+    participant MP as MediaPipe Hand Landmarker (WebGL)
+    participant Debounce as Debounce Controller (1.5s)
+    participant UI as Kiosk Viewfinder UI
 
-    Visitor->>Camera: ยืนหน้ากล้อง และยกมือแบ 5 นิ้ว (Open Palm)
-    loop ทุก 16ms (60 FPS)
-        Camera->>MediaPipe: ส่ง Video Frame Stream (1080p)
-        MediaPipe->>MediaPipe: ตรวจจับ 21 Hand Landmarks
-        MediaPipe->>Controller: ส่งพิกัดตำแหน่งมือและแกนความลึก z
-        Controller->>Controller: กรองขนาดมือที่ใหญ่และใกล้ที่สุด (Depth Filter)
-        Controller->>Controller: ตรวจสอบท่าทาง Open Palm
+    Visitor->>Cam: ยืนหน้ากล้อง และยกมือแบ 5 นิ้ว (Open Palm)
+    loop ทุกๆ 16ms (60 FPS)
+        Cam->>MP: สตรีมเฟรมวิดีโอ 1080p
+        MP->>MP: คำนวณพิกัด 21 Hand Landmarks
+        MP->>Debounce: ส่งข้อมูลพิกัดมือ + ค่าความลึก z
+        Debounce->>Debounce: กรองเฉพาะมือที่ใหญ่และใกล้ที่สุด (Depth Filter)
+        Debounce->>Debounce: ตรวจสอบรูปทรงนิ้วมือ (Open Palm Heuristic)
         alt ท่าทางถูกต้องต่อเนื่อง
-            Controller->>Controller: นับเวลาสะสม (Hold Timer += delta)
-            Controller->>UI: อัปเดต Progress วงแหวนสีรอบมือ (0% -> 100%)
-        else มือหลุดเฟรม / ขยับเปลี่ยนท่า
-            Controller->>Controller: รีเซ็ต Hold Timer = 0
-            Controller->>UI: ล้าง Progress วงแหวน
+            Debounce->>Debounce: เพิ่มเวลาสะสม (HoldTime += deltaTime)
+            Debounce->>UI: ส่ง Progress วงแหวนนับรอบมือ (0% -> 100%)
+        else มือหลุดเฟรม หรือเปลี่ยนท่า
+            Debounce->>Debounce: ล้างเวลาสะสม HoldTime = 0
+            Debounce->>UI: รีเซ็ต Progress วงแหวนเป็น 0%
         end
     end
 
-    Note over Controller,UI: เมื่อ Hold Timer ครบ 1.5 วินาที
-    Controller->>UI: ส่งสัญญาณ Trigger: START_COUNTDOWN
-    UI->>Visitor: เล่นเสียง Beep + แสดงตัวเลข 3.. 2.. 1.. (ช่วงละ 1 วินาที)
-    UI->>Camera: สั่ง Freeze Frame ที่วินาทีที่ 0
-    UI->>Visitor: แสดง Effect จอขาว (White Flash) 100ms
+    Note over Debounce,UI: เมื่อ HoldTime สะสมครบ 1.5 วินาที
+    Debounce->>UI: ส่งสัญญาณ TRIGGER_CAPTURE
+    UI->>Visitor: เล่นเสียง Beep + แสดงตัวเลข 3.. 2.. 1.. บนหน้าจอ
+    UI->>Cam: สั่ง Freeze Frame ที่วินาทีที่ 0
+    UI->>Visitor: แสดงเอฟเฟกต์แฟลชจอขาว (Flash 100ms)
     UI->>UI: เปลี่ยนสถานะเป็น SHOW_PREVIEW
 ```
 
-### 4.2 Sequence 02: Image Capture, Preview & Retake Logic
-ลำดับการตัดสินใจว่าจะถ่ายใหม่หรือส่งออก QR Code:
+### 4.2 Sequence 02: Image Capture, Preview & 5-8s Retake Logic
+กระบวนการพรีวิวและการให้โอกาสถ่ายแก้ตัว:
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Visitor as ผู้ร่วมงาน (Visitor)
-    participant UI as Kiosk UI Viewfinder
-    participant CaptureEngine as Capture Engine
-    participant StorageBuffer as Local Buffer (SSD)
+    participant UI as Kiosk Viewfinder UI
+    participant Buffer as Local Disk Buffer (SSD)
+    participant State as Kiosk FSM Controller
 
-    CaptureEngine->>StorageBuffer: บันทึกภาพดิบ 1080p ลง Local Buffer ชั่วคราว
-    CaptureEngine->>UI: เรนเดอร์ภาพพรีวิวบนหน้าจอ
-    UI->>Visitor: แสดงภาพพรีวิว + ปุ่ม "ถ่ายใหม่ (Retake)" + เวลานับถอยหลัง 8.. 7.. 6..
+    UI->>Buffer: บันทึกภาพต้นฉบับ 1080p ลง Local Buffer ชั่วคราว
+    UI->>Visitor: แสดงภาพพรีวิวทันที + ปุ่ม "ถ่ายใหม่" + เวลานับถอยหลัง 8.. 7.. 6..
 
-    alt กรณีที่ 1: ผู้ใช้กดปุ่ม "ถ่ายใหม่" (ภายใน 8 วินาที)
+    alt ผู้ใช้กดปุ่ม "ถ่ายใหม่" (ภายใน 8 วินาที)
         Visitor->>UI: แตะปุ่ม "ถ่ายใหม่"
-        UI->>StorageBuffer: ยกเลิกภาพดิบเดิม
-        UI->>UI: รีเซ็ตสิทธิ์การถ่ายใหม่ (RetakeCount = 1)
-        UI->>Visitor: เริ่มนับถอยหลัง 3.. 2.. 1.. ถ่ายรอบใหม่ทันที
-    else กรณีที่ 2: ผู้ใช้ไม่กด หรือเวลานับถอยหลังหมดลง (Auto-Confirm)
-        UI->>UI: สิ้นสุดเวลา Retake
-        UI->>CaptureEngine: ยืนยันภาพถ่าย (CONFIRM_CAPTURE)
+        UI->>Buffer: ลบภาพเดิมใน Buffer ทิ้ง
+        UI->>State: อัปเดตสิทธิ์ RetakeUsed = true
+        UI->>Visitor: เริ่มนับถอยหลัง 3.. 2.. 1.. ถ่ายใหม่อีกครั้งทันที
+    else ผู้ใช้ไม่กด หรือเวลานับถอยหลังหมดลง (Auto-Confirm)
+        UI->>State: สิ้นสุดระยะเวลา Retake (CONFIRM_PHOTO)
         UI->>UI: เปลี่ยนสถานะเป็น GENERATING_QR
     end
 ```
 
 ### 4.3 Sequence 03: Storage Upload, Short Code & QR Generation (พร้อม Offline Fallback)
-แสดงความทนทานต่อเน็ตเวิร์ก หากเน็ตในงานดับ ตู้ต้องไม่หยุดทำงาน:
+การออกรหัสสั้นและการประกันความเสถียรกรณีเน็ตหลุด:
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant UI as Kiosk UI Screen
-    participant CodeGen as Short Code Generator
-    participant OfflineQueue as IndexedDB Buffer
+    participant UI as Kiosk Viewfinder UI
+    participant CodeEngine as Short Code Engine
+    participant LocalDB as Local IndexedDB Buffer
     participant SyncWorker as Background Sync Worker
     participant CloudAPI as Cloudflare R2 / Serverless API
 
-    UI->>CodeGen: ขอรหัสสั้นประจำรูปภาพ
-    CodeGen->>CodeGen: สุ่มรหัส 4 หลักที่ไม่ซ้ำ (เช่น SWU-7K9A)
-    CodeGen-->>UI: ส่งคืนรหัส SWU-7K9A และ URL: https://booth.swu.ac.th/p/SWU-7K9A
-    
-    UI->>UI: เรนเดอร์ QR Code และรหัส SWU-7K9A บนหน้าจอทันที (< 200ms)
-    UI->>OfflineQueue: บันทึกรูปภาพ + Metadata (SWU-7K9A) ลง Local Disk เครื่องตู้
+    UI->>CodeEngine: ขอรหัสสั้นประจำรูปภาพ
+    CodeEngine->>CodeEngine: สุ่มรหัส 4 หลัก (เช่น SWU-8821)
+    CodeEngine-->>UI: ส่งคืนรหัส SWU-8821 และ URL: https://booth.swu.ac.th/p/SWU-8821
 
-    Note over OfflineQueue,SyncWorker: กระบวนการอัปโหลดทำงานเบื้องหลัง (Background Worker)
-    SyncWorker->>OfflineQueue: ดึงรูปภาพที่รออัปโหลดจาก Queue
-    SyncWorker->>CloudAPI: ทำการอัปโหลดรูปภาพผ่าน POST /api/upload
+    UI->>UI: แสดง QR Code ขนาดใหญ่ + รหัส SWU-8821 บนจอทันที (< 200ms)
+    UI->>UI: เริ่มนับถอยหลังหน้าจอ 15-20 วินาที + แสดงปุ่ม "เสร็จสิ้น / คนถัดไป"
+    UI->>LocalDB: บันทึกภาพต้นฉบับ + Metadata ลงไดรฟ์เครื่องตู้
 
-    alt เน็ตปกติ (Online 200 OK)
-        CloudAPI-->>SyncWorker: อัปโหลดสำเร็จ (Uploaded: true)
-        SyncWorker->>OfflineQueue: ทำเครื่องหมายสถานะว่า Synced แล้ว
-    else เน็ตงานขัดข้อง / Timeout (Offline)
-        CloudAPI--xSyncWorker: ไม่สามารถเชื่อมต่อได้ (Network Error)
-        SyncWorker->>OfflineQueue: คงสถานะ Pending ไว้ในเครื่องตู้
-        SyncWorker->>SyncWorker: ตั้งเวลา Exponential Backoff Retry (5s, 10s, 30s)
-        Note over UI: หน้าตู้ยังคงให้บริการคนต่อไปได้ตามปกติ ไม่ค้าง!
+    Note over LocalDB,CloudAPI: การอัปโหลดทำงานเบื้องหลัง ไม่บล็อกหน้าจอ
+    SyncWorker->>LocalDB: ดึงภาพค้างส่งจากคิว
+    SyncWorker->>CloudAPI: เรียก POST /api/upload (Multipart Form)
+
+    alt อินเทอร์เน็ตปกติ (200 OK)
+        CloudAPI-->>SyncWorker: อัปโหลดเสร็จสมบูรณ์
+        SyncWorker->>LocalDB: อัปเดตสถานะเป็น SYNCED
+    else อินเทอร์เน็ตในงานขัดข้อง (Network Error)
+        CloudAPI--xSyncWorker: การเชื่อมต่อล้มเหลว (Offline)
+        SyncWorker->>LocalDB: คงสถานะ PENDING ในเครื่องตู้
+        SyncWorker->>SyncWorker: ตั้งเวลา Auto-retry แบบ Exponential Backoff
+        Note over UI: หน้าตู้ยังคงให้บริการคนต่อไปได้ตามปกติ รูปไม่สูญหาย!
     end
 ```
 
-### 4.4 Sequence 04: Mobile Customization (Color Grading + 3 Frame Templates + Download)
+### 4.4 Sequence 04: Mobile Customization (6 Presets + Brightness + 3 Frames + Download)
 ขั้นตอนการแต่งภาพบนสมาร์ตโฟนของผู้ใช้งาน:
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Visitor as ผู้ร่วมงาน (Visitor)
-    participant MobileBrowser as มือถือ (iOS Safari / Chrome)
-    participant CDN as Cloudflare R2 / Edge CDN
-    participant Canvas as HTML5 Canvas 2D
-    participant DeviceStorage as Camera Roll (มือถือ)
+    participant Browser as Mobile Browser (iOS Safari / Chrome)
+    participant CDN as Cloudflare Edge CDN / R2
+    participant Canvas as HTML5 Canvas 2D Engine
+    participant Gallery as Camera Roll / Gallery มือถือ
 
-    Visitor->>MobileBrowser: สแกน QR Code เข้าสู่ https://booth.swu.ac.th/p/SWU-7K9A
-    MobileBrowser->>CDN: ขอไฟล์ภาพต้นฉบับ /photos/original/SWU-7K9A.jpg
-    CDN-->>MobileBrowser: ส่งไฟล์ภาพความละเอียดสูง (1080p)
-    MobileBrowser->>Canvas: โหลดภาพลงใน Offscreen Canvas
+    Visitor->>Browser: สแกน QR Code เข้าสู่ https://booth.swu.ac.th/p/SWU-8821
+    Browser->>CDN: ดึงภาพถ่ายต้นฉบับ 1080p
+    CDN-->>Browser: ส่งคืนภาพถ่ายความละเอียดสูง
+    Browser->>Canvas: โหลดภาพลงใน Offscreen Canvas
 
     Note over Visitor,Canvas: ขั้นตอนที่ 1: การแต่งสีภาพ (Color Grading)
-    Visitor->>MobileBrowser: แตะเลือกฟิลเตอร์ (เช่น Rosy Bright) หรือเลื่อนปรับความสว่าง
-    MobileBrowser->>Canvas: คำนวณ Color Transform / LUT Matrix
-    Canvas-->>MobileBrowser: แสดงผลพรีวิวแบบเรียลไทม์ (Live Preview < 16ms)
+    Visitor->>Browser: แตะเลือกฟิลเตอร์พรีเซ็ต (เช่น Rosy Bright) หรือเลื่อนปรับสว่าง
+    Browser->>Canvas: คำนวณ Color Transform Matrix
+    Canvas-->>Browser: อัปเดตภาพพรีวิวสดแบบเรียลไทม์ (Live Preview < 16ms)
+    Visitor->>Browser: กดปุ่ม "ถัดไป: เลือกกรอบรูป"
 
-    Visitor->>MobileBrowser: แตะปุ่ม "ถัดไป: เลือกกรอบรูป"
+    Note over Visitor,Canvas: ขั้นตอนที่ 2: การเลือก 1 ใน 3 กรอบรูป มศว
+    Browser->>CDN: โหลดไฟล์กรอบรูป PNG โปร่งใสทั้ง 3 แบบ
+    Visitor->>Browser: แตะเลือก "Template 01: ลายทางการ มศว สีแดง-ขาว"
+    Browser->>Canvas: วาดภาพถ่ายซ้อนใต้เลเยอร์กรอบรูป PNG (Alpha Blending)
+    Canvas-->>Browser: แสดงภาพคอมโพสิตที่ผสานเสร็จสมบูรณ์
 
-    Note over Visitor,Canvas: ขั้นตอนที่ 2: การเลือกกรอบรูป 3 แบบ (Frame Layering)
-    MobileBrowser->>CDN: ดึงกราฟิกกรอบ PNG โปร่งใสทั้ง 3 แบบ
-    Visitor->>MobileBrowser: แตะเลือก "Template 02: ลายเปิดบ้าน มศว สดใส"
-    MobileBrowser->>Canvas: วาดภาพถ่ายใต้เลเยอร์กรอบรูป PNG (Alpha Blending)
-    Canvas-->>MobileBrowser: แสดงภาพคอมโพสิตที่ผสานเสร็จสมบูรณ์
-
-    Note over Visitor,DeviceStorage: ขั้นตอนที่ 3: การส่งออกและดาวน์โหลด (Export)
-    Visitor->>MobileBrowser: แตะปุ่ม "ดาวน์โหลดรูปภาพ (Save Photo)"
-    Canvas->>Canvas: แปลง Canvas เป็น Blob (image/webp หรือ image/jpeg คุณภาพ 0.92)
-    MobileBrowser->>DeviceStorage: บันทึกไฟล์ภาพลงใน Photos / Gallery ของมือถือ
-    MobileBrowser->>Visitor: แสดงข้อความแจ้งเตือน "บันทึกภาพสำเร็จ!"
+    Note over Visitor,Gallery: ขั้นตอนที่ 3: การบันทึกภาพลงเครื่อง
+    Visitor->>Browser: กดปุ่ม "ดาวน์โหลดรูปภาพ (Save Photo)"
+    Canvas->>Canvas: แปลง Canvas เป็น Blob (WebP / JPEG คุณภาพ 0.92)
+    Browser->>Gallery: สั่งบันทึกไฟล์ภาพลงใน Camera Roll ของมือถือ
+    Browser->>Visitor: แสดงข้อความ "บันทึกภาพสำเร็จ พร้อมแชร์ลง IG Story!"
 ```
 
-### 4.5 Sequence 05: Retroactive Photo Retrieval (`/find`) & Open House Verification
-กรณีที่ผู้ใช้ไม่ได้สแกนทันที แต่นำรหัสมากรอกย้อนหลัง:
+### 4.5 Sequence 05: Retroactive Photo Retrieval (`/find`) & 7-Day Expiry Check
+การค้นหาภาพถ่ายย้อนหลังด้วยรหัส 6 หลัก:
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Visitor as ผู้ร่วมงาน (Visitor)
-    participant Browser as Web Browser (/find)
+    participant Web as Web Browser (/find)
     participant API as /api/photo/[code]
-    participant KV as Metadata Cache
-    participant R2 as Cloudflare R2
+    participant KV as Short Code Metadata Store
+    participant R2 as Cloudflare R2 Storage
 
-    Visitor->>Browser: เข้าเว็บ https://booth.swu.ac.th/find และพิมพ์รหัส "SWU-7K9A"
-    Browser->>API: ส่งคำขอ GET /api/photo/SWU-7K9A
-    API->>KV: ค้นหาข้อมูลรหัส SWU-7K9A
+    Visitor->>Web: เข้าเว็บ https://booth.swu.ac.th/find และพิมพ์รหัส "SWU-8821"
+    Web->>API: ส่งคำขอ GET /api/photo/SWU-8821
+    API->>KV: ค้นหารหัส SWU-8821
 
-    alt รหัสถูกต้องและยังไม่หมดอายุ 7 วัน
-        KV-->>API: พบข้อมูล (CreatedAt: 2026-11-07, FileKey: photos/...)
-        API-->>Browser: ส่งคืนสถานะ 200 OK + CDN URL
-        Browser->>Visitor: เปลี่ยนหน้าจอไปที่ /p/SWU-7K9A เพื่อแต่งรูปและดาวน์โหลดทันที
+    alt รหัสถูกต้องและอายุภาพยังไม่เกิน 7 วัน
+        KV-->>API: พบข้อมูล (CreatedAt: 2026-11-07, FilePath: photos/...)
+        API-->>Web: ส่งคืนสถานะ 200 OK พร้อม CDN Image URL
+        Web->>Visitor: เปิดหน้าจอแต่งภาพ /p/SWU-8821 ให้เลือกกรอบและดาวน์โหลดได้ทันที
     else รหัสไม่ถูกต้อง หรือเกิน 7 วัน (ถูกลบตาม PDPA แล้ว)
-        KV-->>API: ไม่พบข้อมูล (Null / Expired)
-        API-->>Browser: ส่งคืนสถานะ 404 Not Found
-        Browser->>Visitor: แสดงข้อความแจ้งเตือน "ไม่พบรหัสภาพ หรือภาพถ่ายหมดอายุแล้ว (เกิน 7 วัน)"
+        KV-->>API: ไม่พบข้อมูล หรือข้อมูลหมดอายุแล้ว
+        API-->>Web: ส่งคืนสถานะ 404 Not Found
+        Web->>Visitor: แสดงข้อความแจ้งเตือน "ไม่พบรหัสภาพ หรือภาพถ่ายหมดอายุแล้ว (เกิน 7 วัน)"
     end
 ```
 
 ### 4.6 Sequence 06: Staff PIN Authentication & Remote Kiosk Control
-การเข้าควบคุมระบบของสตาฟ:
+การยืนยันตัวตนและการเข้าควบคุมตู้ของสตาฟ:
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Staff as สตาฟประจำบูท
-    participant KioskUI as หน้าจอ Kiosk
-    participant StaffModal as Staff Modal
-    participant Backend as Admin API
-    participant WebSocket as WebSocket / SSE Bus
+    participant Kiosk as หน้าจอ Kiosk
+    participant Modal as Staff PIN Modal
+    participant API as /api/admin/*
+    participant FSM as Kiosk FSM Engine
 
-    Staff->>KioskUI: แตะโลโก้ มศว มุมซ้ายบน 5 ครั้งติดกัน
-    KioskUI->>StaffModal: เปิดหน้าต่างลับ Staff PIN Modal
-    Staff->>StaffModal: กรอกรหัส PIN "8821"
-    StaffModal->>Backend: ตรวจสอบความถูกต้องของ PIN
-    
+    Staff->>Kiosk: แตะโลโก้ มศว 5 ครั้งติดกัน (หรือกด Ctrl+Shift+A)
+    Kiosk->>Modal: แสดงหน้าต่างลับกรอกรหัส PIN
+    Staff->>Modal: กรอกรหัส PIN "8821"
+    Modal->>API: ส่งคำขอตรวจสอบ POST /api/admin/auth { pin: "8821" }
+
     alt PIN ถูกต้อง
-        Backend-->>StaffModal: 200 OK (Auth Success)
-        StaffModal->>Staff: แสดงเมนูควบคุม (สลับกล้อง, รีเซ็ตตู้, บังคับซิงค์)
-        Staff->>StaffModal: กดปุ่ม "รีเซ็ตตู้ (Emergency Reset)"
-        StaffModal->>KioskUI: สั่งเคลียร์ State ทั้งหมด กลับสู่สถานะ IDLE พร้อมใช้งาน
-    else PIN ผิดเกิน 5 ครั้ง
-        Backend-->>StaffModal: 429 Too Many Requests (Lockout 60s)
-        StaffModal->>Staff: ล็อกหน้าจอชั่วคราว ป้องกันการสุ่มรหัส
+        API-->>Modal: 200 OK (Authorized)
+        Modal->>Staff: แสดงแผงเมนูควบคุม (สลับกล้อง, รีเซ็ตตู้, บังคับซิงค์)
+        Staff->>Modal: แตะปุ่ม "รีเซ็ตตู้ทันที (Emergency Reset)"
+        Modal->>FSM: ส่งคำสั่ง FORCE_RESET
+        FSM->>Kiosk: ล้างหน่วยความจำชั่วคราวทั้งหมด และกลับสู่สถานะ IDLE พร้อมรับคิวต่อไป
+    else PIN ไม่ถูกต้องเกิน 5 ครั้ง
+        API-->>Modal: 429 Too Many Requests (Lockout 60s)
+        Modal->>Staff: ล็อกการกรอกรหัส 1 นาทีเพื่อความปลอดภัย
     end
 ```
 
 ---
 
-## ส่วนที่ 5: การจัดการข้อผิดพลาดและข้อยกเว้น (Error Handling & Edge Cases)
+## ส่วนที่ 5: การจัดการข้อผิดพลาดและข้อยกเว้น (Fault Matrix & Error Handling)
 
-ตารางสรุปพฤติกรรมของระบบเมื่อเกิดเหตุการณ์ผิดปกติ (Fault Matrix):
-
-| เหตุการณ์ผิดปกติ (Failure Event) | ผลกระทบที่อาจเกิดขึ้น | กลไกการตรวจจับและการจัดการ (Handling Mechanism) | พฤติกรรมที่ผู้ใช้เห็นบนหน้าจอ |
+| สถานการณ์ขัดข้อง (Fault Scenario) | ผลกระทบที่เกิดขึ้น | วิธีการตรวจจับและการจัดการ (Detection & Recovery) | การแสดงผลที่ผู้ใช้เห็น |
 | :--- | :--- | :--- | :--- |
-| **1. กล้อง USB หลุด หรือสายหลวม** | หน้าจอ Viewfinder มืดดำ ตู้ถ่ายรูปไม่ได้ | เบราว์เซอร์ตรวจพบ `track.onended` หรือ `devicechange` event | หน้าจอแสดงป้ายสีส้ม: *"กล้องขัดข้อง กรุณาแจ้งเจ้าหน้าที่สตาฟ"* พร้อมส่งเสียงเตือนสตาฟ |
-| **2. ผู้ใช้เดินหนีขณะนับถอยหลัง** | กล้องถ่ายรูปพื้นที่ว่างเปล่า ค้างที่หน้าพรีวิว | จับเวลา Timeout ในหน้าพรีวิว 8 วินาที | หากไม่มีใครกดถ่ายใหม่ ระบบจะข้ามไปหน้า QR Code 5 วินาทีแล้วรีเซ็ตกลับหน้าแรกเองอัตโนมัติ |
-| **3. สัญญาณอินเทอร์เน็ตในงานดับ** | อัปโหลดรูปขึ้นคลาวด์ไม่ได้ | API Fetch โยนข้อผิดพลาด `TypeError: Failed to fetch` | ระบบจะสวิตช์เข้าสู่ **โหมด Offline อัตโนมัติ**: บันทึกลงไดรฟ์ตู้ โชว์ QR Code ทันที และมี Sync Queue คอย Retry |
-| **4. แสงไฟในบูทมืดเกินไป** | MediaPipe ตรวจจับข้อต่อนิ้วมือไม่ติด | Confidence Score ของ Landmarks < 0.6 ติดต่อกันเกิน 3 วินาที | แสดงปุ่มขนาดใหญ่บนหน้าจอ: *"แตะตรงนี้เพื่อถ่ายรูป (Tap to capture)"* เป็นทางเลือกสำรอง |
-| **5. เบราว์เซอร์มือถือน้องแบตหมดขณะแต่งภาพ** | ภาพที่กำลังแต่งสีอาจสูญหาย | การแต่งสีทั้งหมดทำแบบ Stateless บนมือถือ | น้องสามารถเปิดลิงก์เดิมบนมือถือเพื่อน หรือเข้า `/find` เพื่อแต่งภาพใหม่ได้ตลอด 7 วัน |
+| **1. กล้อง USB หลุด หรือสายหลวม** | หน้าจอ Viewfinder มืดดำ | ดักจับ WebRTC `track.onended` event | แสดงหน้าจอแจ้งเตือนสีส้ม: *"กล้องขัดข้อง กำลังเชื่อมต่อใหม่..."* พร้อมแจ้งเตือนสตาฟ |
+| **2. ผู้ใช้เดินหนีหลังถ่ายเสร็จ** | ตู้ค้างที่หน้าพรีวิว | ตัวนับถอยหลัง Timeout 8 วินาทีในหน้าพรีวิว | หมดเวลา 8 วิ จะข้ามไปแสดง QR Code 15 วินาที แล้วรีเซ็ตกลับหน้าแรกเองโดยอัตโนมัติ |
+| **3. สัญญาณ Wi-Fi ในฮอลล์ดับ** | อัปโหลดขึ้น Cloudflare R2 ไม่ได้ | API Fetch โยนข้อผิดพลาด `NetworkError` | สวิตช์เข้าสู่ **Offline Mode**: บันทึกลงไดรฟ์ตู้ โชว์ QR Code ทันที และมี Sync Queue คอยอัปโหลดเมื่อเน็ตมา |
+| **4. แสงไฟในบูทมืดเกินไป** | MediaPipe จับข้อมือไม่ติด | Landmark Detection Confidence < 0.6 ติดต่อกัน 3 วินาที | แสดงปุ่มขนาดใหญ่บนหน้าจอ: *"แตะตรงนี้เพื่อถ่ายรูป (Tap to capture)"* เป็นทางเลือกสำรอง |
+| **5. สแกน QR ไม่ทันใน 15 วินาที** | หน้าจอตู้รีเซ็ตกลับหน้าแรกแล้ว | สื่อสารให้ผู้ใช้ถ่ายรูปหน้าจอไว้ล่วงหน้า | ผู้ใช้สามารถนำรหัส 6 หลักบนหน้าจอไปกรอกในหน้า `/find` เพื่อโหลดรูปได้ตลอด 7 วัน |
