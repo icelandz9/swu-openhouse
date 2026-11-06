@@ -81,9 +81,10 @@
 ### 2.3 User Stories & Acceptance Scenarios
 * **US-01 (Touchless Capture)**: ในฐานะผู้ร่วมงาน ฉันต้องการยกฝ่ามือเพื่อสั่งถ่ายภาพ เพื่อให้ได้ประสบการณ์ถ่ายรูปที่ล้ำสมัยและไม่ต้องสัมผัสหน้าจอ
 * **US-02 (Retake)**: ในฐานะผู้ร่วมงาน หากฉันกระพริบตา ฉันต้องการกดปุ่มถ่ายใหม่ได้ 1 ครั้งภายในเวลา 5–8 วินาที เพื่อให้ได้ภาพที่พอใจ
-* **US-03 (Mobile Customization)**: ในฐานะผู้ร่วมงาน ฉันต้องการสแกน QR เพื่อไปเลือกฟิลเตอร์แต่งสีและเลือกกรอบรูป 3 แบบบนมือถือของฉันเอง เพื่อจะได้ไม่ต้องรีบและไม่ยืนขวางคิวคนอื่น
-* **US-04 (Retroactive Retrieval)**: ในฐานะผู้ร่วมงาน หากฉันไม่ได้สแกน QR ทันที ฉันต้องการนำรหัสสั้น 6 หลักมากรอกดาวน์โหลดภาพที่บ้านได้ภายใน 7 วัน
+* **US-03 (Mobile Customization)**: ในฐานะผู้ร่วมงาน ฉันต้องการสแกน QR บนหน้าตู้เพื่อไปเลือกฟิลเตอร์แต่งสีและเลือกกรอบรูป 3 แบบบนมือถือของฉันเอง เพื่อจะได้ไม่ต้องรีบและไม่ยืนขวางคิวคนอื่น
+* **US-04 (Mobile Code Retention)**: ในฐานะผู้ร่วมงาน เมื่อสแกนเข้าเว็บมือถือแล้ว ฉันต้องการเห็นรหัสสั้น `OPH-XXXX` บนหัวเว็บอย่างชัดเจน เพื่อบันทึกหรือจำรหัสไว้ค้นหาภาพย้อนหลังผ่านหน้า `/find` ได้ตลอด 7 วัน
 * **US-05 (Staff Management)**: ในฐานะสตาฟ ฉันต้องการกรอก PIN เพื่อเข้าระบบจัดการหน้าตู้ได้ทันทีเมื่อเกิดเหตุขัดข้อง
+* **US-06 (Staff QR Re-Issue)**: ในฐานะผู้ร่วมงาน หากฉันสแกน QR ที่หน้าตู้ไม่ทัน ฉันต้องการเดินไปหาพี่สตาฟที่บูท เพื่อให้สตาฟเปิดดูรูปตามเวลาที่ถ่ายแล้วออก QR Code ให้ฉันสแกนใหม่ได้ทันที
 
 ---
 
@@ -119,14 +120,16 @@
   3. หากผู้ใช้กดถ่ายใหม่: ยกเลิกภาพเดิมแล้วเริ่มขั้นตอนนับถอยหลังถ่ายใหม่ (ทำได้รอบเดียว)
   4. หากหมดเวลาโดยไม่กดถ่ายใหม่: ระบบเปลี่ยนเข้าสู่หน้าจอแสดง QR Code อัตโนมัติ
 
-### FR-05: การสร้าง Short Code และ QR Code (Short Code & QR Payload Engine)
+### FR-05: การสร้างรหัส OPH-XXXX และ QR Code (Short Code & Clean QR Engine)
 * **Input**: สัญญาณยืนยันภาพถ่าย (เมื่อหมดเวลา Retake หรือกดตกลง)
 * **Process**:
-  1. สุ่มรหัสสั้น 4 ตัวอักษรที่ไม่ซ้ำกันจากพยัญชนะ `A-Z` และตัวเลข `2-9` (ตัด `0, O, 1, I` ออก)
-  2. สร้างรหัสในรูปแบบ `SWU-XXXX`
-  3. สร้าง QR Code ชี้ไปยัง URL: `https://<domain>/p/SWU-XXXX`
+  1. สุ่มรหัสสั้น 4 ตัวอักษรที่ไม่ซ้ำกันจากพยัญชนะ `A-Z` และตัวเลข `2-9` (ตัด `0, O, 1, I` ออกเพื่อป้องกันความสับสน)
+  2. สร้างรหัสในรูปแบบ `OPH-XXXX` (เช่น `OPH-8821`)
+  3. สร้าง QR Code ชี้ไปยัง URL: `https://<domain>/p/OPH-XXXX`
   4. บันทึกภาพต้นฉบับลง Local SSD พร้อมทั้ง Queue อัปโหลดไปยัง Cloudflare R2
-* **Output**: QR Code SVG/Canvas แสดงบนหน้าจอตู้ขนาดไม่ต่ำกว่า 300x300 px พร้อมรหัสตัวพิมพ์ใหญ่ชัดเจน
+* **Display Policy (ข้อกำหนดการแสดงผล)**:
+  - **หน้าจอตู้ Kiosk**: แสดง **เฉพาะ QR Code ขนาดใหญ่** (SVG/Canvas ไม่ต่ำกว่า 320x320 px) พร้อมเวลานับถอยหลัง 15–20 วินาที และปุ่ม "คนถัดไป (Next)" **โดยไม่แสดงรหัสตัวอักษร Short Code บนหน้าจอตู้** เพื่อความสะอาด เรียบง่าย และกระตุ้นให้สแกนทันที
+  - **หน้าจอมือถือของผู้ใช้ (`/p/OPH-XXXX`)**: แสดงรหัส `OPH-XXXX` อย่างเด่นชัดบน Header Banner ของหน้าแต่งภาพ เพื่อให้น้องบันทึก/จดจำไว้ใช้ดึงรูปย้อนหลัง
 
 ### FR-06: การสลับภาษาหน้าจอ (Localization Engine)
 * **Input**: การแตะสวิตช์ `TH | EN` มุมขวาบนของหน้าจอ
@@ -156,7 +159,7 @@
 * **Output**: สั่งบันทึกไฟล์ภาพลงใน Camera Roll (iOS Photos / Android Gallery)
 
 ### FR-10: การค้นหารูปภาพย้อนหลัง (Retroactive Photo Lookup Portal)
-* **Input**: ผู้ใช้เปิดหน้าเว็บ `https://<domain>/find` และกรอกรหัส `SWU-XXXX`
+* **Input**: ผู้ใช้เปิดหน้าเว็บ `https://<domain>/find` และกรอกรหัส `OPH-XXXX` (ที่ดูได้จากหัวเว็บมือถือ)
 * **Process**: ตรวจสอบความถูกต้องของรหัส และดึงข้อมูลรูปภาพจาก Storage หากยังไม่หมดอายุ 7 วัน
 * **Output**: เปิดหน้าตกแต่งภาพ/ดาวน์โหลดของรหัสนั้นขึ้นมาทันที
 
@@ -164,6 +167,15 @@
 * **Input**: แตะโลโก้ มศว 5 ครั้งบนหน้าตู้ หรือเข้าหน้าเว็บ `/admin` จากมือถือ และกรอกรหัส PIN 4–6 หลัก
 * **Process**: ตรวจสอบความถูกต้องของรหัส PIN เทียบกับ Environment Variable `STAFF_PIN`
 * **Output**: ปลดล็อกหน้าควบคุม: ดูยอดคนถ่าย, สลับกล้อง, สั่งรีเซ็ตตู้กลับสู่หน้าแรก, และตรวจสอบสถานะ Sync
+
+### FR-12: ระบบหลังบ้านสตาฟสำหรับการยิง QR ย้อนหลัง (Staff Recent Captures & QR Re-issue Portal)
+* **Input**: สตาฟล็อกอินเข้าแดชบอร์ด `/admin` และเลือกแท็บ "Recent Captures" เมื่อมีน้องเดินมาขอ QR ย้อนหลัง
+* **Process**:
+  1. สตาฟสอบถามเวลาที่น้องถ่ายโดยประมาณ (เช่น 14:32 น.)
+  2. แดชบอร์ดแสดงแกลเลอรีภาพถ่ายล่าสุดเรียงตาม Timestamp จากใหม่ไปเก่า
+  3. สตาฟแตะที่รูปภาพที่ตรงกัน ระบบเปิดหน้าต่างพรีวิวขนาดใหญ่พร้อมปุ่ม "แสดง QR Code"
+  4. ระบบ Render QR Code พร้อมรหัส `OPH-XXXX` ขนาดเต็มหน้าจอให้น้องนำมือถือมายิงสแกนได้ทันที
+* **Output**: QR Code สดสำหรับภาพถ่ายนั้นๆ ให้น้องสแกนเข้า `/p/OPH-XXXX` บนมือถือได้สำเร็จ แม้หน้าจอตู้จะผ่านไปแล้ว
 
 ---
 
@@ -218,13 +230,14 @@ mindmap
 | **FR-02** | แบมือ 5 นิ้วค้าง 1.5 วิเพื่อสั่งถ่ายภาพ | `GestureRecognizer.ts` | Unit Test Keypoint Logic | `TC-02` |
 | **FR-03** | แอนิเมชันนับถอยหลัง 3..2..1.. และ Flash | `CountdownOverlay.tsx` | Visual Animation Inspection | `TC-03` |
 | **FR-04** | แสดงพรีวิว + ปุ่มถ่ายใหม่จำกัดเวลา 5–8 วิ | `RetakeTimerModal.tsx` | Timer Countdown Verification | `TC-04` |
-| **FR-05** | ออกรหัส `SWU-XXXX` และสร้าง QR Code | `QRCodeGenerator.ts` | Regex & URL Routing Test | `TC-05` |
+| **FR-05** | ออกรหัส `OPH-XXXX` + หน้าตู้แสดงเฉพาะ QR Code สะอาดตา | `QRCodeGenerator.ts` | Regex & URL Routing Test | `TC-05` |
 | **FR-06** | สลับภาษาหน้าจอ ไทย / อังกฤษ | `LanguageToggle.tsx` | UI Locale Switching Test | `TC-06` |
 | **FR-07** | แต่งสีภาพ 6 พรีเซ็ต + แถบ Brightness บนมือถือ | `MobileColorFilter.tsx` | Canvas Pixel Manipulation Test | `TC-07` |
 | **FR-08** | เลือกกรอบเทมเพลต มศว 3 แบบบนมือถือ | `FrameTemplateSelector.tsx` | Alpha Layer Blending Test | `TC-08` |
 | **FR-09** | ดาวน์โหลดรูปคอมโพสิตลง Camera Roll | `DownloadButton.tsx` | Device File Download Test | `TC-09` |
-| **FR-10** | ค้นหารูปภาพย้อนหลัง 7 วันผ่านหน้า `/find` | `PhotoFinderPage.tsx` | Search Query & Retrieval Test | `TC-10` |
+| **FR-10** | ค้นหารูปภาพย้อนหลัง 7 วันผ่านหน้า `/find` ด้วยรหัส `OPH-XXXX` | `PhotoFinderPage.tsx` | Search Query & Retrieval Test | `TC-10` |
 | **FR-11** | Staff Modal บนตู้ + หน้า `/admin` ด้วย PIN | `StaffAdminModal.tsx` | PIN Authentication Guard Test | `TC-11` |
+| **FR-12** | แดชบอร์ดสตาฟ Recent Captures Timeline + ออก QR ย้อนหลัง | `StaffRecentCaptures.tsx` | Timeline Query & Modal Re-issue Test | `TC-16` |
 | **NFR-01** | Inference เฟรมเรต >= 30–60 FPS | `MediaPipeEngine` | Chrome Performance Monitor | `TC-12` |
 | **NFR-02** | ความเร็วประมวลผลกล้องถึง QR < 1.0s | `CaptureWorkflow` | Timestamp Benchmark Profile | `TC-13` |
 | **NFR-04** | ถ่ายและบันทึกออฟไลน์ได้เมื่อเน็ตหลุด | `LocalStorageQueue` | Network Disconnect Simulation | `TC-14` |

@@ -98,7 +98,7 @@ flowchart TD
   2. ดำเนินการทดสอบ Proof of Concept (PoC) จุดเสี่ยง 4 ประเด็น:
      - การจำแนกท่ามือ (Landmark Geometric Heuristics)
      - กลไก Debounce & 1.5s Hold Duration ป้องกันการลั่น
-     - การสร้าง Short Code 6 หลัก (`SWU-XXXX`) และ QR URL
+     - การสร้าง Short Code (`OPH-XXXX`) และ QR URL
      - ระบบตรวจสอบอายุภาพถ่ายตามหลัก PDPA 7-day TTL
   3. เคาะสถาปัตยกรรมระบบ (เปรียบเทียบ Next.js vs Go) และประเมินงบประมาณ (BOM Hardware + BOQ Cloud 0 บาท)
 - **สิ่งที่ต้องส่งมอบ (Deliverables)**:
@@ -279,14 +279,16 @@ flowchart TD
 - **สถานะ**: 🔲 To Do
 - **เป้าหมาย**: พัฒนาระบบสร้าง Short Code, QR Code และหน้าเว็บดาวน์โหลด/ปรับแต่งภาพบนมือถือ
 - **รายละเอียดงาน**:
-  1. พัฒนาโมดูลสร้าง Short Code 6 หลัก (`SWU-XXXX`) ที่ไม่ซ้ำกัน
+  1. พัฒนาโมดูลสร้าง Short Code (`OPH-XXXX`) ที่ไม่ซ้ำกัน และหน้าตู้แสดงเฉพาะ QR Code สะอาดตา (รหัสแสดงบนมือถือ)
   2. พัฒนาระบบเรนเดอร์ QR Code นำทางสู่ `https://<domain>/p/<short_code>`
   3. พัฒนาหน้าเว็บ Responsive บนมือถือ (`/p/[code]`):
+     - แสดงรหัส `OPH-XXXX` เด่นชัดที่หัวเว็บ
      - แสดงภาพความละเอียดสูง
-     - สลับเลือกฟิลเตอร์สี และเปลี่ยนกรอบลายคณะต่างๆ
+     - สลับเลือกฟิลเตอร์สี และเปลี่ยนกรอบ 3 แบบ
      - ปุ่มดาวน์โหลดภาพความละเอียดสูงลง Camera Roll
-  4. พัฒนาหน้าค้นหาภาพย้อนหลัง (`/find`) ด้วยรหัส 6 หลัก
-  5. พัฒนาระบบ Background Sync อัปโหลดภาพขึ้น Cloudflare R2 / Supabase Storage
+  4. พัฒนาหน้าค้นหาภาพย้อนหลัง (`/find`) ด้วยรหัส `OPH-XXXX`
+  5. พัฒนาระบบแดชบอร์ดสตาฟ `/admin` Recent Captures Timeline สำหรับออก QR ย้อนหลัง
+  6. พัฒนาระบบ Background Sync อัปโหลดภาพขึ้น Cloudflare R2 / Supabase Storage
 - **สิ่งที่ต้องส่งมอบ (Deliverables)**:
   - Mobile Portal Source Code (`/src/app/p/[code]` และ `/src/app/find`)
   - Storage Sync Worker & QR Generator Module
