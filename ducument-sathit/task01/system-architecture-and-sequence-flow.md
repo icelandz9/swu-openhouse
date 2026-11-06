@@ -166,37 +166,37 @@ flowchart TD
     Start(["เดินเข้าสู่บูท Photo Booth"]) --> Front["ยืนหน้ากล้อง 1080p ในระยะ 1.5 เมตร"]
     Front --> ChooseTrigger{"เลือกวิธีสั่งถ่ายภาพ"}
     
-    ChooseTrigger -->|วิธีที่ 1 (หลัก)| PalmPose["แบมือ 5 นิ้ว (Open Palm) เข้าหากล้อง"]
-    ChooseTrigger -->|วิธีที่ 2 (สำรอง)| TouchTap["แตะปุ่ม 'แตะเพื่อถ่าย' บนหน้าจอ"]
+    ChooseTrigger -->|"วิธีที่ 1 ท่าหลัก"| PalmPose["แบมือ 5 นิ้ว Open Palm เข้าหากล้อง"]
+    ChooseTrigger -->|"วิธีที่ 2 แตะจอสำรอง"| TouchTap["แตะปุ่ม แตะเพื่อถ่าย บนหน้าจอ"]
 
-    PalmPose --> HoldCheck{"ทำท่ามือค้างต่อเนื่อง<br>ครบ 1.5 วินาทีหรือไม่?"}
-    HoldCheck -->|คนเดินผ่าน / ชักมือกลับ| ResetIdle["ยกเลิกการนับ กลับสู่หน้าพร้อมถ่าย (Idle)"]
+    PalmPose --> HoldCheck{"ทำท่ามือค้างต่อเนื่อง ครบ 1.5 วินาทีหรือไม่"}
+    HoldCheck -->|"คนเดินผ่าน หรือชักมือกลับ"| ResetIdle["ยกเลิกการนับ กลับสู่หน้าพร้อมถ่าย Idle"]
     ResetIdle --> Front
-    HoldCheck -->|ครบ 1.5 วินาที| StartTimer["เริ่มนับถอยหลัง 3.. 2.. 1.. พร้อมเสียง Beep"]
+    HoldCheck -->|"ครบ 1.5 วินาที"| StartTimer["เริ่มนับถอยหลัง 3.. 2.. 1.. พร้อมเสียง Beep"]
     TouchTap --> StartTimer
 
-    StartTimer --> Flash["แชะ! หน้าจอกะพริบขาว 100ms และบันทึกภาพ"]
-    Flash --> Preview["แสดงภาพพรีวิวทันที + ปุ่ม 'ถ่ายใหม่' (นับถอยหลัง 8 วิ)"]
+    StartTimer --> Flash["แชะ หน้าจอกะพริบขาว 100ms และบันทึกภาพ"]
+    Flash --> Preview["แสดงภาพพรีวิวทันที และปุ่มถ่ายใหม่ นับถอยหลัง 8 วิ"]
 
-    Preview --> RetakeCheck{"ต้องการถ่ายใหม่หรือไม่?"}
-    RetakeCheck -->|กดถ่ายใหม่ (สิทธิ์ 1 ครั้ง)| StartTimer
-    RetakeCheck -->|ไม่กด / ปล่อยเวลาหมด 8 วิ| GenQR["สร้าง Short Code (SWU-XXXX) และแสดง QR Code"]
+    Preview --> RetakeCheck{"ต้องการถ่ายใหม่หรือไม่"}
+    RetakeCheck -->|"กดถ่ายใหม่ สิทธิ์ 1 ครั้ง"| StartTimer
+    RetakeCheck -->|"ไม่กด หรือปล่อยเวลาหมด 8 วิ"| GenQR["สร้าง Short Code SWU-XXXX และแสดง QR Code"]
 
-    GenQR --> ShowQRScreen["หน้าจอแสดง QR Code ขนาดใหญ่ + รหัส SWU-XXXX<br>(นับถอยหลัง 15-20 วิ + ปุ่ม 'คนถัดไป')"]
+    GenQR --> ShowQRScreen["หน้าจอแสดง QR Code ขนาดใหญ่ และรหัส SWU-XXXX นับถอยหลัง 15-20 วิ และปุ่มคนถัดไป"]
 
-    ShowQRScreen --> VisitorAction{"ผู้ใช้งานดำเนินการอย่างไร?"}
-    VisitorAction -->|สแกนด้วยมือถือทันที| ScanQR["เปิดเว็บเบราว์เซอร์บนมือถือ (/p/SWU-XXXX)"]
-    VisitorAction -->|ถ่ายรูปหน้าจอเก็บไว้| SnapCode["ถ่ายรูปหน้าจอที่มีรหัส SWU-XXXX ไว้"]
-    VisitorAction -->|กดปุ่ม 'คนถัดไป'| DoneKiosk["ตู้พร้อมให้บริการคิวถัดไปทันที (ใช้เวลาหน้าตู้ ~30 วิ)"]
+    ShowQRScreen --> VisitorAction{"ผู้ใช้งานดำเนินการอย่างไร"}
+    VisitorAction -->|"สแกนด้วยมือถือทันที"| ScanQR["เปิดเว็บเบราว์เซอร์บนมือถือ /p/SWU-XXXX"]
+    VisitorAction -->|"ถ่ายรูปหน้าจอเก็บไว้"| SnapCode["ถ่ายรูปหน้าจอที่มีรหัส SWU-XXXX ไว้"]
+    VisitorAction -->|"กดปุ่ม คนถัดไป"| DoneKiosk["ตู้พร้อมให้บริการคิวถัดไปทันที ใช้เวลาหน้าตู้ประมาณ 30 วิ"]
 
     SnapCode --> LaterVisit["กลับบ้านเปิดเว็บ /find ภายใน 7 วัน แล้วกรอกรหัส"]
     LaterVisit --> ScanQR
 
-    subgraph MobileExperience["ขั้นตอนแต่งภาพบนมือถือของผู้ใช้ (ไม่ขวางคิวตู้)"]
-        ScanQR --> Step1["ขั้นตอนที่ 1 (แต่งสี): แตะเลือก 1 ใน 6 พรีเซ็ต หรือปรับ Brightness Slider"]
-        Step1 --> Step2["ขั้นตอนที่ 2 (เลือกกรอบ): สลับเลือก 1 ใน 3 กรอบรูป มศว"]
-        Step2 --> Step3["ขั้นตอนที่ 3 (ดาวน์โหลด): กดปุ่ม 'บันทึกรูปภาพ' ลง Camera Roll"]
-        Step3 --> Share["แชร์ลง Instagram Story / TikTok ทันที"]
+    subgraph MobileExperience["ขั้นตอนแต่งภาพบนมือถือของผู้ใช้"]
+        ScanQR --> Step1["ขั้นตอนที่ 1 แต่งสี แตะเลือก 1 ใน 6 พรีเซ็ต หรือปรับ Brightness Slider"]
+        Step1 --> Step2["ขั้นตอนที่ 2 เลือกกรอบ สลับเลือก 1 ใน 3 กรอบรูป มศว"]
+        Step2 --> Step3["ขั้นตอนที่ 3 ดาวน์โหลด กดปุ่ม บันทึกรูปภาพ ลง Camera Roll"]
+        Step3 --> Share["แชร์ลง Instagram Story หรือ TikTok ทันที"]
     end
 
     Share --> End(["จบกิจกรรมอย่างประทับใจ"])
