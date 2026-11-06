@@ -117,21 +117,23 @@ flowchart TD
 ---
 
 #### 🔹 Task 01: วิเคราะห์และจัดทำข้อกำหนดความต้องการ (BRD, PRD, SRS/IEEE 830, NFR, RTM)
-- **สถานะ**: 🔲 To Do
+- **สถานะ**: ✅ เสร็จสมบูรณ์ (Approved & Requirements Specified)
 - **เป้าหมาย**: แปลงโจทย์ธุรกิจของงาน SWU Open House เป็นข้อกำหนดทางวิศวกรรมซอฟต์แวร์ที่แม่นยำ ไร้ความกำกวม
 - **รายละเอียดงาน**:
-  1. **BRD**: ระบุเป้าหมายการโปรโมตมหาวิทยาลัย, ความประทับใจของผู้ร่วมงาน, ตัวชี้วัดความสำเร็จ (เวลาต่อคน < 60 วิ)
-  2. **PRD**: กำหนด User Personas (นักเรียนมัธยม, ผู้ปกครอง, เจ้าหน้าที่สตาฟ), User Stories และ Use Cases
+  1. **BRD**: ระบุเป้าหมายการโปรโมตมหาวิทยาลัย, ความประทับใจของผู้ร่วมงาน, ตัวชี้วัดความสำเร็จ (เวลาต่อคน < 30 วิ, Throughput 60–80 คน/ชม., ต้นทุนคลาวด์ 0 บาท)
+  2. **PRD**: กำหนด User Personas (น้องมัธยม, ผู้ปกครอง, สตาฟประจำบูท), User Stories, Use Cases และตารางสิทธิ์การเข้าถึง (RBAC Matrix)
   3. **SRS / FRS**: บันทึกความต้องการเชิงฟังก์ชันตามมาตรฐาน **IEEE 830**:
-     - Gesture Recognition Input, Video Resolution, Canvas Blending Modes, Image Encoding (WebP/JPEG)
-  4. **NFR Document**: กำหนดมาตรฐานคุณภาพตาม **ISO/IEC 25010** (Frame Rate >= 30 FPS, Latency < 1s, Uptime 99.9%)
-  5. **RTM**: จัดทำ Requirements Traceability Matrix เชื่อมโยง Requirement ID สู่ Component และ Test Case
+     - ท่าทางสั่งถ่ายหลัก: แบมือ 5 นิ้ว (Open Palm) ค้าง 1.5 วิ + สถาปัตยกรรมขยายเพิ่มอีก 1-2 ท่า
+     - หน้าจอแสดงพรีวิวและปุ่มถ่ายใหม่ (Retake) แบบจำกัดเวลา 5–8 วินาที
+     - การเลือกฟิลเตอร์/แต่งสี 6 พรีเซ็ต + สไลเดอร์ความสว่าง และการเลือก 1 ใน 3 กรอบรูป มศว ทำบนมือถือ 100% หลังสแกน QR Code
+  4. **NFR Document**: กำหนดมาตรฐานคุณภาพตาม **ISO/IEC 25010** (Frame Rate >= 30–60 FPS, Latency < 1s, Uptime 99.5%, PDPA 7-day Auto-Purge)
+  5. **RTM**: จัดทำ Requirements Traceability Matrix เชื่อมโยง Requirement ID (FR-01 ถึง FR-11, NFR) สู่ Component และ Test Case ID
 - **สิ่งที่ต้องส่งมอบ (Deliverables)**:
-  - เอกสารรวม BRD + PRD + SRS (IEEE 830) + NFR (ISO/IEC 25010)
-  - ตาราง Requirements Traceability Matrix (RTM)
+  - เอกสารข้อกำหนดความต้องการฉบับสมบูรณ์ (`document/task-01-requirements-specification.md`)
+  - บันทึกการสัมภาษณ์ความต้องการ (`document/task-01-qa-and-decisions.md`)
 - **เกณฑ์การตรวจรับ (Acceptance Criteria)**:
-  - ฟังก์ชันทุกข้อระบุ Input, Process, Output ชัดเจนและทดสอบได้ (Verifiable)
-  - ตาราง RTM ครอบคลุมฟังก์ชันตั้งแต่กล้องจนถึงการดาวน์โหลดภาพ
+  - ผ่านการสัมภาษณ์เจาะลึก `/grill-me` ครบทุกมิติ
+  - ตาราง RTM ครอบคลุมฟังก์ชันตั้งแต่กล้องจนถึงการดาวน์โหลดภาพและการควบคุมของสตาฟ
 
 ---
 
