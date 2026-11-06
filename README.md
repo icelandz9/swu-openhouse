@@ -1,7 +1,5 @@
 # SWU Open House - AI Photo Booth
 
-ระบบตู้ถ่ายภาพอัจฉริยะแบบไร้สัมผัส (Touchless AI Photo Booth)
-
 ## ภาพรวมระบบ (System Architecture)
 
 ```mermaid
