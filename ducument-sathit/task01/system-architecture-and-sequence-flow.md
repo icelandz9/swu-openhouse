@@ -20,93 +20,106 @@
 
 ## ส่วนที่ 1: แผนผังโครงสร้างระบบภาพรวม (High-Level Architecture - C4 Context & Container)
 
-### 1.1 C4 Context Diagram (บริบทของระบบ Photo Booth)
+### 1.1 C4 Context Diagram (บริบทของระบบ Photo Booth และโมเดล AI)
 
 ```mermaid
 flowchart TD
     subgraph Actors["กลุ่มผู้ใช้งาน (Actors)"]
-        V["นักเรียนมัธยม / ผู้ปกครอง<br>[Visitor]"]
+        V["นักเรียนมัธยม หรือผู้ปกครอง<br>[Visitor]"]
         S["เจ้าหน้าที่สตาฟประจำบูท<br>[Staff Operator]"]
         A["ผู้ดูแลระบบคลาวด์<br>[System Admin]"]
     end
 
-    subgraph PhotoBoothSystem["ระบบ SWU AI Photo Booth System (Next.js Monorepo)"]
-        Kiosk["หน้าจอถ่ายภาพตู้ Kiosk<br>(/booth - 16:9 Landscape)"]
-        Mobile["เว็บแอปแต่งภาพบนมือถือ<br>(/p/[code], /find)"]
-        AdminPortal["แดชบอร์ดสตาฟบนมือถือ<br>(/admin - PIN Protected)"]
-        API["Serverless API Routes<br>(/api/upload, /api/photo, /api/admin)"]
+    subgraph HardwareLayer["ฮาร์ดแวร์หน้าตู้ (Onsite Hardware)"]
+        Webcam["USB Webcam 1080p<br>[Hardware Device]"]
+        Screen["มอนิเตอร์ 16:9 แนวนอน<br>[Hardware Display]"]
     end
 
-    subgraph HardwareLayer["ฮาร์ดแวร์หน้าตู้ (Onsite Hardware)"]
-        Webcam["USB Webcam 1080p<br>(Logitech C920/C922)"]
-        Screen["มอนิเตอร์ 16:9 แนวนอน<br>(Chrome Kiosk Mode)"]
+    subgraph PhotoBoothSystem["ระบบ SWU AI Photo Booth System (Next.js Monorepo)"]
+        AI_Model["โมเดล AI Keypoint Detection<br>(Google MediaPipe 21 Hand Landmarks Model)<br>[AI Vision Engine]"]
+        Kiosk["หน้าจอถ่ายภาพตู้ Kiosk<br>(/booth - Viewfinder & FSM)<br>[Next.js Client]"]
+        Mobile["เว็บแอปแต่งภาพบนมือถือ<br>(/p/[code], /find)<br>[Next.js Client]"]
+        AdminPortal["แดชบอร์ดสตาฟบนมือถือ<br>(/admin - PIN Protected)<br>[Next.js Client]"]
+        API["Serverless API Routes<br>(/api/upload, /api/photo, /api/admin)<br>[Next.js Backend]"]
     end
 
     subgraph CloudLayer["ระบบคลาวด์และพื้นที่จัดเก็บ (Cloud Infrastructure)"]
         R2["Cloudflare R2 Storage<br>(S3-Compatible, Egress Free)<br>[TTL 7 Days Auto-Purge]"]
         VercelEdge["Vercel Edge Network<br>(Global CDN, HTTPS & SSL)"]
-        KV["Cloudflare KV / Supabase<br>(Short Code Map: SWU-XXXX)"]
+        KV["Cloudflare KV หรือ Supabase<br>(Short Code Map: SWU-XXXX)"]
     end
 
-    V -->|1. ยืนระยะ 1.5 ม. แบมือ 5 นิ้ว| Webcam
-    Webcam -->|สตรีม WebRTC 1080p| Kiosk
-    Kiosk -->|แสดง Viewfinder & QR Code| Screen
-    V -->|2. สแกน QR Code ด้วยมือถือ| Mobile
+    V -->|"1. ยืนระยะ 1.5 ม. แบมือ 5 นิ้ว"| Webcam
+    Webcam -->|"ส่งสตรีมวิดีโอ 1080p (WebRTC)"| AI_Model
+    AI_Model -->|"ส่งผลพิกัด 21 Keypoints และท่าทางที่ตรวจจับได้"| Kiosk
+    Kiosk -->|"แสดงภาพ Viewfinder และ QR Code"| Screen
+    V -->|"2. สแกน QR Code ด้วยมือถือ"| Mobile
 
-    Mobile -->|ดึงรูปภาพต้นฉบับ 1080p| R2
-    Mobile -->|ประมวลผล Canvas บนมือถือ| Mobile
+    Mobile -->|"ดึงภาพถ่ายต้นฉบับ 1080p"| R2
+    Mobile -->|"ประมวลผล Canvas บนมือถือ"| Mobile
 
-    S -->|แตะโลโก้ 5 ครั้ง + ใส่ PIN| Kiosk
-    S -->|เข้าผ่าน Wi-Fi บูท| AdminPortal
-    AdminPortal -->|สั่งรีเซ็ต / ดูสถิติ| API
+    S -->|"แตะโลโก้ 5 ครั้ง และใส่ PIN"| Kiosk
+    S -->|"เข้าผ่าน Wi-Fi บูท"| AdminPortal
+    AdminPortal -->|"สั่งรีเซ็ต หรือดูสถิติ"| API
 
-    A -->|ตรวจสอบความปลอดภัย & PDPA| R2
-    A -->|Audit Log| KV
+    A -->|"ตรวจสอบความปลอดภัย และ PDPA"| R2
+    A -->|"Audit Log"| KV
 
-    Kiosk -->|อัปโหลดรูปภาพผ่าน Pre-signed URL| API
-    API -->|บันทึกไฟล์ภาพต้นฉบับ| R2
-    API -->|แมป Short Code 6 หลัก| KV
-    VercelEdge -->|เสิร์ฟ Static Assets & Web App| Kiosk
-    VercelEdge -->|เสิร์ฟ Web App บนมือถือ| Mobile
+    Kiosk -->|"อัปโหลดรูปภาพผ่าน Pre-signed URL"| API
+    API -->|"บันทึกไฟล์ภาพต้นฉบับ"| R2
+    API -->|"แมป Short Code 6 หลัก"| KV
+    VercelEdge -->|"เสิร์ฟ Static Assets และ Web App"| Kiosk
+    VercelEdge -->|"เสิร์ฟ Web App บนมือถือ"| Mobile
 ```
 
-### 1.2 C4 Container Diagram (Frontend, Backend, Cache, Storage & CDN)
+### 1.2 C4 Container Diagram (Frontend, AI Model Pipeline, Backend, Storage & CDN)
 
 ```mermaid
 flowchart LR
     subgraph ClientContainers["ฝั่งผู้ใช้งาน (Client Applications)"]
         subgraph KioskApp["Kiosk Web Application (/booth)"]
-            K_UI["React Viewfinder UI<br>(TailwindCSS + Framer Motion)"]
-            K_AI["MediaPipe Hand Landmarker<br>(WebGL Tasks-Vision 60 FPS)"]
-            K_FSM["Kiosk Finite State Machine<br>(Idle -> Detect -> Count -> QR)"]
-            K_Cache["Local Buffer (IndexedDB)<br>(Offline Resilience Queue)"]
+            K_UI["React Viewfinder UI<br>[React 18 + TailwindCSS]"]
+            
+            subgraph AIPipeline["ระบบประมวลผล AI Keypoint Vision"]
+                Model_Landmarker["โมเดล Keypoint Detection<br>(hand_landmarker.task)<br>[TFLite Neural Net in WebGL]"]
+                Extractor["21 Hand Landmarks Extractor<br>[3D Coordinates x, y, z]"]
+                Classifier["Gesture Rule Classifier<br>[Open Palm, Peace, Heart]"]
+                DebounceFilter["Debounce & Depth Filter<br>[1.5s Hold & Largest Area]"]
+            end
+            
+            K_FSM["Kiosk Finite State Machine<br>[Idle, Detect, Count, QR]"]
+            K_Cache["Local Buffer (IndexedDB)<br>[Offline Resilience Queue]"]
         end
 
         subgraph MobileApp["Mobile Web Application (/p/[code])"]
-            M_UI["Mobile Step-by-Step UI<br>(Step 1: Color -> Step 2: Frame)"]
-            M_Canvas["HTML5 Canvas 2D Engine<br>(Color Presets + Brightness + PNG Frames)"]
-            M_Exporter["Blob & File Exporter<br>(Camera Roll Saver)"]
+            M_UI["Mobile Step-by-Step UI<br>[Color Filter -> Frame Selector]"]
+            M_Canvas["HTML5 Canvas 2D Engine<br>[Color Presets + PNG Frames]"]
+            M_Exporter["Blob & File Exporter<br>[Camera Roll Saver]"]
         end
     end
 
     subgraph ServerContainers["ฝั่งเซิร์ฟเวอร์ (Serverless Architecture)"]
         subgraph NextServer["Next.js Route Handlers"]
-            UploadHandler["/api/upload<br>(Multipart Form Streamer)"]
-            PhotoHandler["/api/photo/[code]<br>(Metadata Resolver)"]
-            AdminHandler["/api/admin/*<br>(PIN Auth Guard & Stats)"]
+            UploadHandler["/api/upload<br>[Multipart Form Streamer]"]
+            PhotoHandler["/api/photo/[code]<br>[Metadata Resolver]"]
+            AdminHandler["/api/admin/*<br>[PIN Auth Guard & Stats]"]
         end
     end
 
     subgraph DataContainers["ฝั่งจัดเก็บข้อมูล (Data & Storage)"]
-        R2Bucket["Cloudflare R2 Object Storage<br>/photos/original/SWU-XXXX.jpg<br>(Retention: 7 Days)"]
+        R2Bucket["Cloudflare R2 Object Storage<br>/photos/original/SWU-XXXX.jpg<br>[Retention: 7 Days]"]
         KVStore["Metadata & Short Code Store<br>SWU-XXXX -> {createdAt, status}"]
-        EdgeCDN["Vercel Edge / Cloudflare CDN<br>(Caching & Asset Delivery)"]
+        EdgeCDN["Vercel Edge / Cloudflare CDN<br>[Caching & Asset Delivery]"]
     end
 
-    K_UI --> K_AI
-    K_AI --> K_FSM
+    K_UI -->|"ส่ง Video Frame (1080p)"| Model_Landmarker
+    Model_Landmarker -->|"Inference 60 FPS"| Extractor
+    Extractor -->|"พิกัด 21 จุด"| DebounceFilter
+    DebounceFilter -->|"มือใกล้สุด"| Classifier
+    Classifier -->|"คำสั่งสั่งถ่าย (Trigger)"| K_FSM
+
     K_FSM --> K_Cache
-    K_Cache -.->|Async Background Upload| UploadHandler
+    K_Cache -.->|"Async Background Upload"| UploadHandler
 
     UploadHandler --> R2Bucket
     UploadHandler --> KVStore
@@ -119,6 +132,36 @@ flowchart LR
 
     EdgeCDN --> K_UI
     EdgeCDN --> M_UI
+```
+
+### 1.3 C4 Component Diagram: สถาปัตยกรรมภายในของ AI Keypoint Detection Pipeline
+
+```mermaid
+flowchart TD
+    subgraph KioskAIModule["Kiosk AI Keypoint Vision Subsystem"]
+        WebcamStream["WebRTC Stream Receiver<br>[navigator.mediaDevices.getUserMedia]"]
+        FrameBuffer["Video Frame Preprocessor<br>[WebGL GPU Texture Binder]"]
+        
+        subgraph KeypointModel["AI Keypoint Detection Neural Network Model"]
+            DetectionModel["Palm Detector Model<br>[BlazePalm SSD Anchor Detector]"]
+            LandmarkModel["Hand Landmark Model<br>[21 3D Points Keypoint Regression]"]
+        end
+        
+        LandmarkData["Raw 21 Keypoints Data<br>[x: 0..1, y: 0..1, z: Depth]"]
+        DepthAreaFilter["Largest Area & Depth Filter<br>[Filter Out Background People]"]
+        GestureEvaluator["Gesture Geometry Evaluator<br>[Open Palm / Peace / Heart]"]
+        HoldController["Hold Duration Controller<br>[1.5s Continuous Hold Counter]"]
+        TriggerDispatch["Capture Trigger Event Dispatcher<br>[Trigger Countdown 3..2..1..]"]
+    end
+
+    WebcamStream --> FrameBuffer
+    FrameBuffer --> DetectionModel
+    DetectionModel --> LandmarkModel
+    LandmarkModel --> LandmarkData
+    LandmarkData --> DepthAreaFilter
+    DepthAreaFilter --> GestureEvaluator
+    GestureEvaluator --> HoldController
+    HoldController --> TriggerDispatch
 ```
 
 ---
