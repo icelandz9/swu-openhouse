@@ -163,6 +163,7 @@ PhotoBooth-OpenHouseSWU/
     ├── package.json
     ├── tsconfig.json
     ├── next.config.ts
+    ├── postcss.config.mjs                        # เปิดใช้ Tailwind CSS v4
     │
     ├── public/
     │   ├── frames/                               # กรอบรูป มศว สัดส่วน 4:3 (1440x1080 PNG โปร่งใส)
@@ -213,6 +214,7 @@ PhotoBooth-OpenHouseSWU/
     │   ├── kiosk/                                # [Dev 2: Domain & Application - Kiosk Experience]
     │   │   ├── kioskStateMachine.ts              # (Pure Domain) FSM 8 สถานะของจอที่ 1
     │   │   ├── centerCropper.ts                  # (Pure Domain) สูตรคำนวณ Crop 1440x1080 จาก 1920x1080
+    │   │   ├── broadcastBus.ts                   # (Infra) BroadcastChannel เชื่อมจอ 1 -> จอ 2 (swu_photobooth_bus)
     │   │   └── useKioskFSM.ts                    # (App Hook) เชื่อมต่อ State Machine กับ UI
     │   │
     │   ├── mobile/                               # [Dev 3: Domain & Application - Mobile & Canvas]

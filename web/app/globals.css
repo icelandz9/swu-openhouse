@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
   --swu-red: #c8102e;
   --swu-red-dark: #8f0b20;

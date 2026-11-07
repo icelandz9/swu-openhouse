@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ScreenSyncEvent, PHOTO_ASPECT_RATIO } from '@/lib/contracts';
+import { PHOTO_ASPECT_RATIO } from '@/lib/contracts';
+import { openScreenBus } from '@/lib/kiosk/broadcastBus';
 
 interface ActivePhoto {
   code: string;
@@ -16,10 +17,9 @@ export default function DisplayScreenPage() {
 
   useEffect(() => {
     // Listen for broadcast events from Screen 1 (Kiosk) on the same Laptop
-    const channel = new BroadcastChannel('swu_photobooth_bus');
+    const bus = openScreenBus();
 
-    channel.onmessage = (event: MessageEvent<ScreenSyncEvent>) => {
-      const data = event.data;
+    bus.subscribe((data) => {
       if (data.type === 'PHOTO_READY_FOR_DISPLAY') {
         const newPhoto: ActivePhoto = {
           code: data.code,
@@ -32,10 +32,10 @@ export default function DisplayScreenPage() {
         // Prepend to live photo wall (pure 4:3 photos)
         setGalleryPhotos((prev) => [data.photoUrl, ...prev.slice(0, 49)]); // Keep latest 50
       }
-    };
+    });
 
     return () => {
-      channel.close();
+      bus.close();
     };
   }, []);
 

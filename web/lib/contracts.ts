@@ -15,7 +15,18 @@ export type KioskFSMState =
   | "WAITING_NETWORK"
   | "RESET_COOLDOWN";
 
-// Inter-Screen Event Bus Contract (BroadcastChannel: 'swu_photobooth_bus')
+// Kiosk timing (Screen 1) — values follow docs/decisions.md; change them there first.
+export const KIOSK_TIMING = {
+  holdToTriggerMs: 1500, // open palm held this long starts the countdown
+  countdownSeconds: 3, // 3..2..1, free pose, never cancelled mid-way
+  flashMs: 150,
+  previewSeconds: 10, // FIST = retake, OPEN_PALM = proceed, timeout = proceed
+  maxRetakes: 1,
+} as const;
+
+// Inter-Screen Event Bus Contract (BroadcastChannel)
+export const SCREEN_SYNC_CHANNEL = "swu_photobooth_bus" as const;
+
 export type ScreenSyncEvent =
   | {
       type: "PHOTO_READY_FOR_DISPLAY";
