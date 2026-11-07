@@ -146,6 +146,24 @@ export default function ShowcaseDisplayScreen() {
           }
           return updated;
         });
+      } else if (data.type === 'PHOTO_DELETED') {
+        const deletedCode = data.code;
+        setPhotos((prev) => {
+          const updated = prev.filter((p) => p.code !== deletedCode);
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('swu_photo_gallery', JSON.stringify(updated));
+              const latestStored = localStorage.getItem('swu_latest_photo');
+              if (latestStored) {
+                const parsed = JSON.parse(latestStored);
+                if (parsed?.code === deletedCode) {
+                  localStorage.setItem('swu_latest_photo', JSON.stringify(updated[0] ?? null));
+                }
+              }
+            } catch {}
+          }
+          return updated;
+        });
       }
     };
 

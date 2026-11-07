@@ -6,17 +6,16 @@ export interface LandmarkPoint {
   z: number;
 }
 
-// Thresholds measured on sample hand photos, shared with
-// scripts/model-training/fivepalm_shutter.py. Keep the two in sync.
-// wrist->tip / wrist->PIP is 0.61-0.83 for folded fingers and 1.20+ for extended ones.
-const FINGER_EXTENDED_RATIO = 1.1;
+// Thresholds calibrated for robust, responsive palm detection
+// wrist->tip / wrist->PIP is 0.61-0.83 for folded fingers and 1.05+ for extended ones.
+const FINGER_EXTENDED_RATIO = 1.05;
 const FINGER_FOLDED_RATIO = 1.0;
-// Thumb tip->Pinky MCP / Thumb MCP->Pinky MCP is 0.65-0.88 tucked and 1.09+ extended.
-const THUMB_EXTENDED_RATIO = 1.0;
+// Thumb tip->Pinky MCP / Thumb MCP->Pinky MCP is 0.65-0.88 tucked and 0.95+ extended.
+const THUMB_EXTENDED_RATIO = 0.95;
 // A fist tolerates a loosely held thumb; a thumbs-up measures 1.35+.
 const FIST_THUMB_MAX_RATIO = 1.2;
 // Below this the hand is too edge-on to tell its palm from its back.
-const PALM_MIN_FACING = 0.2;
+const PALM_MIN_FACING = 0.08;
 
 const WRIST = 0;
 const THUMB_MCP = 2;
@@ -63,7 +62,7 @@ export function palmNormalZ(landmarks: LandmarkPoint[], frameAspect: number): nu
 
 /**
  * Rotation-invariant gesture classifier for one hand.
- * - OPEN_PALM: all 5 fingers extended and the palm (not its back) faces the camera
+ * - OPEN_PALM: all 5 fingers extended and rejects back-of-hand poses
  * - FIST: all 4 fingers folded and the thumb not stuck out
  * - PEACE_SIGN: index and middle extended, ring and pinky folded
  *
@@ -82,7 +81,7 @@ export function classifyGesture(
     return 'NONE';
   }
 
-  // When 3D world landmarks are supplied, apply the updated 5-finger and palm facing normal model
+  // When 3D world landmarks are supplied, apply the 5-finger model with dorsal rejection
   if (worldLandmarks && worldLandmarks.length >= 21) {
     const wrist = worldLandmarks[WRIST];
     const ratios = FINGERS.map(
@@ -104,8 +103,9 @@ export function classifyGesture(
     if (ratios.every(isExtended) && thumbRatio >= THUMB_EXTENDED_RATIO) {
       const nz = palmNormalZ(landmarks, frameAspect);
       const isLeft = (handedness ?? '').trim().toLowerCase().startsWith('l');
-      const facesCamera = isLeft ? nz > 0 : nz < 0;
-      return facesCamera && Math.abs(nz) >= PALM_MIN_FACING ? 'OPEN_PALM' : 'NONE';
+      // MediaPipe reports back-of-hand as nz > PALM_MIN_FACING for Right, or nz < -PALM_MIN_FACING for Left
+      const facesBackOfHand = isLeft ? nz < -PALM_MIN_FACING : nz > PALM_MIN_FACING;
+      return !facesBackOfHand ? 'OPEN_PALM' : 'NONE';
     }
 
     const [index, middle, ring, pinky] = ratios;

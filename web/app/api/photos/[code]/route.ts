@@ -4,7 +4,7 @@ import { isValidShortCode } from '@/lib/mobile/shortCodeGenerator';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
@@ -48,6 +48,34 @@ export async function GET(
     console.error('Error retrieving photo:', error);
     return NextResponse.json(
       { error: 'Internal server error while retrieving photo' },
+      { status: 500, headers: CORS_HEADERS }
+    );
+  }
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ code: string }> }
+) {
+  try {
+    const { code } = await params;
+
+    if (!isValidShortCode(code)) {
+      return NextResponse.json(
+        { error: 'Invalid short code format' },
+        { status: 400, headers: CORS_HEADERS }
+      );
+    }
+
+    const success = await photoStorageService.deletePhoto(code);
+    return NextResponse.json(
+      { success, code },
+      { status: 200, headers: CORS_HEADERS }
+    );
+  } catch (error: any) {
+    console.error('Error deleting photo:', error);
+    return NextResponse.json(
+      { error: 'Internal server error while deleting photo' },
       { status: 500, headers: CORS_HEADERS }
     );
   }

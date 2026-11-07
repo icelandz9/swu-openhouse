@@ -48,6 +48,7 @@ export default function KioskCapturePage() {
   const [handAreaRatio, setHandAreaRatio] = useState<number>(0);
   const [isForeground, setIsForeground] = useState<boolean>(true);
   const holdStartTimeRef = useRef<number | null>(null);
+  const lastPalmSeenTimeRef = useRef<number>(0);
   const previewGestureLockRef = useRef<boolean>(false);
 
   const [countdown, setCountdown] = useState<number>(3);
@@ -411,6 +412,7 @@ export default function KioskCapturePage() {
 
               if (isIdle || isDetecting) {
                 if (detected === 'OPEN_PALM' && inForeground) {
+                  lastPalmSeenTimeRef.current = performance.now();
                   if (holdStartTimeRef.current === null) {
                     holdStartTimeRef.current = performance.now();
                     send({ type: 'HAND_DETECTED' });
@@ -425,10 +427,13 @@ export default function KioskCapturePage() {
                     send({ type: 'TRIGGER_ACTIVATED' });
                   }
                 } else {
-                  if (holdStartTimeRef.current !== null) {
-                    holdStartTimeRef.current = null;
-                    setHoldProgress(0);
-                    send({ type: 'HAND_LOST' });
+                  const timeSinceLast = performance.now() - (lastPalmSeenTimeRef.current || 0);
+                  if (timeSinceLast > 250) {
+                    if (holdStartTimeRef.current !== null) {
+                      holdStartTimeRef.current = null;
+                      setHoldProgress(0);
+                      send({ type: 'HAND_LOST' });
+                    }
                   }
                 }
               } else if (isPreviewing && !previewGestureLockRef.current) {
@@ -445,10 +450,13 @@ export default function KioskCapturePage() {
               setDetectedGestureText('NONE');
               setHandAreaRatio(0);
               setIsForeground(true);
-              if ((isIdle || isDetecting) && holdStartTimeRef.current !== null) {
-                holdStartTimeRef.current = null;
-                setHoldProgress(0);
-                send({ type: 'HAND_LOST' });
+              const timeSinceLast = performance.now() - (lastPalmSeenTimeRef.current || 0);
+              if (timeSinceLast > 250) {
+                if ((isIdle || isDetecting) && holdStartTimeRef.current !== null) {
+                  holdStartTimeRef.current = null;
+                  setHoldProgress(0);
+                  send({ type: 'HAND_LOST' });
+                }
               }
             }
           } catch {}
@@ -675,52 +683,42 @@ export default function KioskCapturePage() {
           </div>
         </aside>
 
-        {/* Live Palm Hold State & Mesh Overlay */}
-        {(isIdle || isDetecting) && (
-          <div className="pointer-events-none absolute left-[56%] top-[26%] z-30 aspect-square w-[18%]">
-            <HandMesh active={holdProgress > 0} landmarks={liveLandmarks} />
+        {/* Full-Screen Real-Time 1:1 Hand Mesh Overlay */}
+        {(isIdle || isDetecting) && showLiveFeed && liveLandmarks && (
+          <HandMesh
+            active={holdProgress > 0 || isDetecting}
+            landmarks={liveLandmarks}
+            holdProgress={holdProgress}
+            mode="overlay"
+            handAreaRatio={handAreaRatio}
+            isForeground={isForeground}
+            gestureText={detectedGestureText}
+          />
+        )}
 
-            <div className="mono absolute -top-[14%] left-0 w-max bg-cyan-400/90 px-[.55vw] py-[.25vw] text-[clamp(.34rem,.42vw,.5rem)] font-bold text-[#07131A] shadow-sm">
-              PRIMARY HAND · {handAreaRatio > 0 ? `AREA ${(handAreaRatio * 100).toFixed(1)}% ${isForeground ? '≥ 3.5% OK' : '< 3.5% (TOO FAR)'}` : 'AI 21-LANDMARK MODEL'}
-            </div>
-
-            {holdProgress > 0 && (
-              <>
-                <svg
-                  className="absolute inset-[-10%] h-[120%] w-[120%] -rotate-90"
-                  viewBox="0 0 120 120"
-                >
-                  <circle
-                    cx="60"
-                    cy="60"
-                    r="54"
-                    fill="none"
-                    stroke="rgba(255,255,255,.16)"
-                    strokeWidth="2.5"
-                  />
-                  <circle
-                    cx="60"
-                    cy="60"
-                    r="54"
-                    fill="none"
-                    stroke="#CE1126"
-                    strokeLinecap="round"
-                    strokeWidth="3.5"
-                    strokeDasharray="339.292"
-                    strokeDashoffset={339.292 - (339.292 * holdProgress) / 100}
-                    style={{ transition: 'stroke-dashoffset 80ms linear' }}
-                  />
-                </svg>
-                <div className="absolute left-1/2 top-[108%] w-max -translate-x-1/2 bg-[#090D16]/95 border border-[#CE1126]/40 px-[1.2vw] py-[.65vw] text-center backdrop-blur shadow-2xl">
-                  <div className="text-[clamp(.75rem,1.1vw,1.3rem)] font-bold text-white">
-                    กำลังเริ่มถ่าย... {Math.round(holdProgress)}%
+        {/* Dynamic Tracking Status Badge in 4:3 Zone */}
+        {(isIdle || isDetecting) && showLiveFeed && (
+          <div className="pointer-events-none absolute left-1/2 bottom-[4%] z-30 -translate-x-1/2 flex flex-col items-center gap-2">
+            {holdProgress > 0 ? (
+              <div className="flex items-center gap-3 rounded-full bg-[#090D16]/95 border border-[#06B6D4] px-6 py-2.5 shadow-2xl backdrop-blur-md animate-pulse">
+                <span className="text-xl">✋</span>
+                <div>
+                  <div className="text-sm font-bold text-white">
+                    แบมือค้างไว้... {Math.round(holdProgress)}%
                   </div>
-                  <div className="mono mt-1 text-[clamp(.4rem,.48vw,.58rem)] tracking-[.14em] text-[#CE1126]">
-                    HOLD PALM · 1.5S
+                  <div className="mono text-[10px] text-cyan-400 font-bold">
+                    HOLD PALM STEADY · 1.5S
                   </div>
                 </div>
-              </>
-            )}
+              </div>
+            ) : liveLandmarks ? (
+              <div className="mono flex items-center gap-2 rounded-full bg-[#090D16]/85 border border-cyan-400/30 px-4 py-1.5 text-[clamp(.36rem,.46vw,.55rem)] text-slate-300 backdrop-blur">
+                <span className={`size-2 rounded-full ${isForeground ? 'bg-cyan-400 animate-pulse' : 'bg-amber-400'}`} />
+                <span>PRIMARY HAND · {isForeground ? `AREA ${(handAreaRatio * 100).toFixed(1)}% (OK)` : `< 3.5% (เข้าใกล้กล้องอีกนิด)`}</span>
+                <span className="text-slate-500">|</span>
+                <span className="text-cyan-300 font-bold">{detectedGestureText}</span>
+              </div>
+            ) : null}
           </div>
         )}
 

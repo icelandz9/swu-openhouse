@@ -151,6 +151,37 @@ export default function StaffAdminPortal() {
       setTimeout(() => setCopiedCode(null), 1800);
     } catch {}
   };
+  const handleDeletePhoto = async (code: string) => {
+    try {
+      await fetch('/api/photos/' + code, { method: 'DELETE' });
+    } catch {}
+
+    setDeletedCodes((prev) => [...prev, code]);
+    setPhotos((prev) => prev.filter((p) => p.code !== code));
+
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('swu_photo_gallery');
+        if (saved) {
+          const list = JSON.parse(saved);
+          if (Array.isArray(list)) {
+            const filtered = list.filter((p: any) => p.code !== code);
+            localStorage.setItem('swu_photo_gallery', JSON.stringify(filtered));
+          }
+        }
+      } catch {}
+    }
+
+    try {
+      channelRef.current?.postMessage({
+        type: 'PHOTO_DELETED',
+        code,
+      } as ScreenSyncEvent);
+    } catch {}
+
+    setCommandNotice('ลบรูป ' + code + ' สำเร็จและซิงค์กับจอ Showcase แล้ว');
+    setTimeout(() => setCommandNotice(''), 2500);
+  };
 
   const filteredPhotos = useMemo(() => {
     return photos.filter((photo) => {
@@ -453,7 +484,7 @@ export default function StaffAdminPortal() {
                       )}
                     </button>
                     <button
-                      onClick={() => setDeletedCodes((prev) => [...prev, photo.code])}
+                      onClick={() => handleDeletePhoto(photo.code)}
                       className="flex h-8 items-center justify-center gap-1.5 rounded border border-red-500/20 text-[10px] font-semibold text-red-400 hover:bg-red-500/10 transition-colors"
                     >
                       <Trash2 className="size-3" /> ลบรูป (PDPA)

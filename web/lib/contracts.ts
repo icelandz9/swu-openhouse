@@ -37,6 +37,10 @@ export type ScreenSyncEvent =
       createdAt: string;
     }
   | {
+      type: "PHOTO_DELETED";
+      code: string;
+    }
+  | {
       type: "SCREEN1_RESET";
     }
   | {
