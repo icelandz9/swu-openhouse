@@ -67,9 +67,9 @@ flowchart TD
     A -->|"ตรวจสอบความปลอดภัย และ PDPA"| R2
     A -->|"Audit Log"| KV
 
-    Kiosk -->|"อัปโหลดรูปภาพผ่าน Pre-signed URL"| API
+    Kiosk -->|"อัปโหลดรูปภาพ POST /api/upload"| API
     API -->|"บันทึกไฟล์ภาพต้นฉบับ"| R2
-    API -->|"แมป Short Code 6 หลัก OPH-XXXX"| KV
+    API -->|"แมป Short Code OPH-XXXX"| KV
     VercelEdge -->|"เสิร์ฟ Static Assets และ Web App"| Kiosk
     VercelEdge -->|"เสิร์ฟ Web App บนมือถือ"| Mobile
 ```
@@ -80,17 +80,17 @@ flowchart TD
 flowchart LR
     subgraph ClientContainers["ฝั่งผู้ใช้งาน (Client Applications)"]
         subgraph KioskApp["Kiosk Web Application (/booth)"]
-            K_UI["React Viewfinder UI<br>[React 18 + TailwindCSS]"]
+            K_UI["React Viewfinder UI<br>[React 19 + CSS]"]
             
             subgraph AIPipeline["ระบบประมวลผล AI Keypoint Vision"]
                 Model_Landmarker["โมเดล Keypoint Detection<br>(hand_landmarker.task)<br>[TFLite Neural Net in WebGL]"]
                 Extractor["21 Hand Landmarks Extractor<br>[3D Coordinates x, y, z]"]
-                Classifier["Gesture Rule Classifier<br>[Open Palm, Peace, Heart]"]
+                Classifier["Gesture Rule Classifier<br>[Open Palm — ขยายเพิ่มท่าได้]"]
                 DebounceFilter["Debounce & Depth Filter<br>[1.5s Hold & Largest Area]"]
             end
             
             K_FSM["Kiosk Finite State Machine<br>[Idle, Detect, Count, QR]"]
-            K_Cache["Local Buffer (IndexedDB)<br>[Offline Resilience Queue]"]
+            K_Cache["Local Disk Buffer (SSD)<br>[Offline Resilience Queue]"]
         end
 
         subgraph MobileApp["Mobile Web Application (/p/[code])"]
@@ -160,9 +160,9 @@ flowchart TD
         
         LandmarkData["Raw 21 Keypoints Data<br>[x: 0..1, y: 0..1, z: Depth]"]
         DepthAreaFilter["Largest Area & Depth Filter<br>[Filter Out Background People]"]
-        GestureEvaluator["Gesture Geometry Evaluator<br>[Open Palm / Peace / Heart]"]
+        GestureEvaluator["Gesture Geometry Evaluator<br>[Open Palm — ขยายเพิ่มท่าได้]"]
         HoldController["Hold Duration Controller<br>[1.5s Continuous Hold Counter]"]
-        TriggerDispatch["Capture Trigger Event Dispatcher<br>[Trigger Countdown 3..2..1..]"]
+        TriggerDispatch["Capture Trigger Event Dispatcher<br>[Trigger Countdown 5..4..3..2..1..]"]
     end
 
     WebcamStream --> FrameBuffer
@@ -191,7 +191,7 @@ stateDiagram-v2
     DETECTING_HAND --> COUNTDOWN : แบมือ 5 นิ้วค้างต่อเนื่องครบ 1.5 วินาที
     IDLE --> COUNTDOWN : ผู้ใช้แตะปุ่ม แตะเพื่อถ่าย Touch Fallback
 
-    COUNTDOWN --> FLASH_CAPTURE : นับถอยหลัง 3.. 2.. 1.. ถึงศูนย์
+    COUNTDOWN --> FLASH_CAPTURE : นับถอยหลัง 5.. 4.. 3.. 2.. 1.. ถึงศูนย์
     FLASH_CAPTURE --> PREVIEW_RETAKE : บันทึกภาพ 1080p และแสดงจอขาว Flash 100ms
 
     PREVIEW_RETAKE --> COUNTDOWN : ผู้ใช้กด ถ่ายใหม่ Retake จำกัด 1 ครั้ง
@@ -226,7 +226,7 @@ flowchart TD
     PalmPose --> HoldCheck{"ทำท่ามือค้างต่อเนื่อง ครบ 1.5 วินาทีหรือไม่"}
     HoldCheck -->|"คนเดินผ่าน หรือชักมือกลับ"| ResetIdle["ยกเลิกการนับ กลับสู่หน้าพร้อมถ่าย Idle"]
     ResetIdle --> Front
-    HoldCheck -->|"ครบ 1.5 วินาที"| StartTimer["เริ่มนับถอยหลัง 3.. 2.. 1.. พร้อมเสียง Beep"]
+    HoldCheck -->|"ครบ 1.5 วินาที"| StartTimer["เริ่มนับถอยหลัง 5.. 4.. 3.. 2.. 1.. พร้อมเสียง Beep"]
     TouchTap --> StartTimer
 
     StartTimer --> Flash["แชะ หน้าจอกะพริบขาว 100ms และบันทึกภาพ"]
@@ -249,7 +249,7 @@ flowchart TD
     subgraph MobileExperience["ขั้นตอนแต่งภาพบนมือถือของผู้ใช้"]
         ScanQR --> CodeBanner["หน้าเว็บมือถือแสดงรหัส OPH-XXXX ชัดเจนที่หัวเว็บ ให้น้องจดหรือแคปเก็บไว้"]
         CodeBanner --> Step1["ขั้นตอนที่ 1 แต่งสี แตะเลือก 1 ใน 6 พรีเซ็ต หรือปรับ Brightness Slider"]
-        Step1 --> Step2["ขั้นตอนที่ 2 เลือกกรอบ สลับเลือก 1 ใน 3 กรอบรูป มศว"]
+        Step1 --> Step2["ขั้นตอนที่ 2 เลือกกรอบ สลับเลือก 1 ใน 3 กรอบรูป CPE SWU"]
         Step2 --> Step3["ขั้นตอนที่ 3 ดาวน์โหลด กดปุ่ม บันทึกรูปภาพ ลง Camera Roll"]
         Step3 --> Share["แชร์ลง Instagram Story หรือ TikTok ทันที"]
     end
@@ -338,7 +338,7 @@ sequenceDiagram
 
     Note over Debounce,UI: เมื่อ HoldTime สะสมครบ 1.5 วินาที
     Debounce->>UI: ส่งสัญญาณ TRIGGER_CAPTURE
-    UI->>Visitor: เล่นเสียง Beep + แสดงตัวเลข 3.. 2.. 1.. บนหน้าจอ
+    UI->>Visitor: เล่นเสียง Beep + แสดงตัวเลข 5.. 4.. 3.. 2.. 1.. บนหน้าจอ
     UI->>Cam: สั่ง Freeze Frame ที่วินาทีที่ 0
     UI->>Visitor: แสดงเอฟเฟกต์แฟลชจอขาว (Flash 100ms)
     UI->>UI: เปลี่ยนสถานะเป็น SHOW_PREVIEW
@@ -361,7 +361,7 @@ sequenceDiagram
         Visitor->>UI: แตะปุ่ม "ถ่ายใหม่"
         UI->>Buffer: ลบภาพเดิมใน Buffer ทิ้ง
         UI->>State: อัปเดตสิทธิ์ RetakeUsed = true
-        UI->>Visitor: เริ่มนับถอยหลัง 3.. 2.. 1.. ถ่ายใหม่อีกครั้งทันที
+        UI->>Visitor: เริ่มนับถอยหลัง 5.. 4.. 3.. 2.. 1.. ถ่ายใหม่อีกครั้งทันที
     else ผู้ใช้ไม่กด หรือเวลานับถอยหลังหมดลง (Auto-Confirm)
         UI->>State: สิ้นสุดระยะเวลา Retake (CONFIRM_PHOTO)
         UI->>UI: เปลี่ยนสถานะเป็น GENERATING_QR
@@ -376,18 +376,18 @@ sequenceDiagram
     autonumber
     participant UI as Kiosk Viewfinder UI
     participant CodeEngine as Short Code Engine
-    participant LocalDB as Local IndexedDB Buffer
+    participant LocalDB as Local Disk Buffer (SSD)
     participant SyncWorker as Background Sync Worker
     participant CloudAPI as Cloudflare R2 / Serverless API
 
     UI->>CodeEngine: ขอรหัสสั้นประจำรูปภาพ
-    CodeEngine->>CodeEngine: สุ่มรหัส 4 หลักในฟอร์แมต OPH-XXXX (เช่น OPH-8821)
-    CodeEngine-->>UI: ส่งคืนรหัส OPH-8821 และ URL: https://booth.swu.ac.th/p/OPH-8821
+    CodeEngine->>CodeEngine: สุ่มรหัส 4 หลักในฟอร์แมต OPH-XXXX (เช่น OPH-8K2P)
+    CodeEngine-->>UI: ส่งคืนรหัส OPH-8K2P และ URL: https://booth.swu.ac.th/p/OPH-8K2P
 
     Note over UI: หน้าตู้แสดงเฉพาะ QR Code ขนาดใหญ่ (ไม่แสดงตัวอักษร OPH-XXXX บนหน้าจอ)
     UI->>UI: เรนเดอร์ QR Code ขนาดใหญ่บนจอ (< 200ms)
     UI->>UI: เริ่มนับถอยหลังหน้าจอ 15-20 วินาที + แสดงปุ่ม "เสร็จสิ้น / คนถัดไป"
-    UI->>LocalDB: บันทึกภาพต้นฉบับ + Metadata (OPH-8821) ลงไดรฟ์เครื่องตู้
+    UI->>LocalDB: บันทึกภาพต้นฉบับ + Metadata (OPH-8K2P) ลงไดรฟ์เครื่องตู้
 
     Note over LocalDB,CloudAPI: การอัปโหลดทำงานเบื้องหลัง ไม่บล็อกหน้าจอ
     SyncWorker->>LocalDB: ดึงภาพค้างส่งจากคิว
@@ -416,12 +416,12 @@ sequenceDiagram
     participant Canvas as HTML5 Canvas 2D Engine
     participant Gallery as Camera Roll / Gallery มือถือ
 
-    Visitor->>Browser: สแกน QR Code เข้าสู่ https://booth.swu.ac.th/p/OPH-8821
+    Visitor->>Browser: สแกน QR Code เข้าสู่ https://booth.swu.ac.th/p/OPH-8K2P
     Browser->>CDN: ดึงภาพถ่ายต้นฉบับ 1080p
     CDN-->>Browser: ส่งคืนภาพถ่ายความละเอียดสูง
     
-    Note over Visitor,Browser: หน้าเว็บบนมือถือแสดง Banner รหัส OPH-8821 ให้น้องเก็บไว้
-    Browser->>Visitor: แสดงหัวข้อ "รหัสภาพถ่ายของคุณ: OPH-8821 (ดาวน์โหลดได้ใน 7 วัน)"
+    Note over Visitor,Browser: หน้าเว็บบนมือถือแสดง Banner รหัส OPH-8K2P ให้น้องเก็บไว้
+    Browser->>Visitor: แสดงหัวข้อ "รหัสภาพถ่ายของคุณ: OPH-8K2P (ดาวน์โหลดได้ใน 7 วัน)"
     Browser->>Canvas: โหลดภาพลงใน Offscreen Canvas
 
     Note over Visitor,Canvas: ขั้นตอนที่ 1: การแต่งสีภาพ (Color Grading)
@@ -430,7 +430,7 @@ sequenceDiagram
     Canvas-->>Browser: อัปเดตภาพพรีวิวสดแบบเรียลไทม์ (Live Preview < 16ms)
     Visitor->>Browser: กดปุ่ม "ถัดไป: เลือกกรอบรูป"
 
-    Note over Visitor,Canvas: ขั้นตอนที่ 2: การเลือก 1 ใน 3 กรอบรูป มศว
+    Note over Visitor,Canvas: ขั้นตอนที่ 2: การเลือก 1 ใน 3 กรอบรูป CPE SWU
     Browser->>CDN: โหลดไฟล์กรอบรูป PNG โปร่งใสทั้ง 3 แบบ
     Visitor->>Browser: แตะเลือก "Template 01: ลายทางการ มศว สีแดง-ขาว"
     Browser->>Canvas: วาดภาพถ่ายซ้อนใต้เลเยอร์กรอบรูป PNG (Alpha Blending)
@@ -452,21 +452,21 @@ sequenceDiagram
     actor Visitor as น้องผู้ร่วมงาน (ที่ลืมสแกน)
     actor Staff as สตาฟประจำบูท
     participant AdminApp as Staff Portal (/admin)
-    participant API as /api/admin/recent
+    participant API as /api/admin/photos
     participant Mobile as มือถือของน้อง
 
     Visitor->>Staff: "พี่คะ หนูเพิ่งถ่ายไปเมื่อ 14:32 น. ลืมสแกน QR ค่ะ"
     Staff->>AdminApp: เปิดหน้าแท็บ "Recent Captures Timeline" บนมือถือสตาฟ
-    AdminApp->>API: เรียกดึงรายการรูปถ่ายล่าสุดตามเวลา (GET /api/admin/recent?limit=20)
+    AdminApp->>API: เรียกดึงรายการรูปถ่ายล่าสุดตามเวลา (GET /api/admin/photos?limit=20)
     API-->>AdminApp: ส่งคืนรายการรูปภาพพร้อม Timestamp (14:32 น., 14:30 น., ...)
     
     Staff->>AdminApp: เลื่อนดูพรีวิวรูปภาพเวลา 14:32 น. และแตะเลือกรูปของน้อง
     AdminApp->>AdminApp: เปิด Modal ขยายภาพใหญ่ พร้อมสร้าง QR Code ของภาพนั้นทันที
-    AdminApp->>Staff: แสดง QR Code และรหัส OPH-8821 บนหน้าจอมือถือสตาฟ
+    AdminApp->>Staff: แสดง QR Code และรหัส OPH-8K2P บนหน้าจอมือถือสตาฟ
     
     Staff->>Visitor: ยื่นหน้าจอให้: "สแกน QR ตรงนี้ได้เลยจ้า"
     Visitor->>Mobile: นำกล้องมือถือมาสแกน QR Code จากจอสตาฟ
-    Mobile->>Mobile: เปิดหน้าเว็บ https://booth.swu.ac.th/p/OPH-8821
+    Mobile->>Mobile: เปิดหน้าเว็บ https://booth.swu.ac.th/p/OPH-8K2P
     Mobile->>Visitor: เข้าสู่หน้าแต่งภาพและดาวน์โหลดได้สำเร็จสมบูรณ์!
 ```
 
@@ -481,14 +481,14 @@ sequenceDiagram
     participant API as /api/photo/[code]
     participant KV as Short Code Metadata Store
 
-    Visitor->>Web: เข้าเว็บ https://booth.swu.ac.th/find และพิมพ์รหัส "OPH-8821"
-    Web->>API: ส่งคำขอ GET /api/photo/OPH-8821
-    API->>KV: ค้นหารหัส OPH-8821
+    Visitor->>Web: เข้าเว็บ https://booth.swu.ac.th/find และพิมพ์รหัส "OPH-8K2P"
+    Web->>API: ส่งคำขอ GET /api/photo/OPH-8K2P
+    API->>KV: ค้นหารหัส OPH-8K2P
 
     alt รหัสถูกต้องและอายุภาพยังไม่เกิน 7 วัน
         KV-->>API: พบข้อมูล (CreatedAt: 2026-11-07, FilePath: photos/...)
         API-->>Web: ส่งคืนสถานะ 200 OK พร้อม CDN Image URL
-        Web->>Visitor: เปิดหน้าจอแต่งภาพ /p/OPH-8821 ให้เลือกกรอบและดาวน์โหลดได้ทันที
+        Web->>Visitor: เปิดหน้าจอแต่งภาพ /p/OPH-8K2P ให้เลือกกรอบและดาวน์โหลดได้ทันที
     else รหัสไม่ถูกต้อง หรือเกิน 7 วัน (ถูกลบตาม PDPA แล้ว)
         KV-->>API: ไม่พบข้อมูล หรือข้อมูลหมดอายุแล้ว
         API-->>Web: ส่งคืนสถานะ 404 Not Found
