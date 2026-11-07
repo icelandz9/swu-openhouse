@@ -178,12 +178,12 @@ export default function KioskCapturePage() {
           );
         } else {
           // Studio fallback simulation
-          ctx.fillStyle = '#06080D';
+          ctx.fillStyle = '#20242D';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-          grad.addColorStop(0, '#0D111A');
+          grad.addColorStop(0, '#262B36');
           grad.addColorStop(0.5, '#CE1126');
-          grad.addColorStop(1, '#06080D');
+          grad.addColorStop(1, '#20242D');
           ctx.fillStyle = grad;
           ctx.fillRect(40, 40, canvas.width - 80, canvas.height - 80);
 
@@ -617,8 +617,8 @@ export default function KioskCapturePage() {
   const showLiveFeed = !isPreviewing && state !== 'FLASH_CAPTURE' && state !== 'UPLOADING' && state !== 'RESET_COOLDOWN';
 
   return (
-    <main className="kiosk-shell relative grid h-dvh w-screen place-items-center overflow-hidden bg-black select-none">
-      <div className="kiosk-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-[#090D16]">
+    <main className="kiosk-shell relative grid h-dvh w-screen place-items-center overflow-hidden bg-[#16181E] select-none">
+      <div className="kiosk-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-[#20242D]">
         {/* Live Camera Feed */}
         <video
           ref={videoRef}
@@ -631,7 +631,7 @@ export default function KioskCapturePage() {
 
         {/* Fallback Simulation View if camera not open */}
         {!cameraActive && showLiveFeed && (
-          <div className="absolute inset-0 h-full w-full bg-[#06080D] flex items-center justify-center z-10">
+          <div className="absolute inset-0 h-full w-full bg-[#20242D] flex items-center justify-center z-10">
             <div className="engineering-grid absolute inset-0 opacity-40" />
             <div className="text-center space-y-4 z-10 max-w-md px-6">
               <div className="size-16 rounded-2xl bg-[#CE1126]/10 border border-[#CE1126]/30 flex items-center justify-center mx-auto text-[#CE1126]">
@@ -664,7 +664,7 @@ export default function KioskCapturePage() {
 
         {/* Captured 4:3 Snapshot in Preview / Sent States */}
         {!showLiveFeed && (
-          <div className="absolute inset-y-0 left-[12.5%] h-full w-3/4 overflow-hidden bg-black flex items-center justify-center z-15">
+          <div className="absolute inset-y-0 left-[12.5%] h-full w-3/4 overflow-hidden bg-[#1C1F26] flex items-center justify-center z-15">
             <img
               src={capturedPhotoUrl}
               alt="ภาพถ่ายตัวอย่าง"
@@ -675,12 +675,12 @@ export default function KioskCapturePage() {
 
         {/* 4:3 Capture Zone Overlay & Bracket Boundaries */}
         <div className="kiosk-capture-zone pointer-events-none absolute inset-y-0 left-[12.5%] z-20 w-3/4 border-x-[1.5px] border-[#CE1126]/60" />
-        <div className="mono pointer-events-none absolute left-1/2 top-[1.4%] z-30 -translate-x-1/2 border border-[#CE1126]/40 bg-[#090D16]/85 px-[.9vw] py-[.38vw] text-[clamp(.38rem,.48vw,.58rem)] tracking-[.14em] text-white/90 backdrop-blur">
+        <div className="mono pointer-events-none absolute left-1/2 top-[1.4%] z-30 -translate-x-1/2 border border-[#CE1126]/40 bg-[#1E222B]/90 px-[.9vw] py-[.38vw] text-[clamp(.38rem,.48vw,.58rem)] tracking-[.14em] text-white/90 backdrop-blur">
           4:3 CAPTURE ZONE · 1440×1080 RAW
         </div>
 
         {/* Left Pillar (12.5%): Branding & Telemetry */}
-        <aside className="kiosk-pillar absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col justify-between border-r border-white/10 bg-[rgba(9,13,22,.88)] p-[1.65%] backdrop-blur-md">
+        <aside className="kiosk-pillar absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col justify-between border-r border-white/10 bg-[rgba(30,34,43,0.92)] p-[1.65%] backdrop-blur-md">
           <div>
             <div className="flex items-center gap-2">
               <div className="grid aspect-square w-[2.4vw] max-w-11 min-w-7 place-items-center bg-[#CE1126] text-[clamp(.48rem,.67vw,.78rem)] font-extrabold tracking-[-.06em] text-white">
@@ -729,7 +729,7 @@ export default function KioskCapturePage() {
         </aside>
 
         {/* Right Pillar (12.5%): Gesture Guide & Instructions */}
-        <aside className="kiosk-pillar absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col justify-between border-l border-white/10 bg-[rgba(9,13,22,.88)] p-[1.45%] backdrop-blur-md">
+        <aside className="kiosk-pillar absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col justify-between border-l border-white/10 bg-[rgba(30,34,43,0.92)] p-[1.45%] backdrop-blur-md">
           <div className="text-[clamp(.43rem,.52vw,.62rem)] font-bold tracking-[.16em] text-slate-400">
             GESTURE GUIDE
           </div>
@@ -788,7 +788,7 @@ export default function KioskCapturePage() {
         {/* Dynamic Tracking Status Badge - Positioned on the Side (Non-intrusive HUD Telemetry) */}
         {(isIdle || isDetecting) && showLiveFeed && liveLandmarks && (
           <div className="pointer-events-none absolute left-[13.8%] bottom-[3%] z-30 flex items-center">
-            <div className="mono flex items-center gap-2 rounded-full bg-[#090D16]/90 border border-cyan-400/30 px-3.5 py-1.5 text-[clamp(.36rem,.46vw,.55rem)] text-slate-300 backdrop-blur-md shadow-lg transition-all duration-200">
+            <div className="mono flex items-center gap-2 rounded-full bg-[#1E222B]/90 border border-cyan-400/30 px-3.5 py-1.5 text-[clamp(.36rem,.46vw,.55rem)] text-slate-300 backdrop-blur-md shadow-lg transition-all duration-200">
               <span className={`size-2 rounded-full ${isForeground ? 'bg-cyan-400 animate-pulse' : 'bg-amber-400'}`} />
               <span>PRIMARY HAND · {isForeground ? `AREA ${(handAreaRatio * 100).toFixed(1)}% (OK)` : `< 3.5% (เข้าใกล้กล้องอีกนิด)`}</span>
               <span className="text-slate-500">|</span>
@@ -802,12 +802,12 @@ export default function KioskCapturePage() {
         {/* Countdown Active State (3..2..1) */}
         {isCountingDown && (
           <div className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center">
-            <div className="countdown-rings relative flex h-44 w-44 items-center justify-center rounded-full bg-[#06080D]/80 border-2 border-white/20 backdrop-blur-md">
+            <div className="countdown-rings relative flex h-44 w-44 items-center justify-center rounded-full bg-[#1E222B]/85 border-2 border-white/20 backdrop-blur-md">
               <span className="mono text-7xl font-black text-white tabular-nums">
                 {countdown}
               </span>
             </div>
-            <div className="mt-6 rounded-full bg-[#06080D]/80 border border-white/10 px-6 py-2 text-sm font-bold text-white backdrop-blur">
+            <div className="mt-6 rounded-full bg-[#1E222B]/85 border border-white/10 px-6 py-2 text-sm font-bold text-white backdrop-blur">
               โพสท่าอิสระได้เลย!
             </div>
           </div>
@@ -821,7 +821,7 @@ export default function KioskCapturePage() {
         {/* Preview State: Review & Retake Controls - Clean, Formal & No Emojis */}
         {isPreviewing && (
           <div className="absolute inset-x-0 bottom-0 z-40 flex flex-col items-center justify-end pb-8">
-            <div className="flex items-center gap-6 rounded-2xl bg-[#090D16]/95 border border-white/15 px-7 py-3.5 shadow-2xl backdrop-blur-xl">
+            <div className="flex items-center gap-6 rounded-2xl bg-[#1E222B]/95 border border-white/15 px-7 py-3.5 shadow-2xl backdrop-blur-xl">
               {/* Fist: Retake Button (Unlimited Retakes) */}
               <button
                 type="button"

@@ -7,10 +7,10 @@
   --color-swu-red-dark: #8F0B20;
   --color-swu-slate: #1E293B;
 
-  --color-studio-base: #06080D;
-  --color-studio-elevated: #0D111A;
-  --color-studio-card: #111827;
-  --color-studio-border: #1E2536;
+  --color-studio-base: #1C1F26;
+  --color-studio-elevated: #222630;
+  --color-studio-card: #2B303C;
+  --color-studio-border: #3A404E;
 
   --color-tech-cyan: #06B6D4;
   --color-status-success: #10B981;
@@ -32,10 +32,10 @@
   --swu-slate: #1E293B;
 
   /* Dark Studio Base */
-  --studio-base: #06080D;
-  --studio-elevated: #0D111A;
-  --studio-card: #111827;
-  --studio-border: #1E2536;
+  --studio-base: #1C1F26;
+  --studio-elevated: #222630;
+  --studio-card: #2B303C;
+  --studio-border: #3A404E;
 
   /* Engineering Accents */
   --tech-cyan: #06B6D4;
@@ -57,7 +57,7 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background-color: #090D16;
+  background-color: #1C1F26;
   color: #F8FAFC;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -131,9 +131,9 @@ button:focus-visible {
   background-size: 42px 42px;
 }
 
-/* Screen 1: Kiosk Shell & Stage */
+/* Screen 1: Kiosk Shell & Stage (SWU Gray Theme) */
 .kiosk-shell {
-  background: radial-gradient(circle at center, rgba(17, 24, 39, 0.55), transparent 64%), #000;
+  background: radial-gradient(circle at center, rgba(50, 56, 70, 0.45), transparent 70%), #16181E;
 }
 
 .kiosk-stage {
@@ -220,7 +220,7 @@ button:focus-visible {
 
 /* Screen 2: Display Showcase */
 .display-shell {
-  background-color: #090D16;
+  background-color: #1C1F26;
 }
 
 .display-stage {
@@ -232,11 +232,11 @@ button:focus-visible {
   background:
     linear-gradient(
       180deg,
-      rgba(15, 23, 42, 0.98) 0%,
-      rgba(12, 19, 33, 0.98) 58%,
+      rgba(32, 37, 47, 0.98) 0%,
+      rgba(26, 31, 40, 0.98) 58%,
       rgba(4, 29, 32, 0.98) 100%
     ),
-    #0a0d14;
+    #1C1F26;
 }
 
 .qr-card {

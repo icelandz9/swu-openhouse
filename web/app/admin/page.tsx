@@ -331,7 +331,7 @@ export default function StaffAdminPortal() {
 
   if (!isAuthenticated) {
     return (
-      <main className="min-h-screen bg-[#06080D] grid place-items-center p-6 text-white select-none">
+      <main className="min-h-screen bg-[#1C1F26] grid place-items-center p-6 text-white select-none">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -356,7 +356,7 @@ export default function StaffAdminPortal() {
             value={pinInput}
             onChange={(e) => setPinInput(e.target.value)}
             placeholder="••••"
-            className="w-full h-12 text-center text-2xl font-mono tracking-[0.4em] rounded-xl bg-[#06080D] border border-white/10 text-white outline-none focus:border-[#CE1126]"
+            className="w-full h-12 text-center text-2xl font-mono tracking-[0.4em] rounded-xl bg-[#242832] border border-white/10 text-white outline-none focus:border-[#CE1126]"
             autoFocus
           />
           <button
@@ -371,7 +371,7 @@ export default function StaffAdminPortal() {
   }
 
   return (
-    <main className="min-h-dvh bg-[#06080D] text-slate-200 select-none">
+    <main className="min-h-dvh bg-[#1C1F26] text-slate-200 select-none">
       {/* Top Header */}
       <header className="flex min-h-20 items-center justify-between border-b border-[#1E2536] bg-[#0D111A] px-8">
         <div className="flex items-center gap-4">
@@ -497,7 +497,7 @@ export default function StaffAdminPortal() {
             {/* 4. Skip Preview */}
             <button
               onClick={() => sendCommand('SKIP_PREVIEW', 'ส่งคำสั่งข้าม Preview ส่งรูปไปจอ 2 ทันที')}
-              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-white/10 bg-[#06080D] hover:bg-white/10 text-slate-200 transition-all group text-center cursor-pointer"
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-white/10 bg-[#242832] hover:bg-white/10 text-slate-200 transition-all group text-center cursor-pointer"
             >
               <SkipForward className="size-5 text-cyan-400 group-hover:translate-x-0.5 transition-transform" />
               <span className="text-xs font-bold">ข้าม Preview</span>
@@ -510,7 +510,7 @@ export default function StaffAdminPortal() {
                 setKioskState('standby');
                 sendCommand('RESET_STANDBY', 'ส่งคำสั่งรีเซ็ตจอ 1 เป็น Standby แล้ว');
               }}
-              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-white/10 bg-[#06080D] hover:bg-white/10 text-slate-200 transition-all group text-center cursor-pointer"
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-white/10 bg-[#242832] hover:bg-white/10 text-slate-200 transition-all group text-center cursor-pointer"
             >
               <RefreshCcw className="size-5 text-slate-400 group-hover:rotate-180 transition-transform duration-500" />
               <span className="text-xs font-bold">รีเซ็ตตู้ (Standby)</span>
@@ -553,7 +553,7 @@ export default function StaffAdminPortal() {
           {/* Secondary Controls: Sensitivity Slider & Public Domain Configuration */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
             {/* Detection Area Sensitivity */}
-            <div className="p-3.5 rounded-lg bg-[#06080D] border border-white/10 space-y-2">
+            <div className="p-3.5 rounded-lg bg-[#242832] border border-white/10 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 font-bold text-white">
                   <Sliders className="size-4 text-cyan-400" />
@@ -578,7 +578,7 @@ export default function StaffAdminPortal() {
             </div>
 
             {/* Public Domain for 4G/5G QR Access */}
-            <div className="p-3.5 rounded-lg bg-[#06080D] border border-white/10 space-y-2">
+            <div className="p-3.5 rounded-lg bg-[#242832] border border-white/10 space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-white">
                 <div className="flex items-center gap-2">
                   <Globe className="size-4 text-[#10B981]" />
@@ -627,7 +627,7 @@ export default function StaffAdminPortal() {
             </div>
 
             <div className="flex flex-1 items-center gap-3 xl:max-w-xl">
-              <label className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-lg border border-white/10 bg-[#06080D] px-4 focus-within:border-cyan-400/60">
+              <label className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-lg border border-white/10 bg-[#242832] px-4 focus-within:border-cyan-400/60">
                 <Search className="size-4 text-slate-500" />
                 <input
                   value={searchQuery}
@@ -657,7 +657,7 @@ export default function StaffAdminPortal() {
             {filteredPhotos.map((photo, index) => (
               <article
                 key={`${photo.code}-${index}`}
-                className="overflow-hidden rounded-xl border border-[#1E2536] bg-[#06080D] hover:border-slate-600 transition-all shadow-md"
+                className="overflow-hidden rounded-xl border border-[#373D4B] bg-[#242832] hover:border-slate-600 transition-all shadow-md"
               >
                 <div className="relative aspect-[4/3] bg-slate-900">
                   <img
@@ -752,7 +752,7 @@ export default function StaffAdminPortal() {
                 }
                 level="H"
                 bgColor="#FFFFFF"
-                fgColor="#090D16"
+                fgColor="#1C1F26"
                 className="h-full w-full"
               />
             </div>
