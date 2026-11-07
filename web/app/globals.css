@@ -220,7 +220,7 @@ button:focus-visible {
 
 /* Screen 2: Display Showcase */
 .display-shell {
-  background-color: #1C1F26;
+  background-color: #090D16;
 }
 
 .display-stage {
@@ -232,17 +232,18 @@ button:focus-visible {
   background:
     linear-gradient(
       180deg,
-      rgba(32, 37, 47, 0.98) 0%,
-      rgba(26, 31, 40, 0.98) 58%,
-      rgba(4, 29, 32, 0.98) 100%
+      rgba(15, 23, 42, 0.98) 0%,
+      rgba(12, 19, 33, 0.98) 58%,
+      rgba(42, 9, 16, 0.98) 100%
     ),
-    #1C1F26;
+    #0a0d14;
 }
 
+/* SWU red glow so the white card sits in the dark-red backdrop instead of floating on it */
 .qr-card {
   box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.42),
-    0 0 34px rgba(248, 250, 252, 0.07);
+    0 24px 60px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(206, 17, 38, 0.22);
 }
 
 .photo-wall-scroll {
