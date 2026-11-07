@@ -142,7 +142,7 @@ flowchart TD
 - **เป้าหมาย**: กำหนดโครงสร้างระบบซอฟต์แวร์ ลำดับการทำงานของคอมโพเนนต์ และบันทึกการตัดสินใจทางสถาปัตยกรรม
 - **เอกสารส่งมอบ**:
   - [task02-architecture/system-architecture-and-technical-design.md](task02-architecture/system-architecture-and-technical-design.md) (C4 Architecture, Kiosk FSM State Machine, Camera & Vision Pipeline, Canvas Compositor, Staff Portal, ADRs 01-08)
-  - [task02-architecture/qa-decisions.md](task02-architecture/qa-decisions.md) (บันทึกบทสนทนาถาม-ตอบ /grill-me พร้อมตัวเลือกและคำตอบที่เลือก)
+  - [task02-architecture/qa-decisions.md](task02-architecture/qa-decisions.md) (บันทึกบทสนทนาถาม-ตอบ /grill-me พร้อมตัวเลือกและคำตอบที่เลือก 14 ข้อ)
   - [task02-architecture/team-execution-and-github-plan.md](task02-architecture/team-execution-and-github-plan.md) (แผนการแบ่งงาน 3 คน และกระบวนการทำงานร่วมกันบน GitHub)
   - [task02-architecture/project-structure-and-clean-architecture-guide.md](task02-architecture/project-structure-and-clean-architecture-guide.md) (คู่มือวิเคราะห์โครงสร้างโปรเจกต์ Clean Architecture vs Pragmatic Feature-Driven, ADR-09)
 - **รายละเอียดงานที่เสร็จสิ้น**:
