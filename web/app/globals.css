@@ -1,11 +1,31 @@
 :root {
-  --swu-red: #c8102e;
+  /* Brand Tokens */
+  --swu-red: #CE1126;
+  --swu-red-hover: #EF4444;
   --swu-red-dark: #8f0b20;
-  --ink: #1d1d1f;
-  --muted: #6e6e73;
-  --bg: #fafafa;
-  --surface: #ffffff;
-  --border: #e5e5ea;
+  --swu-slate: #1E293B;
+
+  /* Dark Studio Base */
+  --studio-base: #090D16;
+  --studio-elevated: #111827;
+  --studio-border: #1E293B;
+
+  /* Engineering Accents */
+  --tech-cyan: #06B6D4;
+  --status-success: #10B981;
+  --status-warning: #F59E0B;
+
+  /* Text & Readability */
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #8492A6;
+
+  /* Fallback legacy tokens */
+  --ink: #F8FAFC;
+  --muted: #94A3B8;
+  --bg: #090D16;
+  --surface: #111827;
+  --border: #1E293B;
 }
 
 * {
@@ -19,9 +39,44 @@ body {
 }
 
 body {
-  font-family: "Prompt", "Noto Sans Thai", "Leelawadee UI", system-ui, sans-serif;
-  color: var(--ink);
-  background: var(--bg);
+  font-family: "Prompt", "Plus Jakarta Sans", "Noto Sans Thai", "Leelawadee UI", system-ui, sans-serif;
+  color: var(--text-primary);
+  background: var(--studio-base);
+  caret-color: var(--swu-red);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Polished Browser Surfaces */
+::selection {
+  background-color: var(--swu-red);
+  color: #FFFFFF;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--tech-cyan);
+  outline-offset: 2px;
+}
+
+a, button {
+  text-underline-offset: 4px;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--studio-border);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--swu-red);
 }
 
 .home {
@@ -46,7 +101,7 @@ body {
 
 .home p {
   margin: 0;
-  color: var(--muted);
+  color: var(--text-secondary);
 }
 
 .home-links {
@@ -67,10 +122,19 @@ body {
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  border-color: var(--swu-red);
 }
 
 .btn-primary {
   background: var(--swu-red);
   border-color: var(--swu-red);
   color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--swu-red-hover);
 }
