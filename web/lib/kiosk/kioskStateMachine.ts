@@ -22,6 +22,7 @@ export type KioskEvent =
 /**
  * Pure Finite State Machine Reducer for Screen 1 (Capture Kiosk)
  * Handles Hand Trigger -> Countdown -> Flash -> 10s Preview (Fist to Retake, Palm to Proceed)
+ * When FIST is made in preview: cancels the photo and returns to IDLE to detect open palm when ready.
  * Once uploaded, Screen 1 resets immediately so the next visitor can enter.
  */
 export function kioskFSMReducer(state: KioskFSMState, event: KioskEvent): KioskFSMState {
@@ -48,8 +49,8 @@ export function kioskFSMReducer(state: KioskFSMState, event: KioskEvent): KioskF
       return state;
 
     case 'PREVIEW_RETAKE':
-      // Fist gesture triggers retake (returns to countdown)
-      if (event.type === 'GESTURE_RETAKE_FIST') return 'COUNTDOWN_ACTIVE';
+      // Fist gesture cancels photo and returns to IDLE to wait for palm detection (does NOT start 3 2 1 immediately)
+      if (event.type === 'GESTURE_RETAKE_FIST') return 'IDLE';
       // Palm gesture, manual proceed, or 10s timeout triggers upload
       if (
         event.type === 'GESTURE_PROCEED_PALM' ||

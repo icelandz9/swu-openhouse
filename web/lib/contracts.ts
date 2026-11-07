@@ -48,7 +48,16 @@ export type ScreenSyncEvent =
     }
   | {
       type: "KIOSK_COMMAND";
-      command: "RESET_STANDBY" | "SKIP_PREVIEW" | "PAUSE_BOOTH" | "RESUME_BOOTH" | string;
+      command:
+        | "RESET_STANDBY"
+        | "SKIP_PREVIEW"
+        | "PAUSE_BOOTH"
+        | "RESUME_BOOTH"
+        | "RELOAD_CAMERA"
+        | "CANCEL_COUNTDOWN"
+        | "SET_THRESHOLD"
+        | string;
+      value?: any;
     };
 
 // 1. Hand Detection State

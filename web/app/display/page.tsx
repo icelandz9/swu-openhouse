@@ -70,7 +70,8 @@ export default function ShowcaseDisplayScreen() {
     setIsMounted(true);
     if (typeof window !== 'undefined') {
       const customHost = localStorage.getItem('swu_booth_host');
-      setHostOrigin(customHost || window.location.origin);
+      const envAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+      setHostOrigin(envAppUrl || customHost || window.location.origin);
     }
   }, []);
 
@@ -146,6 +147,11 @@ export default function ShowcaseDisplayScreen() {
           }
           return updated;
         });
+      } else if (data.type === 'KIOSK_COMMAND' && data.command === 'SET_PUBLIC_DOMAIN') {
+        if (data.value && typeof window !== 'undefined') {
+          setHostOrigin(data.value);
+          localStorage.setItem('swu_booth_host', data.value);
+        }
       } else if (data.type === 'PHOTO_DELETED') {
         const deletedCode = data.code;
         setPhotos((prev) => {

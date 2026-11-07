@@ -44,6 +44,7 @@ export interface HandMeshProps {
   handAreaRatio?: number;
   isForeground?: boolean;
   gestureText?: string;
+  videoDimensions?: { width: number; height: number };
 }
 
 export function HandMesh({
@@ -55,12 +56,37 @@ export function HandMesh({
   handAreaRatio = 0,
   isForeground = true,
   gestureText = 'NONE',
+  videoDimensions,
 }: HandMeshProps) {
   const hasLandmarks = landmarks && landmarks.length >= 21;
 
   if (mode === 'overlay' && hasLandmarks) {
-    // 1:1 Direct mapping to video frame coordinates (0 to 100%)
-    const points: [number, number][] = landmarks.map((pt) => [pt.x * 100, pt.y * 100]);
+    // Exact mapping taking into account video aspect ratio vs 16:9 container object-cover
+    const vw = videoDimensions?.width || 16;
+    const vh = videoDimensions?.height || 9;
+    const videoAspect = vw / vh;
+    const containerAspect = 16 / 9;
+
+    let scaleX = 1;
+    let scaleY = 1;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (videoAspect > containerAspect) {
+      // Video is wider than container (cropped left/right)
+      scaleX = videoAspect / containerAspect;
+      offsetX = (1 - scaleX) / 2;
+    } else if (videoAspect < containerAspect) {
+      // Video is taller than container (e.g. 4:3 cropped top/bottom)
+      scaleY = containerAspect / videoAspect;
+      offsetY = (1 - scaleY) / 2;
+    }
+
+    // 1:1 Direct mapping to displayed video pixels (0 to 100%)
+    const points: [number, number][] = landmarks.map((pt) => [
+      (offsetX + pt.x * scaleX) * 100,
+      (offsetY + pt.y * scaleY) * 100,
+    ]);
 
     // Calculate Bounding Box
     let minX = 100, maxX = 0, minY = 100, maxY = 0;

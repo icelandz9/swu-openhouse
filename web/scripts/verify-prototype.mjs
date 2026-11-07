@@ -90,7 +90,7 @@ function kioskFSMReducer(state, event) {
       return state;
 
     case 'PREVIEW_RETAKE':
-      if (event.type === 'GESTURE_RETAKE_FIST') return 'COUNTDOWN_ACTIVE';
+      if (event.type === 'GESTURE_RETAKE_FIST') return 'IDLE';
       if (
         event.type === 'GESTURE_PROCEED_PALM' ||
         event.type === 'CONFIRM_UPLOAD' ||
@@ -142,7 +142,7 @@ assert.strictEqual(s, 'IDLE');
 // Scenario B: Retake flow with Fist gesture
 s = 'PREVIEW_RETAKE';
 s = kioskFSMReducer(s, { type: 'GESTURE_RETAKE_FIST' });
-assert.strictEqual(s, 'COUNTDOWN_ACTIVE', 'Fist in preview must restart countdown');
+assert.strictEqual(s, 'IDLE', 'Fist in preview must cancel to IDLE waiting for palm');
 
 // Scenario C: Staff manual trigger override from Admin Dashboard
 s = 'IDLE';

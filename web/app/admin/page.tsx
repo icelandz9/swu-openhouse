@@ -8,6 +8,7 @@ import {
   Database,
   Gamepad2,
   RefreshCcw,
+  RefreshCw,
   SkipForward,
   Pause,
   Play,
@@ -20,6 +21,11 @@ import {
   X,
   ShieldCheck,
   Lock,
+  Camera,
+  AlertTriangle,
+  Sliders,
+  Globe,
+  XCircle,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { PhotoRecord, ScreenSyncEvent, SCREEN_SYNC_CHANNEL } from '@/lib/contracts';
@@ -80,6 +86,8 @@ export default function StaffAdminPortal() {
   const [commandNotice, setCommandNotice] = useState<string>('');
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoRecord | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [sensitivity, setSensitivity] = useState<number>(3.5);
+  const [publicDomain, setPublicDomain] = useState<string>('');
 
   const channelRef = useRef<BroadcastChannel | null>(null);
 
@@ -126,12 +134,17 @@ export default function StaffAdminPortal() {
 
   useEffect(() => {
     loadPhotos();
+    if (typeof window !== 'undefined') {
+      const savedHost = localStorage.getItem('swu_booth_host') || process.env.NEXT_PUBLIC_APP_URL || '';
+      setPublicDomain(savedHost);
+    }
   }, []);
 
-  const sendCommand = (command: string, message: string) => {
+  const sendCommand = (command: string, message: string, value?: any) => {
     channelRef.current?.postMessage({
       type: 'KIOSK_COMMAND',
       command,
+      value,
     } as ScreenSyncEvent);
 
     if (command === 'RESET_STANDBY') {
@@ -142,9 +155,22 @@ export default function StaffAdminPortal() {
     setTimeout(() => setCommandNotice(''), 2500);
   };
 
+  const handleSavePublicDomain = () => {
+    const cleanDomain = publicDomain.trim().replace(/\/+$/, '');
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('swu_booth_host', cleanDomain);
+    }
+    sendCommand('SET_PUBLIC_DOMAIN', 'อัปเดต Public Domain สำหรับ 4G/5G และส่งต่อให้ทุกจอแล้ว', cleanDomain);
+  };
+
+  const handleSensitivityChange = (val: number) => {
+    setSensitivity(val);
+    sendCommand('SET_THRESHOLD', `ปรับเกณฑ์ความไวเป็น ${val}% แล้ว`, val / 100);
+  };
+
   const copyLink = async (photo: PhotoRecord) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-    const link = `${origin}/p/${photo.code}`;
+    const origin = publicDomain || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+    const link = `${origin.replace(/\/+$/, '')}/p/${photo.code}`;
     try {
       await navigator.clipboard.writeText(link);
       setCopiedCode(photo.code);
@@ -330,43 +356,92 @@ export default function StaffAdminPortal() {
           })}
         </section>
 
-        {/* Quick Kiosk Remote Bar */}
-        <section className="flex flex-col gap-4 rounded-xl border border-[#1E2536] bg-[#0D111A] p-5 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="size-10 rounded-lg bg-[#2DD4BF]/10 border border-[#2DD4BF]/30 flex items-center justify-center text-[#2DD4BF]">
-              <Gamepad2 className="size-5" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-white">สั่งการด่วนจอที่ 1 (Kiosk Remote)</h2>
-              <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-400">
-                สถานะปัจจุบัน:
-                <span
-                  className={`mono font-bold ${
-                    kioskState === 'paused' ? 'text-amber-400' : 'text-emerald-400'
-                  }`}
-                >
-                  [{kioskState === 'paused' ? 'พักบูธชั่วคราว' : 'รอตรวจจับมือ (Standby)'}]
-                </span>
+        {/* Onsite Accident Recovery Center */}
+        <section className="rounded-xl border border-red-500/30 bg-[#0D111A] p-5 space-y-4 shadow-lg">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="size-9 rounded-lg bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400">
+                <AlertTriangle className="size-5" />
               </div>
+              <div>
+                <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                  ศูนย์รับมืออุบัติเหตุหน้างาน (Onsite Emergency Incident Controls)
+                  <span className="rounded bg-red-500/20 text-red-400 text-[10px] px-2 py-0.5 border border-red-500/30 font-mono">
+                    REALTIME BUS
+                  </span>
+                </h2>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  แก้ปัญหากล้องค้าง คนเดินตัดหน้า ผู้พิการ/เด็กไม่สามารถยกมือ หรือผู้ร่วมงานต้องการลบรูปทันที
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-slate-400">สถานะ Kiosk:</span>
+              <span className={`mono font-bold px-2 py-0.5 rounded text-[10px] ${
+                kioskState === 'paused' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+              }`}>
+                {kioskState === 'paused' ? 'PAUSED (พักตู้)' : 'STANDBY (พร้อมทำงาน)'}
+              </span>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          {/* Emergency Action Buttons Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5">
+            {/* 1. Emergency Shutter */}
+            <button
+              onClick={() => sendCommand('STAFF_TRIGGER', 'ส่งคำสั่งเริ่มนับถอยหลังถ่ายภาพฉุกเฉินแล้ว')}
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg bg-[#CE1126] hover:bg-[#e1132b] text-white transition-all shadow-md group text-center cursor-pointer"
+            >
+              <Camera className="size-5 group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-bold">ถ่ายภาพฉุกเฉิน</span>
+              <span className="text-[9px] text-white/80">วีลแชร์ / เด็ก / แสงจ้า</span>
+            </button>
+
+            {/* 2. Cancel Countdown */}
+            <button
+              onClick={() => sendCommand('CANCEL_COUNTDOWN', 'ยกเลิกการนับถอยหลังและกลับสู่ Standby แล้ว')}
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 transition-all shadow-md group text-center cursor-pointer"
+            >
+              <XCircle className="size-5 group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-bold">ยกเลิกนับถอยหลัง</span>
+              <span className="text-[9px] text-amber-400/80">คนเดินตัดหน้า</span>
+            </button>
+
+            {/* 3. Re-init Camera */}
+            <button
+              onClick={() => sendCommand('RELOAD_CAMERA', 'ส่งคำสั่งรีสตาร์ทสตรีมกล้องจอ 1 แล้ว')}
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 transition-all shadow-md group text-center cursor-pointer"
+            >
+              <RefreshCw className="size-5 group-hover:rotate-180 transition-transform duration-500" />
+              <span className="text-xs font-bold">รีสตาร์ทกล้อง</span>
+              <span className="text-[9px] text-cyan-400/80">แก้ภาพดำ / USB หลุด</span>
+            </button>
+
+            {/* 4. Skip Preview */}
+            <button
+              onClick={() => sendCommand('SKIP_PREVIEW', 'ส่งคำสั่งข้าม Preview ส่งรูปไปจอ 2 ทันที')}
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-white/10 bg-[#06080D] hover:bg-white/10 text-slate-200 transition-all group text-center cursor-pointer"
+            >
+              <SkipForward className="size-5 text-cyan-400 group-hover:translate-x-0.5 transition-transform" />
+              <span className="text-xs font-bold">ข้าม Preview</span>
+              <span className="text-[9px] text-slate-400">ส่งรูปไปจอ 2 ทันที</span>
+            </button>
+
+            {/* 5. Force Standby */}
             <button
               onClick={() => {
                 setKioskState('standby');
                 sendCommand('RESET_STANDBY', 'ส่งคำสั่งรีเซ็ตจอ 1 เป็น Standby แล้ว');
               }}
-              className="flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-[#06080D] px-4 text-xs font-semibold text-slate-200 hover:bg-white/10 transition-colors"
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-white/10 bg-[#06080D] hover:bg-white/10 text-slate-200 transition-all group text-center cursor-pointer"
             >
-              <RefreshCcw className="size-4 text-slate-400" /> รีเซ็ตจอ 1 (Force Standby)
+              <RefreshCcw className="size-5 text-slate-400 group-hover:rotate-180 transition-transform duration-500" />
+              <span className="text-xs font-bold">รีเซ็ตตู้ (Standby)</span>
+              <span className="text-[9px] text-slate-400">เคลียร์สถานะค้าง</span>
             </button>
-            <button
-              onClick={() => sendCommand('SKIP_PREVIEW', 'ส่งคำสั่งข้าม Preview ไปยังจอ 2 ทันที')}
-              className="flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-[#06080D] px-4 text-xs font-semibold text-slate-200 hover:bg-white/10 transition-colors"
-            >
-              <SkipForward className="size-4 text-cyan-400" /> ข้าม Preview ส่งไปจอ 2 ทันที
-            </button>
+
+            {/* 6. Pause / Resume Booth */}
             <button
               onClick={() => {
                 if (kioskState === 'paused') {
@@ -377,7 +452,7 @@ export default function StaffAdminPortal() {
                   sendCommand('PAUSE_BOOTH', 'พักจอ 1 ชั่วคราวแล้ว');
                 }
               }}
-              className={`flex h-10 items-center gap-2 rounded-lg border px-4 text-xs font-semibold transition-colors ${
+              className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border transition-all text-center cursor-pointer ${
                 kioskState === 'paused'
                   ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
                   : 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
@@ -385,14 +460,75 @@ export default function StaffAdminPortal() {
             >
               {kioskState === 'paused' ? (
                 <>
-                  <Play className="size-4" /> เปิดใช้งานจอ 1 ต่อ
+                  <Play className="size-5" />
+                  <span className="text-xs font-bold">เปิดใช้งานต่อ</span>
+                  <span className="text-[9px] text-emerald-400/80">ปลดล็อกตู้</span>
                 </>
               ) : (
                 <>
-                  <Pause className="size-4" /> พักบูธชั่วคราว (จัดคิว/เช็ดเลนส์)
+                  <Pause className="size-5" />
+                  <span className="text-xs font-bold">พักบูธชั่วคราว</span>
+                  <span className="text-[9px] text-amber-400/80">จัดคิว / เช็ดเลนส์</span>
                 </>
               )}
             </button>
+          </div>
+
+          {/* Secondary Controls: Sensitivity Slider & Public Domain Configuration */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+            {/* Detection Area Sensitivity */}
+            <div className="p-3.5 rounded-lg bg-[#06080D] border border-white/10 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 font-bold text-white">
+                  <Sliders className="size-4 text-cyan-400" />
+                  <span>เกณฑ์ระยะตรวจจับมือ (Detection Area Threshold)</span>
+                </div>
+                <span className="mono font-bold text-cyan-300">{sensitivity.toFixed(1)}%</span>
+              </div>
+              <input
+                type="range"
+                min="2.0"
+                max="6.0"
+                step="0.5"
+                value={sensitivity}
+                onChange={(e) => handleSensitivityChange(parseFloat(e.target.value))}
+                className="w-full accent-cyan-400 cursor-pointer"
+              />
+              <div className="flex justify-between text-[10px] text-slate-500">
+                <span>2.0% (ไวมาก / ยืนไกลได้)</span>
+                <span className="text-slate-400">3.5% (แนะนำ)</span>
+                <span>6.0% (ใกล้ตู้ / กรองคนด้านหลัง)</span>
+              </div>
+            </div>
+
+            {/* Public Domain for 4G/5G QR Access */}
+            <div className="p-3.5 rounded-lg bg-[#06080D] border border-white/10 space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-white">
+                <div className="flex items-center gap-2">
+                  <Globe className="size-4 text-[#10B981]" />
+                  <span>Public Domain / Tunnel URL (ให้น้องใช้ 4G/5G สแกน)</span>
+                </div>
+                <span className="text-[10px] text-emerald-400 mono">ONLINE READY</span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="https://photobooth.cpe-swu.com หรือ trycloudflare.com"
+                  value={publicDomain}
+                  onChange={(e) => setPublicDomain(e.target.value)}
+                  className="flex-1 rounded border border-white/10 bg-[#0D111A] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 outline-none focus:border-[#10B981]"
+                />
+                <button
+                  onClick={handleSavePublicDomain}
+                  className="rounded bg-[#10B981] hover:bg-[#0ea371] px-3 py-1.5 text-xs font-bold text-white transition-colors shrink-0 cursor-pointer"
+                >
+                  บันทึก & ซิงค์ QR
+                </button>
+              </div>
+              <div className="text-[10px] text-slate-500">
+                หากใช้ Cloudflare Tunnel ให้กรอก URL ที่ได้ที่นี่ QR Code ทั้งหมดจะเปลี่ยนตามทันที
+              </div>
+            </div>
           </div>
         </section>
 
@@ -525,7 +661,9 @@ export default function StaffAdminPortal() {
             <div className="mx-auto aspect-square w-64 rounded-2xl bg-white p-4 shadow-xl flex items-center justify-center">
               <QRCodeSVG
                 value={
-                  typeof window !== 'undefined'
+                  publicDomain
+                    ? `${publicDomain.replace(/\/+$/, '')}/p/${encodeURIComponent(selectedPhoto.code)}`
+                    : typeof window !== 'undefined'
                     ? `${window.location.origin}/p/${encodeURIComponent(selectedPhoto.code)}`
                     : selectedPhoto.qrUrl
                 }

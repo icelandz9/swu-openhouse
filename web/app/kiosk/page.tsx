@@ -35,11 +35,16 @@ export default function KioskCapturePage() {
   const channelRef = useRef<BroadcastChannel | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const initCameraRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const handleConfirmUploadRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   // Camera & Stream state
   const [cameraActive, setCameraActive] = useState<boolean>(false);
   const [isAiVisionReady, setIsAiVisionReady] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number }>({ width: 16, height: 9 });
+  const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.035);
+  const currentStreamRef = useRef<MediaStream | null>(null);
 
   // Gesture detection & tracking
   const [holdProgress, setHoldProgress] = useState<number>(0);
@@ -107,15 +112,32 @@ export default function KioskCapturePage() {
       } else if (data.type === 'KIOSK_COMMAND') {
         if (data.command === 'RESET_STANDBY') {
           send({ type: 'FORCE_RESET' });
+          setHoldProgress(0);
+          holdStartTimeRef.current = null;
           setIsPaused(false);
         } else if (data.command === 'SKIP_PREVIEW') {
           if (isPreviewing) {
-            handleConfirmUpload();
+            handleConfirmUploadRef.current();
           }
         } else if (data.command === 'PAUSE_BOOTH') {
           setIsPaused(true);
         } else if (data.command === 'RESUME_BOOTH') {
           setIsPaused(false);
+        } else if (data.command === 'RELOAD_CAMERA') {
+          initCameraRef.current();
+        } else if (data.command === 'CANCEL_COUNTDOWN') {
+          send({ type: 'FORCE_RESET' });
+          setCountdown(3);
+          setHoldProgress(0);
+          holdStartTimeRef.current = null;
+        } else if (data.command === 'SET_THRESHOLD') {
+          if (typeof data.value === 'number') {
+            setHandAreaThreshold(data.value);
+          }
+        } else if (data.command === 'SET_PUBLIC_DOMAIN') {
+          if (data.value && typeof window !== 'undefined') {
+            localStorage.setItem('swu_booth_host', data.value);
+          }
         }
       }
     };
@@ -218,6 +240,7 @@ export default function KioskCapturePage() {
         if (res.ok) {
           const data = await res.json();
           if (data.photoUrl) finalPhotoUrl = data.photoUrl;
+          if (data.qrUrl) qrUrl = data.qrUrl;
         }
       } catch (err) {
         console.warn('Backend storage offline, syncing via local event bus:', err);
@@ -268,51 +291,66 @@ export default function KioskCapturePage() {
 
   const handleRetake = useCallback(() => {
     if (retakeCount >= 1) {
-      handleConfirmUpload();
+      handleConfirmUploadRef.current();
       return;
     }
     setRetakeCount((prev) => prev + 1);
     previewGestureLockRef.current = false;
+    setHoldProgress(0);
+    holdStartTimeRef.current = null;
+    setCountdown(3);
+    setPreviewSeconds(10);
     send({ type: 'GESTURE_RETAKE_FIST' });
   }, [retakeCount, send, handleConfirmUpload]);
 
   // Initialize WebRTC Camera
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-
-    async function initCamera() {
-      try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error('WebRTC not supported');
-        }
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            facingMode: 'user',
-          },
-          audio: false,
-        });
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => {});
-          setCameraActive(true);
-        }
-      } catch (err: any) {
-        console.warn('WebRTC camera unavailable, using simulation mode:', err.message);
-        setCameraActive(false);
+  const initCamera = useCallback(async () => {
+    try {
+      if (currentStreamRef.current) {
+        currentStreamRef.current.getTracks().forEach((track) => track.stop());
+        currentStreamRef.current = null;
       }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('WebRTC not supported');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          facingMode: 'user',
+        },
+        audio: false,
+      });
+      currentStreamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          if (videoRef.current) {
+            setVideoDimensions({
+              width: videoRef.current.videoWidth || 16,
+              height: videoRef.current.videoHeight || 9,
+            });
+          }
+        };
+        await videoRef.current.play().catch(() => {});
+        setCameraActive(true);
+      }
+    } catch (err: any) {
+      console.warn('WebRTC camera unavailable, using simulation mode:', err.message);
+      setCameraActive(false);
     }
+  }, []);
 
-    initCamera();
-
+  useEffect(() => {
+    initCameraRef.current();
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+      if (currentStreamRef.current) {
+        currentStreamRef.current.getTracks().forEach((track) => track.stop());
+        currentStreamRef.current = null;
       }
     };
-  }, []);
+  }, [initCamera]);
 
   // Initialize MediaPipe HandLandmarker dynamically (Client-Only)
   useEffect(() => {
@@ -395,7 +433,7 @@ export default function KioskCapturePage() {
               setDetectedGestureText(detected);
 
               // Depth & Area Filter: reject distant background passers-by (>= 3.5% required)
-              const inForeground = isHandInForeground(primaryHand, 0.035);
+              const inForeground = isHandInForeground(primaryHand, handAreaThreshold);
               setIsForeground(inForeground);
 
               let minX = 1;
@@ -442,7 +480,7 @@ export default function KioskCapturePage() {
                   handleRetake();
                 } else if (detected === 'OPEN_PALM') {
                   previewGestureLockRef.current = true;
-                  handleConfirmUpload();
+                  handleConfirmUploadRef.current();
                 }
               }
             } else {
@@ -509,7 +547,7 @@ export default function KioskCapturePage() {
       previewInterval = setInterval(() => {
         setPreviewSeconds((prev) => {
           if (prev <= 1) {
-            handleConfirmUpload();
+            handleConfirmUploadRef.current();
             return 0;
           }
           return prev - 1;
@@ -527,7 +565,7 @@ export default function KioskCapturePage() {
         if (isIdle || isDetecting) {
           send({ type: 'TRIGGER_ACTIVATED' });
         } else if (isPreviewing) {
-          handleConfirmUpload();
+          handleConfirmUploadRef.current();
         }
       } else if (key === 'f') {
         if (isPreviewing) {
@@ -693,6 +731,7 @@ export default function KioskCapturePage() {
             handAreaRatio={handAreaRatio}
             isForeground={isForeground}
             gestureText={detectedGestureText}
+            videoDimensions={videoDimensions}
           />
         )}
 

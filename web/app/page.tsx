@@ -14,26 +14,22 @@ export default function Home() {
               SRINAKHARINWIROT UNIVERSITY
             </div>
             <div className="text-lg font-black text-white">
-              AI Photo Booth • Open House 2026
+              CPE PhotoBooth • Open House 2026
             </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-[#10B981] animate-pulse" />
-          <span className="text-xs font-mono text-[#94A3B8]">PROTOTYPE READY (STANDALONE)</span>
+          <span className="text-xs font-mono text-[#94A3B8]">SYSTEM READY</span>
         </div>
       </div>
 
       {/* Main Hub Presentation */}
-      <div className="w-full max-w-5xl my-10 space-y-10">
+      <div className="w-full max-w-5xl my-auto py-12 space-y-12">
         <div className="text-center space-y-3 max-w-2xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white">
-            ระบบตู้ถ่ายภาพอัจฉริยะ <span className="text-[#CE1126]">ไร้สัมผัส</span>
+          <h1 className="text-5xl md:text-6xl font-black tracking-tight text-white">
+            CPE PhotoBooth
           </h1>
-          <p className="text-sm md:text-base text-[#94A3B8] leading-relaxed">
-            สถาปัตยกรรม 1 Laptop ควบคุม 2 จอแสดงผลภายนอก (Windows Extended Desktop)
-            เชื่อมต่อแบบเรียลไทม์ผ่าน BroadcastChannel
-          </p>
         </div>
 
         {/* 4 Screen Launcher Cards */}
@@ -105,7 +101,7 @@ export default function Home() {
                 Admin: แดชบอร์ดสตาฟ (/admin)
               </h2>
               <p className="text-xs text-[#8492A6] leading-relaxed">
-                PIN Gate (1234), เทเลเมตรีฮาร์ดแวร์, ค้นหารูปและ Re-issue QR ให้น้องที่ทำรหัสหาย (ไม่มีปุ่มสั่งชัตเตอร์)
+                PIN Gate (1234), เทเลเมตรีฮาร์ดแวร์, ควบคุม Kiosk ฉุกเฉิน, และ Re-issue QR ให้น้องที่ทำรหัสหาย
               </p>
             </div>
             <div className="mt-6 flex items-center text-xs font-bold text-[#06B6D4]">
@@ -137,39 +133,6 @@ export default function Home() {
               ทดสอบเว็บบนมือถือ →
             </div>
           </Link>
-        </div>
-
-        {/* Windows Extended Desktop Setup Guide */}
-        <div className="rounded-2xl bg-[#0D111A] border border-[#1E2536] p-6 md:p-8 space-y-4">
-          <div className="flex items-center gap-3">
-            <span className="text-xl">⚙️</span>
-            <h3 className="text-base font-bold text-white">
-              คู่มือการตั้งค่าหน้าจอหน้างาน (Windows Multi-Display Setup)
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-[#94A3B8] pt-2">
-            <div className="p-4 rounded-xl bg-[#06080D] border border-[#1E2536] space-y-2">
-              <div className="font-bold text-white flex items-center gap-2">
-                <span className="h-5 w-5 rounded-full bg-[#CE1126] text-white flex items-center justify-center text-[10px]">1</span>
-                <span>กดปุ่ม Win + P</span>
-              </div>
-              <p>เลือกโหมด <b>&quot;Extend&quot; (ขยายหน้าจอ)</b> เพื่อให้ Windows มองเห็น 3 จอแยกกันอิสระ</p>
-            </div>
-            <div className="p-4 rounded-xl bg-[#06080D] border border-[#1E2536] space-y-2">
-              <div className="font-bold text-white flex items-center gap-2">
-                <span className="h-5 w-5 rounded-full bg-[#10B981] text-white flex items-center justify-center text-[10px]">2</span>
-                <span>ลากหน้าต่างออกไปยัง 2 จอ</span>
-              </div>
-              <p>ลากหน้าต่าง <b>/kiosk</b> ไปจอที่ 1 และ <b>/display</b> ไปจอที่ 2 แล้วกด <b>F11</b> เข้าโหมด Fullscreen</p>
-            </div>
-            <div className="p-4 rounded-xl bg-[#06080D] border border-[#1E2536] space-y-2">
-              <div className="font-bold text-white flex items-center gap-2">
-                <span className="h-5 w-5 rounded-full bg-[#06B6D4] text-white flex items-center justify-center text-[10px]">3</span>
-                <span>คุมระบบผ่านจอ Laptop</span>
-              </div>
-              <p>เปิดหน้าต่าง <b>/admin</b> ไว้บนจอ Laptop ของสตาฟ เพื่อมอนิเตอร์และบริการ Re-issue QR</p>
-            </div>
-          </div>
         </div>
       </div>
 
