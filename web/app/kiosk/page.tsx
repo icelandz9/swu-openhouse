@@ -12,6 +12,7 @@ import {
   Pause,
   Sliders,
   Check,
+  RotateCcw,
 } from 'lucide-react';
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
 import { ScreenSyncEvent, CROP_DIMENSIONS_4_3, SCREEN_SYNC_CHANNEL } from '@/lib/contracts';
@@ -55,6 +56,7 @@ export default function KioskCapturePage() {
   const holdStartTimeRef = useRef<number | null>(null);
   const lastPalmSeenTimeRef = useRef<number>(0);
   const previewGestureLockRef = useRef<boolean>(false);
+  const previewEnterTimeRef = useRef<number>(0);
 
   const [countdown, setCountdown] = useState<number>(3);
   const [previewSeconds, setPreviewSeconds] = useState<number>(10);
@@ -290,18 +292,13 @@ export default function KioskCapturePage() {
   }, [capturedPhotoUrl, send]);
 
   const handleRetake = useCallback(() => {
-    if (retakeCount >= 1) {
-      handleConfirmUploadRef.current();
-      return;
-    }
-    setRetakeCount((prev) => prev + 1);
     previewGestureLockRef.current = false;
     setHoldProgress(0);
     holdStartTimeRef.current = null;
     setCountdown(3);
     setPreviewSeconds(10);
     send({ type: 'GESTURE_RETAKE_FIST' });
-  }, [retakeCount, send, handleConfirmUpload]);
+  }, [send]);
 
   // Initialize WebRTC Camera
   const initCamera = useCallback(async () => {
@@ -490,12 +487,25 @@ export default function KioskCapturePage() {
                   }
                 }
               } else if (isPreviewing && !previewGestureLockRef.current) {
-                if (detected === 'FIST') {
-                  previewGestureLockRef.current = true;
-                  handleRetake();
-                } else if (detected === 'OPEN_PALM') {
-                  previewGestureLockRef.current = true;
-                  handleConfirmUploadRef.current();
+                const timeInPreview = performance.now() - previewEnterTimeRef.current;
+                // Grace period: ignore first 1.2s of preview so lingering posing hand does not accidentally trigger upload
+                if (timeInPreview > 1200) {
+                  if (detected === 'FIST') {
+                    previewGestureLockRef.current = true;
+                    handleRetake();
+                  } else if (detected === 'OPEN_PALM') {
+                    // Require deliberate hold (800ms) during preview to confirm
+                    if (holdStartTimeRef.current === null) {
+                      holdStartTimeRef.current = performance.now();
+                    }
+                    const palmHold = performance.now() - holdStartTimeRef.current;
+                    if (palmHold >= 800) {
+                      previewGestureLockRef.current = true;
+                      handleConfirmUploadRef.current();
+                    }
+                  } else {
+                    holdStartTimeRef.current = null;
+                  }
                 }
               }
             } else {
@@ -555,10 +565,14 @@ export default function KioskCapturePage() {
     }
   }, [isCapturing, send]);
 
-  // Preview countdown timer (10s auto-proceed)
+  // Preview countdown timer (10s auto-proceed) & Grace Period initialization
   useEffect(() => {
     let previewInterval: NodeJS.Timeout;
     if (isPreviewing) {
+      previewEnterTimeRef.current = performance.now();
+      previewGestureLockRef.current = false;
+      setPreviewSeconds(10);
+
       previewInterval = setInterval(() => {
         setPreviewSeconds((prev) => {
           if (prev <= 1) {
@@ -897,41 +911,47 @@ export default function KioskCapturePage() {
           <div className="kiosk-flash pointer-events-none absolute inset-0 z-50 bg-white" />
         )}
 
-        {/* Preview State: Review & Retake Controls */}
+        {/* Preview State: Review & Retake Controls - Clean, Formal & No Emojis */}
         {isPreviewing && (
           <div className="absolute inset-x-0 bottom-0 z-40 flex flex-col items-center justify-end pb-8">
-            <div className="flex items-center gap-6 rounded-2xl bg-[#090D16]/95 border border-white/10 px-8 py-5 shadow-2xl backdrop-blur-md">
-              {/* Fist: Retake Button */}
+            <div className="flex items-center gap-6 rounded-2xl bg-[#090D16]/95 border border-white/15 px-7 py-3.5 shadow-2xl backdrop-blur-xl">
+              {/* Fist: Retake Button (Unlimited Retakes) */}
               <button
+                type="button"
                 onClick={handleRetake}
-                className="group flex items-center gap-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 px-5 py-3 transition-all"
+                className="group flex items-center gap-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 px-5 py-2.5 transition-all cursor-pointer"
               >
-                <span className="text-2xl">✊</span>
+                <div className="flex size-9 items-center justify-center rounded-lg bg-white/10 text-white group-hover:rotate-[-45deg] transition-transform">
+                  <RotateCcw className="size-4" />
+                </div>
                 <div className="text-left">
-                  <div className="text-sm font-bold text-white">กำมือ เพื่อถ่ายใหม่</div>
-                  <div className="mono text-[10px] text-slate-400">
-                    RETAKE ({1 - retakeCount} LEFT)
-                  </div>
+                  <div className="text-xs font-bold text-white">กำมือ เพื่อถ่ายใหม่</div>
+                  <div className="mono text-[10px] text-slate-400">RETAKE PHOTO</div>
                 </div>
               </button>
 
               {/* Center Timer */}
-              <div className="flex flex-col items-center px-4">
+              <div className="flex flex-col items-center px-4 min-w-[70px]">
                 <div className="mono text-2xl font-black text-cyan-400 tabular-nums">
                   {previewSeconds}s
                 </div>
-                <div className="text-[10px] font-bold text-slate-500 uppercase">AUTO PROCEED</div>
+                <div className="mono text-[9px] font-bold text-slate-400 tracking-wider uppercase">
+                  AUTO PROCEED
+                </div>
               </div>
 
               {/* Palm: Confirm Button */}
               <button
+                type="button"
                 onClick={handleConfirmUpload}
-                className="group flex items-center gap-3 rounded-xl bg-[#CE1126] hover:bg-[#e1132b] px-6 py-3 transition-all shadow-lg"
+                className="group flex items-center gap-3 rounded-xl bg-[#CE1126] hover:bg-[#8F0B20] border border-[#CE1126]/60 px-6 py-2.5 transition-all shadow-[0_4px_20px_rgba(206,17,38,0.35)] cursor-pointer"
               >
-                <span className="text-2xl">✋</span>
+                <div className="flex size-9 items-center justify-center rounded-lg bg-black/25 text-white">
+                  <Check className="size-5" strokeWidth={2.5} />
+                </div>
                 <div className="text-left">
-                  <div className="text-sm font-bold text-white">แบมือ ยืนยันรูปนี้</div>
-                  <div className="mono text-[10px] text-white/80">PROCEED TO SCREEN 2</div>
+                  <div className="text-xs font-bold text-white">แบมือ ยืนยันรูปนี้</div>
+                  <div className="mono text-[10px] text-white/90">CONFIRM & CREATE QR</div>
                 </div>
               </button>
             </div>
