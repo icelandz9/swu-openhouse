@@ -17,42 +17,42 @@ const DEFAULT_SEEDS: GalleryItem[] = [
     code: 'OPH-AB29',
     qrUrl: '/p/OPH-AB29',
     photoUrl: 'https://images.unsplash.com/photo-1634938332514-6f3d23c8cc42?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=900&h=1100',
-    createdAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+    createdAt: '2026-11-07T12:00:00.000Z',
     style: 'NEURAL RED',
   },
   {
     code: 'OPH-2018',
     qrUrl: '/p/OPH-2018',
     photoUrl: 'https://images.unsplash.com/photo-1758534063829-a72058381e21?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=900&h=1100',
-    createdAt: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
+    createdAt: '2026-11-07T11:54:00.000Z',
     style: 'CYBER GRID',
   },
   {
     code: 'OPH-1996',
     qrUrl: '/p/OPH-1996',
     photoUrl: 'https://images.unsplash.com/photo-1782069326883-090221bfcd6e?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=900&h=1100',
-    createdAt: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+    createdAt: '2026-11-07T11:48:00.000Z',
     style: 'SIGNAL NOIR',
   },
   {
     code: 'OPH-1984',
     qrUrl: '/p/OPH-1984',
     photoUrl: 'https://images.unsplash.com/photo-1791573391615-1ad1f53d7f9e?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=900&h=1100',
-    createdAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+    createdAt: '2026-11-07T11:40:00.000Z',
     style: 'RED SHIFT',
   },
   {
     code: 'OPH-8842',
     qrUrl: '/p/OPH-8842',
     photoUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
-    createdAt: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+    createdAt: '2026-11-07T11:25:00.000Z',
     style: 'STUDIO RAW',
   },
   {
     code: 'OPH-7721',
     qrUrl: '/p/OPH-7721',
     photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-    createdAt: new Date(Date.now() - 50 * 60 * 1000).toISOString(),
+    createdAt: '2026-11-07T11:10:00.000Z',
     style: 'NEURAL RED',
   },
 ];
@@ -61,7 +61,18 @@ export default function ShowcaseDisplayScreen() {
   const [photos, setPhotos] = useState<GalleryItem[]>(DEFAULT_SEEDS);
   const [currentTime, setCurrentTime] = useState<string>('12:00');
   const [newestCode, setNewestCode] = useState<string>('');
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+  const [hostOrigin, setHostOrigin] = useState<string>('');
   const channelRef = useRef<BroadcastChannel | null>(null);
+
+  // Mount tracking and host resolution for hydration safety
+  useEffect(() => {
+    setIsMounted(true);
+    if (typeof window !== 'undefined') {
+      const customHost = localStorage.getItem('swu_booth_host');
+      setHostOrigin(customHost || window.location.origin);
+    }
+  }, []);
 
   // Live time ticker
   useEffect(() => {
@@ -146,9 +157,9 @@ export default function ShowcaseDisplayScreen() {
   const latest = photos[0] ?? DEFAULT_SEEDS[0];
   const historyPhotos = photos.slice(1);
 
-  // Compute clean QR URL
-  const qrTargetUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/p/${encodeURIComponent(latest.code)}`
+  // Compute clean QR URL (Hydration-safe with hostOrigin fallback)
+  const qrTargetUrl = hostOrigin
+    ? `${hostOrigin}/p/${encodeURIComponent(latest.code)}`
     : latest.qrUrl || `/p/${latest.code}`;
 
   return (
@@ -163,7 +174,7 @@ export default function ShowcaseDisplayScreen() {
                 <span className="size-2 rounded-full bg-[#10B981] animate-pulse shadow-[0_0_12px_#10B981]" />
                 LATEST SHOT
               </span>
-              <span className="text-slate-400 font-bold">{currentTime}</span>
+              <span className="text-slate-400 font-bold" suppressHydrationWarning>{currentTime}</span>
             </div>
 
             <h1 className="mt-[1.1vw] text-[clamp(1.4rem,2vw,2.4rem)] font-extrabold tracking-[-.035em] text-white">
@@ -201,14 +212,20 @@ export default function ShowcaseDisplayScreen() {
           {/* White QR Pill Card for Immediate Mobile Scan */}
           <div className="qr-card mx-auto mt-[1vw] grid min-h-[26%] w-[96%] shrink-0 grid-cols-[.48fr_1fr] items-center gap-[1vw] rounded-[1vw] bg-white p-[.85vw]">
             <div className="aspect-square bg-white p-[.2vw] flex items-center justify-center">
-              <QRCodeSVG
-                value={qrTargetUrl}
-                level="H"
-                bgColor="#FFFFFF"
-                fgColor="#090D16"
-                className="h-full w-full"
-                title={`รับรูป ${latest.code}`}
-              />
+              {isMounted ? (
+                <QRCodeSVG
+                  value={qrTargetUrl}
+                  level="H"
+                  bgColor="#FFFFFF"
+                  fgColor="#090D16"
+                  className="h-full w-full"
+                  title={`รับรูป ${latest.code}`}
+                />
+              ) : (
+                <div className="h-full w-full bg-slate-100 flex items-center justify-center text-slate-300 text-[10px] font-mono animate-pulse rounded">
+                  QR CODE
+                </div>
+              )}
             </div>
             <div className="text-[#0F172A]">
               <div className="text-[clamp(.85rem,1.18vw,1.42rem)] font-extrabold tracking-[-.03em]">
