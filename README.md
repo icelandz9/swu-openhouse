@@ -49,6 +49,8 @@ flowchart LR
 ├── poc/
 │   ├── test_poc.mjs          ทดสอบ logic หลัก 4 ข้อ (ท่ามือ, debounce, รหัส, PDPA)
 │   └── validate_mermaid.mjs  ตรวจ syntax ไดอะแกรม Mermaid ในไฟล์ .md ทั้งหมด
+├── scripts/
+│   └── model-training/   เดโมเปิดกล้องตรวจท่ามือ + เก็บข้อมูลและเทรนโมเดล (Python)
 └── web/                  เว็บแอป Next.js (ดู web/README.md)
 ```
 
@@ -70,6 +72,15 @@ npm install
 node poc/test_poc.mjs
 node poc/validate_mermaid.mjs
 ```
+
+**เดโมเปิดกล้องตรวจท่ามือ** ต้องมี [Python 3.13](https://www.python.org/downloads/) (รันจาก root)
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r scripts/model-training/requirements.txt
+python scripts/model-training/fivepalm_shutter.py
+```
+รายละเอียดและวิธีแก้ปัญหาอยู่ใน [scripts/model-training/README.md](scripts/model-training/README.md)
 
 ## เทคโนโลยี
 

@@ -73,17 +73,57 @@ npm run dev
 ```
 web/
 ├── app/
-│   ├── page.tsx              หน้าแรก
-│   ├── kiosk/page.tsx        หน้าตู้ (กล้อง + จับท่ามือ + QR)
-│   ├── p/[code]/page.tsx     หน้ามือถือ (ฟิลเตอร์ + กรอบ + บันทึก)
+│   ├── page.tsx                หน้าแรก
+│   ├── kiosk/page.tsx          [คนที่ 2] จอที่ 1: ถ่ายรูป (ท่ามือ, นับ 3-2-1, พรีวิว 10 วิ)
+│   ├── display/page.tsx        [คนที่ 2] จอที่ 2: ซ้าย 30% QR / ขวา 70% Photo Wall
+│   ├── p/[code]/page.tsx       [คนที่ 3] มือถือ: ฟิลเตอร์ + กรอบ + บันทึก
+│   ├── find/page.tsx           [คนที่ 3] ค้นรูปด้วยรหัส OPH-XXXX
+│   ├── admin/page.tsx          [คนที่ 3] จอ Laptop: แดชบอร์ดสตาฟ
 │   └── api/
-│       ├── photos/           อัปโหลด / ดึงรูป
-│       └── config/           URL ของเครื่องตู้
-├── lib/                      logic กลาง (จับท่ามือ, รหัสสั้น, จัดเก็บไฟล์, ฟิลเตอร์, กรอบ)
-├── scripts/setup-assets.mjs  เตรียมไฟล์ MediaPipe
-├── public/mediapipe/         ไฟล์โมเดล (สร้างอัตโนมัติ ไม่ commit)
-└── data/                     รูปที่ถ่าย (ไม่ commit — ข้อมูลส่วนบุคคล PDPA)
+│       ├── photos/             [คนที่ 3] POST บันทึกรูป
+│       ├── photos/[code]/      [คนที่ 3] GET ดึงรูปตามรหัส
+│       └── health/             [คนที่ 3] ตรวจสถานะระบบ
+├── lib/
+│   ├── contracts.ts            [ส่วนกลาง] Type, ค่าเวลา KIOSK_TIMING, Event ข้ามจอ
+│   ├── ai-vision/              [คนที่ 1] useWebcamStream, useMediaPipeHand, gestureRules, depthAreaFilter, useGestureTrigger
+│   ├── kiosk/                  [คนที่ 2] kioskStateMachine, useKioskFSM, centerCropper, broadcastBus
+│   ├── mobile/                 [คนที่ 3] colorFilters, canvasCompositor, useCanvasCompositor, shortCodeGenerator
+│   └── storage/                [คนที่ 3] IPhotoStorage, LocalStorageAdapter, CloudflareR2Adapter, storageService
+├── public/
+│   ├── frames/                 [คนที่ 3] กรอบ CPE 3 แบบ PNG 4:3 (ดู README ในโฟลเดอร์)
+│   └── mediapipe/              ไฟล์โมเดล (สร้างอัตโนมัติ ไม่ commit)
+├── scripts/setup-assets.mjs    เตรียมไฟล์ MediaPipe
+├── postcss.config.mjs          เปิดใช้ Tailwind CSS
+└── data/                       รูปที่ถ่าย (ไม่ commit — ข้อมูลส่วนบุคคล PDPA)
 ```
+
+## การตรวจท่ามือ
+
+`useMediaPipeHand` คืนข้อมูลของแต่ละมือเป็น array ลำดับเดียวกัน ส่งเข้า `classifyGesture` ได้ตรง ๆ:
+
+```ts
+const { hands, worldHands, handedness } = useMediaPipeHand(video, enabled);
+
+const gesture = classifyGesture(
+  hands[i],
+  worldHands[i],
+  handedness[i],
+  video.videoWidth / video.videoHeight
+);
+```
+
+| ผลลัพธ์ | เงื่อนไข |
+|---|---|
+| `OPEN_PALM` | นิ้วเหยียดครบ 5 นิ้ว และหันฝ่ามือเข้ากล้อง (หลังมือได้ `NONE`) |
+| `FIST` | นิ้วทั้ง 4 พับ และนิ้วโป้งไม่ชูออกมา |
+| `PEACE_SIGN` | นิ้วชี้กับนิ้วกลางเหยียด นิ้วนางกับนิ้วก้อยพับ |
+
+- ตรวจได้แม้มือเอียง เพราะวัดจากระยะห่างจากข้อมือ ไม่ได้เทียบแกน y
+- ใช้ได้กับภาพที่กลับด้านและไม่กลับด้าน
+- **ยังไม่ได้ต่อเข้าหน้า `/kiosk`** และยังไม่ได้ทดสอบในเบราว์เซอร์ ทดสอบแล้วเฉพาะตรรกะกับพิกัดมือจากรูปจริง
+- `useGestureTrigger` ยังรีเซ็ตเวลาค้างมือทันทีเมื่อท่าหลุดเฟรมเดียว ซึ่งเกิดขึ้นจริงกับกล้อง ตอนต่อเข้าตู้ควรทำให้ผลนิ่งก่อน เช่น ใช้เสียงข้างมากของ 5 เฟรมล่าสุดแบบ [`fivepalm_shutter.py`](../scripts/model-training/fivepalm_shutter.py)
+
+เดโมบนเครื่องสำหรับลองกติกาเดียวกันกับกล้องจริงอยู่ที่ [scripts/model-training](../scripts/model-training/README.md)
 
 ## ลำดับการพัฒนา
 
