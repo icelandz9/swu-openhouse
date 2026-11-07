@@ -34,7 +34,7 @@ export function kioskFSMReducer(state: KioskFSMState, event: KioskEvent): KioskF
       return state;
 
     case 'COUNTDOWN_ACTIVE':
-      if (event.type === 'HAND_LOST') return 'IDLE'; // Cancel if visitor leaves
+      // Free pose: the countdown is never cancelled mid-way (docs/decisions.md)
       if (event.type === 'COUNTDOWN_COMPLETE') return 'FLASH_CAPTURE';
       return state;
 

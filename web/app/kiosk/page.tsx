@@ -2,16 +2,17 @@
 
 import { useEffect, useRef } from 'react';
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
+import { openScreenBus, ScreenBus } from '@/lib/kiosk/broadcastBus';
 import { PHOTO_ASPECT_RATIO, CROP_DIMENSIONS_4_3, ScreenSyncEvent } from '@/lib/contracts';
 
 export default function KioskCapturePage() {
   const { state, send } = useKioskFSM();
-  const channelRef = useRef<BroadcastChannel | null>(null);
+  const busRef = useRef<ScreenBus | null>(null);
 
   useEffect(() => {
-    channelRef.current = new BroadcastChannel('swu_photobooth_bus');
+    busRef.current = openScreenBus();
     return () => {
-      channelRef.current?.close();
+      busRef.current?.close();
     };
   }, []);
 
@@ -26,7 +27,7 @@ export default function KioskCapturePage() {
       createdAt: new Date().toISOString(),
     };
 
-    channelRef.current?.postMessage(event);
+    busRef.current?.post(event);
     send({ type: 'UPLOAD_SUCCESS' });
   };
 
