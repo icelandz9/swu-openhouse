@@ -69,25 +69,53 @@ export default function MobilePhotoEditorPage({
   const outWidth = activeFrame ? activeFrame.width : PHOTO_ONLY_SIZE.width;
   const outHeight = activeFrame ? activeFrame.height : PHOTO_ONLY_SIZE.height;
 
-  // Load photo on start
+  // Load photo on start with multi-stage CDN & fallback resolution
   useEffect(() => {
-    let candidateSrc = `/api/photos/${normalizedCode}/file`;
-    try {
-      const savedLatest = localStorage.getItem('swu_latest_photo');
-      if (savedLatest) {
-        const parsed = JSON.parse(savedLatest);
-        if (parsed.code === normalizedCode && parsed.photoUrl) candidateSrc = parsed.photoUrl;
-      }
-    } catch {}
-
     let cancelled = false;
-    loadImage(candidateSrc)
-      .then((img) => img ?? loadImage('/sample-photo.jpg'))
-      .then((img) => {
-        if (cancelled || !img) return;
-        baseImageRef.current = img;
-        setPhotoLoaded(true);
-      });
+
+    async function loadAttendeePhoto() {
+      let candidateSrc = `/api/photos/${normalizedCode}/file`;
+
+      // 1. If scanned on the same machine/kiosk tab, check local storage
+      try {
+        const savedLatest = localStorage.getItem('swu_latest_photo');
+        if (savedLatest) {
+          const parsed = JSON.parse(savedLatest);
+          if (parsed.code === normalizedCode && parsed.photoUrl) {
+            candidateSrc = parsed.photoUrl;
+          }
+        }
+      } catch {}
+
+      // 2. Fetch metadata from API to resolve high-speed CDN photoUrl (Cloudflare R2)
+      try {
+        const res = await fetch(`/api/photos/${normalizedCode}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.photoUrl) {
+            candidateSrc = data.photoUrl;
+          }
+        }
+      } catch {}
+
+      if (cancelled) return;
+
+      // 3. Attempt loading candidateSrc, fallback to file endpoint, then sample photo
+      let img = await loadImage(candidateSrc);
+      if (!img && candidateSrc !== `/api/photos/${normalizedCode}/file`) {
+        img = await loadImage(`/api/photos/${normalizedCode}/file`);
+      }
+      if (!img) {
+        img = await loadImage('/sample-photo.jpg');
+      }
+
+      if (cancelled || !img) return;
+      baseImageRef.current = img;
+      setPhotoLoaded(true);
+    }
+
+    loadAttendeePhoto();
+
     return () => {
       cancelled = true;
     };
@@ -177,8 +205,8 @@ export default function MobilePhotoEditorPage({
     setSelectedStickerId(null);
   }, []);
 
-  // Download: composite canvas + stickers, full resolution
-  const handleDownload = () => {
+  // Download: composite canvas + stickers, full resolution (with Web Share API for iOS Camera Roll)
+  const handleDownload = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -191,8 +219,34 @@ export default function MobilePhotoEditorPage({
       ctx.drawImage(canvas, 0, 0);
       drawStickers(ctx, out.width, out.height, stickers, stickerImagesRef.current);
 
+      const fileName = `SWU-OpenHouse-${normalizedCode}.jpg`;
+
+      // Try Web Share API for native iOS / Android "Save to Photos"
+      if (typeof navigator !== 'undefined' && navigator.share && out.toBlob) {
+        try {
+          const blob = await new Promise<Blob | null>((resolve) =>
+            out.toBlob((b) => resolve(b), 'image/jpeg', 0.95)
+          );
+          if (blob) {
+            const file = new File([blob], fileName, { type: 'image/jpeg' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({
+                files: [file],
+                title: 'SWU CPE Open House 2026',
+              });
+              setSaveSuccess(true);
+              setTimeout(() => setSaveSuccess(false), 2500);
+              return;
+            }
+          }
+        } catch (shareErr: any) {
+          if (shareErr.name === 'AbortError') return; // User cancelled share sheet
+        }
+      }
+
+      // Standard desktop / browser download fallback
       const link = document.createElement('a');
-      link.download = `SWU-OpenHouse-${normalizedCode}.jpg`;
+      link.download = fileName;
       link.href = out.toDataURL('image/jpeg', 0.95);
       document.body.appendChild(link);
       link.click();

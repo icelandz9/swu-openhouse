@@ -194,8 +194,13 @@ const weightsPayload = {
   activation: "relu",
   outputActivation: "softmax",
 };
-fs.writeFileSync(path.join(modelsDir, 'gesture_weights.json'), JSON.stringify(weightsPayload, null, 2));
-console.log('[generate-assets] Model weights exported to public/models/gesture_weights.json');
+const weightsFilePath = path.join(modelsDir, 'gesture_weights.json');
+if (!fs.existsSync(weightsFilePath)) {
+  fs.writeFileSync(weightsFilePath, JSON.stringify(weightsPayload, null, 2));
+  console.log('[generate-assets] Model weights exported to public/models/gesture_weights.json');
+} else {
+  console.log('[generate-assets] Model weights already present');
+}
 
 // Copy favicon from Figma Make if available
 const tempFavicon = 'C:\\Users\\satit\\AppData\\Local\\Temp\\swu-figma\\public\\favicon.png';

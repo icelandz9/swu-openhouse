@@ -51,14 +51,14 @@ export const FRAME_TEMPLATES: FrameTemplate[] = [
  * Draws the photo so it fills `win` (like CSS object-fit: cover), centred.
  * The window is grown by a few px so no gap shows under the frame's soft edge.
  */
-export function drawPhotoCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, win: PhotoWindow): void {
+export function drawPhotoCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement | HTMLCanvasElement, win: PhotoWindow): void {
   const pad = 4;
   const x = win.x - pad;
   const y = win.y - pad;
   const w = win.w + pad * 2;
   const h = win.h + pad * 2;
-  const iw = img.naturalWidth;
-  const ih = img.naturalHeight;
+  const iw = (img as HTMLImageElement).naturalWidth || img.width;
+  const ih = (img as HTMLImageElement).naturalHeight || img.height;
   if (!iw || !ih) return;
 
   const scale = Math.max(w / iw, h / ih);

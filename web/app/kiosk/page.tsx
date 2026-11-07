@@ -66,6 +66,7 @@ export default function KioskCapturePage() {
   // Captured snapshot URL
   const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string>('/sample-photo.jpg');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const isSyncingRef = useRef<boolean>(false);
   const [syncedCode, setSyncedCode] = useState<string>('');
   const [staffPinModal, setStaffPinModal] = useState<boolean>(false);
   const [pinInput, setPinInput] = useState<string>('');
@@ -75,23 +76,30 @@ export default function KioskCapturePage() {
   const animFrameRef = useRef<number | null>(null);
   const lastVideoTimeRef = useRef<number>(-1);
 
-  // Sound synthesizer
+  // Sound synthesizer (reusable singleton context to prevent Chrome audio context limits)
+  const audioCtxRef = useRef<AudioContext | null>(null);
   const playBeep = useCallback((frequency: number) => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+        audioCtxRef.current = new AudioCtx();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.frequency.value = frequency;
       osc.type = 'sine';
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
+      const now = ctx.currentTime;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.15, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
       osc.connect(gain).connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.13);
-      osc.onended = () => void ctx.close();
+      osc.start(now);
+      osc.stop(now + 0.13);
     } catch {}
   }, []);
 
@@ -138,8 +146,13 @@ export default function KioskCapturePage() {
             setHandAreaThreshold(data.value);
           }
         } else if (data.command === 'SET_PUBLIC_DOMAIN') {
-          if (data.value && typeof window !== 'undefined') {
-            localStorage.setItem('swu_booth_host', data.value);
+          if (typeof window !== 'undefined') {
+            const val = typeof data.value === 'string' ? data.value.trim() : '';
+            if (val) {
+              localStorage.setItem('swu_booth_host', val);
+            } else {
+              localStorage.removeItem('swu_booth_host');
+            }
           }
         }
       }
@@ -214,6 +227,8 @@ export default function KioskCapturePage() {
 
   // Confirm photo, post to API, broadcast to Screen 2, and reset
   const handleConfirmUpload = useCallback(async () => {
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
     send({ type: 'CONFIRM_UPLOAD' });
     setIsSyncing(true);
 
@@ -225,11 +240,17 @@ export default function KioskCapturePage() {
       let finalPhotoUrl = capturedPhotoUrl;
 
       // Check if custom booth host configured in localStorage
+      let hasCustomHost = false;
+      let configuredHost = '';
       if (typeof window !== 'undefined') {
-        const customHost = localStorage.getItem('swu_booth_host');
-        if (customHost) {
-          const proto = window.location.protocol;
-          qrUrl = `${proto}//${customHost}/p/${code}`;
+        const rawHost = localStorage.getItem('swu_booth_host');
+        if (rawHost && rawHost.trim()) {
+          configuredHost = rawHost.trim().replace(/\/+$/, '');
+          const baseHost = /^https?:\/\//i.test(configuredHost)
+            ? configuredHost
+            : `${window.location.protocol}//${configuredHost}`;
+          qrUrl = `${baseHost}/p/${code}`;
+          hasCustomHost = true;
         }
       }
 
@@ -238,12 +259,16 @@ export default function KioskCapturePage() {
         const res = await fetch('/api/photos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: capturedPhotoUrl, code }),
+          body: JSON.stringify({
+            imageBase64: capturedPhotoUrl,
+            code,
+            customHost: configuredHost || undefined,
+          }),
         });
         if (res.ok) {
           const data = await res.json();
           if (data.photoUrl) finalPhotoUrl = data.photoUrl;
-          if (data.qrUrl) qrUrl = data.qrUrl;
+          if (data.qrUrl && !hasCustomHost) qrUrl = data.qrUrl;
         }
       } catch (err) {
         console.warn('Backend storage offline, syncing via local event bus:', err);
@@ -276,6 +301,7 @@ export default function KioskCapturePage() {
       send({ type: 'UPLOAD_SUCCESS' });
       setTimeout(() => {
         setIsSyncing(false);
+        isSyncingRef.current = false;
         previewGestureLockRef.current = false;
         setRetakeCount(0);
         send({ type: 'COOLDOWN_EXPIRED' });
@@ -285,6 +311,7 @@ export default function KioskCapturePage() {
       send({ type: 'UPLOAD_SUCCESS' });
       setTimeout(() => {
         setIsSyncing(false);
+        isSyncingRef.current = false;
         previewGestureLockRef.current = false;
         setRetakeCount(0);
         send({ type: 'COOLDOWN_EXPIRED' });
@@ -516,10 +543,12 @@ export default function KioskCapturePage() {
               setIsForeground(true);
               const timeSinceLast = performance.now() - (lastPalmSeenTimeRef.current || 0);
               if (timeSinceLast > 250) {
-                if ((isIdle || isDetecting) && holdStartTimeRef.current !== null) {
+                if (holdStartTimeRef.current !== null) {
                   holdStartTimeRef.current = null;
                   setHoldProgress(0);
-                  send({ type: 'HAND_LOST' });
+                  if (isIdle || isDetecting) {
+                    send({ type: 'HAND_LOST' });
+                  }
                 }
               }
             }
@@ -577,6 +606,7 @@ export default function KioskCapturePage() {
       previewInterval = setInterval(() => {
         setPreviewSeconds((prev) => {
           if (prev <= 1) {
+            clearInterval(previewInterval);
             handleConfirmUploadRef.current();
             return 0;
           }

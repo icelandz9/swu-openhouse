@@ -77,7 +77,7 @@ const DEFAULT_SAMPLE_PHOTOS: PhotoRecord[] = [
 ];
 
 export default function StaffAdminPortal() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [pinInput, setPinInput] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [timeFilter, setTimeFilter] = useState<string>('ทั้งหมด');
@@ -183,10 +183,21 @@ export default function StaffAdminPortal() {
     loadPhotos(initialDeleted);
 
     if (typeof window !== 'undefined') {
+      if (sessionStorage.getItem('swu_admin_auth') === 'true') {
+        setIsAuthenticated(true);
+      }
       const savedHost = localStorage.getItem('swu_booth_host') || process.env.NEXT_PUBLIC_APP_URL || '';
       setPublicDomain(savedHost);
     }
   }, []);
+
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('swu_admin_auth');
+    }
+    setIsAuthenticated(false);
+    setPinInput('');
+  };
 
   const sendCommand = (command: string, message: string, value?: any) => {
     channelRef.current?.postMessage({
@@ -206,7 +217,11 @@ export default function StaffAdminPortal() {
   const handleSavePublicDomain = () => {
     const cleanDomain = publicDomain.trim().replace(/\/+$/, '');
     if (typeof window !== 'undefined') {
-      localStorage.setItem('swu_booth_host', cleanDomain);
+      if (cleanDomain) {
+        localStorage.setItem('swu_booth_host', cleanDomain);
+      } else {
+        localStorage.removeItem('swu_booth_host');
+      }
     }
     sendCommand('SET_PUBLIC_DOMAIN', 'อัปเดต Public Domain สำหรับ 4G/5G และส่งต่อให้ทุกจอแล้ว', cleanDomain);
   };
@@ -217,8 +232,15 @@ export default function StaffAdminPortal() {
   };
 
   const copyLink = async (photo: PhotoRecord) => {
-    const origin = publicDomain || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
-    const link = `${origin.replace(/\/+$/, '')}/p/${photo.code}`;
+    const rawOrigin = publicDomain || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+    const cleanOrigin = rawOrigin.trim().replace(/\/+$/, '');
+    const origin = /^https?:\/\//i.test(cleanOrigin)
+      ? cleanOrigin
+      : (cleanOrigin ? `http://${cleanOrigin}` : '');
+
+    const link = (!publicDomain && photo.qrUrl && /^https?:\/\//i.test(photo.qrUrl))
+      ? photo.qrUrl
+      : `${origin}/p/${photo.code}`;
     try {
       await navigator.clipboard.writeText(link);
       setCopiedCode(photo.code);
@@ -336,7 +358,11 @@ export default function StaffAdminPortal() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (pinInput === '1234') {
+            const correctPin = process.env.NEXT_PUBLIC_ADMIN_PIN || '1234';
+            if (pinInput === correctPin) {
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem('swu_admin_auth', 'true');
+              }
               setIsAuthenticated(true);
             } else {
               alert('PIN ไม่ถูกต้อง (PIN เริ่มต้น: 1234)');
@@ -349,7 +375,7 @@ export default function StaffAdminPortal() {
           </div>
           <div>
             <h1 className="text-xl font-bold">Staff Master Dashboard</h1>
-            <p className="text-xs text-slate-400 mt-1">กรุณากรอก PIN เพื่อเข้าสู่ระบบ (1234)</p>
+            <p className="text-xs text-slate-400 mt-1">กรุณากรอก PIN เพื่อเข้าสู่ระบบ</p>
           </div>
           <input
             type="password"
@@ -398,8 +424,8 @@ export default function StaffAdminPortal() {
             Bus: <span className="text-emerald-400">swu_photobooth_bus</span>
           </div>
           <button
-            onClick={() => setIsAuthenticated(false)}
-            className="flex items-center gap-2 rounded border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+            onClick={handleLogout}
+            className="flex items-center gap-2 rounded border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
           >
             <LogOut className="size-3.5" /> ล็อกเอาท์
           </button>
@@ -663,6 +689,9 @@ export default function StaffAdminPortal() {
                     src={photo.photoUrl}
                     alt={photo.code}
                     className="h-full w-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = '/sample-photo.jpg';
+                    }}
                   />
                   <div className="absolute top-2 right-2 rounded bg-black/70 px-2 py-0.5 text-[9px] font-bold text-emerald-400 backdrop-blur">
                     LOCAL + R2
@@ -742,13 +771,14 @@ export default function StaffAdminPortal() {
             {/* QR Code Presentation */}
             <div className="mx-auto aspect-square w-64 rounded-2xl bg-white p-4 shadow-xl flex items-center justify-center">
               <QRCodeSVG
-                value={
-                  publicDomain
-                    ? `${publicDomain.replace(/\/+$/, '')}/p/${encodeURIComponent(selectedPhoto.code)}`
-                    : typeof window !== 'undefined'
-                    ? `${window.location.origin}/p/${encodeURIComponent(selectedPhoto.code)}`
-                    : selectedPhoto.qrUrl
-                }
+                value={(() => {
+                  const raw = publicDomain || (typeof window !== 'undefined' ? window.location.origin : '');
+                  const clean = raw.trim().replace(/\/+$/, '');
+                  const base = /^https?:\/\//i.test(clean)
+                    ? clean
+                    : (clean ? `http://${clean}` : '');
+                  return base ? `${base}/p/${encodeURIComponent(selectedPhoto.code)}` : selectedPhoto.qrUrl;
+                })()}
                 level="H"
                 bgColor="#FFFFFF"
                 fgColor="#000000"

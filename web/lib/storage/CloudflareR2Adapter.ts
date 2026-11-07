@@ -97,6 +97,9 @@ export class CloudflareR2Adapter implements IPhotoStorage {
   }
 
   async getPhotoUrl(shortCode: string): Promise<string | null> {
+    if (await this.fallbackAdapter.isDeleted(shortCode)) {
+      return null;
+    }
     if (this.accountId && this.accessKeyId && this.secretAccessKey) {
       return `${this.publicDomain}/${shortCode}.jpg`;
     }
@@ -104,11 +107,87 @@ export class CloudflareR2Adapter implements IPhotoStorage {
   }
 
   async getPhotoBuffer(shortCode: string): Promise<Buffer | null> {
-    return this.fallbackAdapter.getPhotoBuffer(shortCode);
+    if (await this.fallbackAdapter.isDeleted(shortCode)) {
+      return null;
+    }
+    // 1. Check local disk first (fastest on kiosk laptop)
+    const localBuf = await this.fallbackAdapter.getPhotoBuffer(shortCode);
+    if (localBuf) return localBuf;
+
+    // 2. Fetch from R2 public CDN domain if available
+    if (this.publicDomain) {
+      try {
+        const res = await fetch(`${this.publicDomain}/${shortCode}.jpg`);
+        if (res.ok) {
+          const arrayBuf = await res.arrayBuffer();
+          const buf = Buffer.from(arrayBuf);
+          // Cache locally for subsequent calls
+          await this.fallbackAdapter.savePhoto(shortCode, buf).catch(() => {});
+          return buf;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch photo buffer from public domain:', err);
+      }
+    }
+
+    // 3. Or fetch directly from R2 S3 endpoint with SigV4 GET
+    if (this.accountId && this.accessKeyId && this.secretAccessKey) {
+      try {
+        const host = `${this.accountId}.r2.cloudflarestorage.com`;
+        const path = `/${this.bucketName}/${shortCode}.jpg`;
+        const endpoint = `https://${host}${path}`;
+
+        const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+        const dateStamp = amzDate.substring(0, 8);
+        const emptyPayloadHash = crypto.createHash('sha256').update('').digest('hex');
+
+        const canonicalHeaders = `host:${host}\nx-amz-content-sha256:${emptyPayloadHash}\nx-amz-date:${amzDate}\n`;
+        const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+        const canonicalRequest = `GET\n${path}\n\n${canonicalHeaders}\n${signedHeaders}\n${emptyPayloadHash}`;
+
+        const credentialScope = `${dateStamp}/auto/s3/aws4_request`;
+        const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${crypto
+          .createHash('sha256')
+          .update(canonicalRequest)
+          .digest('hex')}`;
+
+        const signingKey = getSignatureKey(this.secretAccessKey, dateStamp, 'auto', 's3');
+        const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex');
+        const authHeader = `AWS4-HMAC-SHA256 Credential=${this.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+        const res = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            Host: host,
+            'x-amz-content-sha256': emptyPayloadHash,
+            'x-amz-date': amzDate,
+            Authorization: authHeader,
+          },
+        });
+
+        if (res.ok) {
+          const arrayBuf = await res.arrayBuffer();
+          const buf = Buffer.from(arrayBuf);
+          await this.fallbackAdapter.savePhoto(shortCode, buf).catch(() => {});
+          return buf;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch photo buffer directly from R2 endpoint:', err);
+      }
+    }
+
+    return null;
   }
 
   async getAllPhotos(): Promise<PhotoRecord[]> {
-    return this.fallbackAdapter.getAllPhotos();
+    const list = await this.fallbackAdapter.getAllPhotos();
+    if (this.accountId && this.accessKeyId && this.secretAccessKey) {
+      return list.map((item) => ({
+        ...item,
+        photoUrl: `${this.publicDomain}/${item.code}.jpg`,
+      }));
+    }
+    return list;
   }
 
   async deletePhoto(shortCode: string): Promise<boolean> {

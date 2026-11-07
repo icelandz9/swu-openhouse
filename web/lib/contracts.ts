@@ -21,8 +21,8 @@ export const KIOSK_TIMING = {
   holdToTriggerMs: 1500, // 1.5s palm hold starts countdown
   countdownSeconds: 3, // 3..2..1 pose freely
   flashMs: 150,
-  previewSeconds: 10, // 10s review: Fist = retake, Palm = proceed
-  maxRetakes: 1,
+  previewSeconds: 10, // 10s review: Fist = retake (unlimited per DoD-2), Palm = proceed
+  maxRetakes: Infinity, // Unlimited retakes per DoD-2
 } as const;
 
 // Inter-Screen Event Bus Contract (BroadcastChannel: 'swu_photobooth_bus')
@@ -102,7 +102,15 @@ export type FilterPresetId =
 export type CPEFrameTemplateId =
   | "cpe-official"
   | "cpe-tech-circuit"
-  | "cpe-photostrip";
+  | "cpe-photostrip"
+  | "1"
+  | "2"
+  | "3"
+  | "4"
+  | "5"
+  | "14"
+  | "15"
+  | string;
 
 export interface StoredPhotoResult {
   photoId: string;

@@ -39,7 +39,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { imageBase64, code: requestedCode } = body;
+    const { imageBase64, code: requestedCode, customHost } = body;
 
     if (!imageBase64 || typeof imageBase64 !== 'string') {
       return NextResponse.json(
@@ -60,10 +60,17 @@ export async function POST(req: NextRequest) {
 
     const stored = await photoStorageService.savePhoto(shortCode, buffer);
 
-    const envAppUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+    const rawEnvAppUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+    const envAppUrl = rawEnvAppUrl ? rawEnvAppUrl.trim().replace(/\/+$/, '') : '';
+    const cleanCustomHost = typeof customHost === 'string' ? customHost.trim().replace(/\/+$/, '') : '';
+    const baseCustomHost = cleanCustomHost
+      ? (/^https?:\/\//i.test(cleanCustomHost) ? cleanCustomHost : `http://${cleanCustomHost}`)
+      : '';
+
     const host = req.headers.get('host') || 'localhost:3000';
     const protocol = req.headers.get('x-forwarded-proto') || 'http';
-    const qrUrl = `${protocol}://${host}/p/${shortCode}`;
+    const baseHost = baseCustomHost || envAppUrl || `${protocol}://${host}`;
+    const qrUrl = `${baseHost}/p/${shortCode}`;
 
     const responsePayload: UploadPhotoResponse = {
       code: shortCode,
