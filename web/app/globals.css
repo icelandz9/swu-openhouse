@@ -1,0 +1,76 @@
+:root {
+  --swu-red: #c8102e;
+  --swu-red-dark: #8f0b20;
+  --ink: #1d1d1f;
+  --muted: #6e6e73;
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --border: #e5e5ea;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Prompt", "Noto Sans Thai", "Leelawadee UI", system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.home {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.home h1 {
+  margin: 0;
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+}
+
+.home h1 span {
+  color: var(--swu-red);
+}
+
+.home p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.home-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn {
+  display: inline-block;
+  padding: 14px 24px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--swu-red);
+  border-color: var(--swu-red);
+  color: #fff;
+}

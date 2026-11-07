@@ -1,0 +1,10 @@
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+
+# Captured photos (personal data, PDPA) — never commit
+data/
+
+# Copied/downloaded by scripts/setup-assets.mjs
+public/mediapipe/
