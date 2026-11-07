@@ -1,4 +1,4 @@
-import { GestureType } from '../contracts';
+import type { GestureType } from '../contracts';
 
 export interface LandmarkPoint {
   x: number;
@@ -6,44 +6,103 @@ export interface LandmarkPoint {
   z: number;
 }
 
+// Thresholds measured on sample hand photos, shared with
+// scripts/model-training/fivepalm_shutter.py. Keep the two in sync.
+// wrist->tip / wrist->PIP is 0.61-0.83 for folded fingers and 1.20+ for extended ones.
+const FINGER_EXTENDED_RATIO = 1.1;
+const FINGER_FOLDED_RATIO = 1.0;
+// Thumb tip->Pinky MCP / Thumb MCP->Pinky MCP is 0.65-0.88 tucked and 1.09+ extended.
+const THUMB_EXTENDED_RATIO = 1.0;
+// A fist tolerates a loosely held thumb; a thumbs-up measures 1.35+.
+const FIST_THUMB_MAX_RATIO = 1.2;
+// Below this the hand is too edge-on to tell its palm from its back.
+const PALM_MIN_FACING = 0.2;
+
+const WRIST = 0;
+const THUMB_MCP = 2;
+const THUMB_TIP = 4;
+const INDEX_MCP = 5;
+const PINKY_MCP = 17;
+// [tip, PIP] of index, middle, ring and pinky
+const FINGERS = [
+  [8, 6],
+  [12, 10],
+  [16, 14],
+  [20, 18],
+] as const;
+
+function distance(a: LandmarkPoint, b: LandmarkPoint): number {
+  return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
 /**
- * Pure mathematical heuristic to detect gestures from 21 MediaPipe landmarks
- * - OPEN_PALM: Index, Middle, Ring, Pinky tips extended above PIP joints
- * - FIST: All 4 finger tips folded below MCP / PIP joints
- * - PEACE_SIGN: Index and Middle extended, Ring and Pinky folded
+ * Signed z of the unit palm normal (Wrist -> Index MCP) x (Wrist -> Pinky MCP), from
+ * image landmarks scaled to the frame's proportions. Its sign separates a palm from a
+ * back of hand only together with handedness: MediaPipe reports palms as Right with
+ * nz < 0 and Left with nz > 0, for mirrored and unmirrored input alike.
  */
-export function classifyGesture(landmarks: LandmarkPoint[]): GestureType {
-  if (!landmarks || landmarks.length < 21) {
+function palmNormalZ(landmarks: LandmarkPoint[], frameAspect: number): number {
+  const vector = (end: LandmarkPoint) => ({
+    x: (end.x - landmarks[WRIST].x) * frameAspect,
+    y: end.y - landmarks[WRIST].y,
+    z: (end.z - landmarks[WRIST].z) * frameAspect,
+  });
+  const v1 = vector(landmarks[INDEX_MCP]);
+  const v2 = vector(landmarks[PINKY_MCP]);
+
+  const nx = v1.y * v2.z - v1.z * v2.y;
+  const ny = v1.z * v2.x - v1.x * v2.z;
+  const nz = v1.x * v2.y - v1.y * v2.x;
+  const length = Math.hypot(nx, ny, nz);
+  return length < 1e-6 ? 0 : nz / length;
+}
+
+/**
+ * Rotation-invariant gesture classifier for one hand.
+ * - OPEN_PALM: all 5 fingers extended and the palm (not its back) faces the camera
+ * - FIST: all 4 fingers folded and the thumb not stuck out
+ * - PEACE_SIGN: index and middle extended, ring and pinky folded
+ *
+ * @param landmarks Image landmarks of the hand (HandLandmarkerResult.landmarks[i])
+ * @param worldLandmarks 3D landmarks of the hand (HandLandmarkerResult.worldLandmarks[i])
+ * @param handedness "Left" or "Right" (HandLandmarkerResult.handedness[i][0].categoryName)
+ * @param frameAspect Video width / height
+ */
+export function classifyGesture(
+  landmarks: LandmarkPoint[],
+  worldLandmarks: LandmarkPoint[],
+  handedness: string,
+  frameAspect: number
+): GestureType {
+  if (!landmarks || landmarks.length < 21 || !worldLandmarks || worldLandmarks.length < 21) {
     return 'NONE';
   }
 
-  // Fingertip vs PIP landmark indices:
-  // Index: tip 8 vs PIP 6
-  // Middle: tip 12 vs PIP 10
-  // Ring: tip 16 vs PIP 14
-  // Pinky: tip 20 vs PIP 18
-  const isIndexExtended = landmarks[8].y < landmarks[6].y;
-  const isMiddleExtended = landmarks[12].y < landmarks[10].y;
-  const isRingExtended = landmarks[16].y < landmarks[14].y;
-  const isPinkyExtended = landmarks[20].y < landmarks[18].y;
+  const wrist = worldLandmarks[WRIST];
+  const ratios = FINGERS.map(
+    ([tip, pip]) =>
+      distance(wrist, worldLandmarks[tip]) / Math.max(distance(wrist, worldLandmarks[pip]), 1e-6)
+  );
+  const isExtended = (ratio: number) => ratio >= FINGER_EXTENDED_RATIO;
+  const isFolded = (ratio: number) => ratio <= FINGER_FOLDED_RATIO;
 
-  // Open Palm: all 4 main fingers extended
-  if (isIndexExtended && isMiddleExtended && isRingExtended && isPinkyExtended) {
-    return 'OPEN_PALM';
-  }
+  const pinkyMcp = worldLandmarks[PINKY_MCP];
+  const thumbRatio =
+    distance(worldLandmarks[THUMB_TIP], pinkyMcp) /
+    Math.max(distance(worldLandmarks[THUMB_MCP], pinkyMcp), 1e-6);
 
-  // Fist: all 4 main fingers folded
-  const isIndexFolded = landmarks[8].y > landmarks[6].y;
-  const isMiddleFolded = landmarks[12].y > landmarks[10].y;
-  const isRingFolded = landmarks[16].y > landmarks[14].y;
-  const isPinkyFolded = landmarks[20].y > landmarks[18].y;
-
-  if (isIndexFolded && isMiddleFolded && isRingFolded && isPinkyFolded) {
+  if (ratios.every(isFolded) && thumbRatio <= FIST_THUMB_MAX_RATIO) {
     return 'FIST';
   }
 
-  // Peace sign: Index and Middle extended, Ring and Pinky folded
-  if (isIndexExtended && isMiddleExtended && !isRingExtended && !isPinkyExtended) {
+  if (ratios.every(isExtended) && thumbRatio >= THUMB_EXTENDED_RATIO) {
+    const nz = palmNormalZ(landmarks, frameAspect);
+    const facesCamera = handedness === 'Left' ? nz > 0 : nz < 0;
+    return facesCamera && Math.abs(nz) >= PALM_MIN_FACING ? 'OPEN_PALM' : 'NONE';
+  }
+
+  const [index, middle, ring, pinky] = ratios;
+  if (isExtended(index) && isExtended(middle) && isFolded(ring) && isFolded(pinky)) {
     return 'PEACE_SIGN';
   }
 
