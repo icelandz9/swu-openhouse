@@ -228,22 +228,13 @@ button:focus-visible {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
+/* Solid black, no colour fade */
 .showcase-left {
-  background:
-    linear-gradient(
-      180deg,
-      rgba(0, 0, 0, 0.98) 0%,
-      rgba(6, 6, 6, 0.98) 58%,
-      rgba(42, 9, 16, 0.98) 100%
-    ),
-    #000000;
+  background: #000000;
 }
 
-/* SWU red glow so the white card sits in the dark-red backdrop instead of floating on it */
 .qr-card {
-  box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.5),
-    0 0 40px rgba(206, 17, 38, 0.22);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 
 .photo-wall-scroll {
