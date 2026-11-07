@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
 
     const stored = await photoStorageService.savePhoto(shortCode, buffer);
 
+    const envAppUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
     const host = req.headers.get('host') || 'localhost:3000';
     const protocol = req.headers.get('x-forwarded-proto') || 'http';
     const qrUrl = `${protocol}://${host}/p/${shortCode}`;

@@ -37,6 +37,10 @@ export type ScreenSyncEvent =
       createdAt: string;
     }
   | {
+      type: "PHOTO_DELETED";
+      code: string;
+    }
+  | {
       type: "SCREEN1_RESET";
     }
   | {
@@ -44,7 +48,16 @@ export type ScreenSyncEvent =
     }
   | {
       type: "KIOSK_COMMAND";
-      command: "RESET_STANDBY" | "SKIP_PREVIEW" | "PAUSE_BOOTH" | "RESUME_BOOTH" | string;
+      command:
+        | "RESET_STANDBY"
+        | "SKIP_PREVIEW"
+        | "PAUSE_BOOTH"
+        | "RESUME_BOOTH"
+        | "RELOAD_CAMERA"
+        | "CANCEL_COUNTDOWN"
+        | "SET_THRESHOLD"
+        | string;
+      value?: any;
     };
 
 // 1. Hand Detection State

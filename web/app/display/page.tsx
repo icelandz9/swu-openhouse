@@ -70,7 +70,8 @@ export default function ShowcaseDisplayScreen() {
     setIsMounted(true);
     if (typeof window !== 'undefined') {
       const customHost = localStorage.getItem('swu_booth_host');
-      setHostOrigin(customHost || window.location.origin);
+      const envAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+      setHostOrigin(envAppUrl || customHost || window.location.origin);
     }
   }, []);
 
@@ -85,15 +86,24 @@ export default function ShowcaseDisplayScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // Load photos from localStorage / API on start
+  // Load photos from localStorage / API on start, excluding deleted codes
   useEffect(() => {
+    let deletedCodes: string[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const rawDel = localStorage.getItem('swu_deleted_codes') || '[]';
+        deletedCodes = JSON.parse(rawDel);
+      } catch {}
+    }
+
     if (typeof window !== 'undefined') {
       try {
         const savedGallery = localStorage.getItem('swu_photo_gallery');
         if (savedGallery) {
           const parsed = JSON.parse(savedGallery);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setPhotos(parsed);
+            const clean = parsed.filter((p: any) => !deletedCodes.includes(p?.code));
+            setPhotos(clean.length > 0 ? clean : DEFAULT_SEEDS.filter(s => !deletedCodes.includes(s.code)));
           }
         }
       } catch {}
@@ -103,11 +113,13 @@ export default function ShowcaseDisplayScreen() {
     fetch('/api/photos')
       .then((res) => res.json())
       .then((data) => {
-        if (data?.photos && Array.isArray(data.photos) && data.photos.length > 0) {
+        if (data?.photos && Array.isArray(data.photos)) {
           setPhotos((prev) => {
             const map = new Map<string, GalleryItem>();
             [...data.photos, ...prev].forEach((item: any) => {
-              if (item?.code) map.set(item.code, item);
+              if (item?.code && !deletedCodes.includes(item.code)) {
+                map.set(item.code, item);
+              }
             });
             return Array.from(map.values());
           });
@@ -142,6 +154,36 @@ export default function ShowcaseDisplayScreen() {
             try {
               localStorage.setItem('swu_photo_gallery', JSON.stringify(updated));
               localStorage.setItem('swu_latest_photo', JSON.stringify(newItem));
+            } catch {}
+          }
+          return updated;
+        });
+      } else if (data.type === 'KIOSK_COMMAND' && data.command === 'SET_PUBLIC_DOMAIN') {
+        if (data.value && typeof window !== 'undefined') {
+          setHostOrigin(data.value);
+          localStorage.setItem('swu_booth_host', data.value);
+        }
+      } else if (data.type === 'PHOTO_DELETED') {
+        const deletedCode = data.code;
+        if (typeof window !== 'undefined') {
+          try {
+            const rawDel = localStorage.getItem('swu_deleted_codes') || '[]';
+            const cur: string[] = JSON.parse(rawDel);
+            localStorage.setItem('swu_deleted_codes', JSON.stringify(Array.from(new Set([...cur, deletedCode]))));
+          } catch {}
+        }
+        setPhotos((prev) => {
+          const updated = prev.filter((p) => p.code !== deletedCode);
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('swu_photo_gallery', JSON.stringify(updated));
+              const latestStored = localStorage.getItem('swu_latest_photo');
+              if (latestStored) {
+                const parsed = JSON.parse(latestStored);
+                if (parsed?.code === deletedCode) {
+                  localStorage.setItem('swu_latest_photo', JSON.stringify(updated[0] ?? null));
+                }
+              }
             } catch {}
           }
           return updated;
@@ -209,9 +251,12 @@ export default function ShowcaseDisplayScreen() {
             </div>
           </div>
 
-          {/* White QR Pill Card for Immediate Mobile Scan */}
-          <div className="qr-card mx-auto mt-[1vw] grid min-h-[26%] w-[96%] shrink-0 grid-cols-[.48fr_1fr] items-center gap-[1vw] rounded-[1vw] bg-white p-[.85vw]">
-            <div className="aspect-square bg-white p-[.2vw] flex items-center justify-center">
+          {/* White QR Card - Centered, Clean & Minimal */}
+          <div className="qr-card mx-auto mt-[0.8vw] flex flex-col items-center justify-center rounded-[1vw] bg-white p-[1.1vw] shadow-2xl shrink-0 w-[96%] text-center">
+            <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
+              สแกนรับ<span className="text-[#06B6D4]">รูป</span>
+            </div>
+            <div className="aspect-square w-[75%] max-w-[210px] min-w-[135px] bg-white p-[0.3vw] flex items-center justify-center">
               {isMounted ? (
                 <QRCodeSVG
                   value={qrTargetUrl}
@@ -226,20 +271,6 @@ export default function ShowcaseDisplayScreen() {
                   QR CODE
                 </div>
               )}
-            </div>
-            <div className="text-[#0F172A]">
-              <div className="text-[clamp(.85rem,1.18vw,1.42rem)] font-extrabold tracking-[-.03em]">
-                ← สแกนรับ<span className="text-[#06B6D4]">รูป</span>
-              </div>
-              <div className="mt-[.35vw] text-[clamp(.43rem,.55vw,.66rem)] font-semibold text-slate-600 leading-snug">
-                เปิดกล้องมือถือแล้วสแกน
-              </div>
-              <div className="mt-0.5 text-[clamp(.38rem,.47vw,.56rem)] text-slate-400">
-                ต้องต่อ WiFi เดียวกับบูท
-              </div>
-              <div className="mono mt-[.4vw] text-[clamp(.45rem,.58vw,.7rem)] font-bold text-[#CE1126]">
-                #{latest.code.replace('OPH-', '')}
-              </div>
             </div>
           </div>
         </section>

@@ -12,6 +12,7 @@ import {
   Pause,
   Sliders,
   Check,
+  RotateCcw,
 } from 'lucide-react';
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
 import { ScreenSyncEvent, CROP_DIMENSIONS_4_3, SCREEN_SYNC_CHANNEL } from '@/lib/contracts';
@@ -35,11 +36,16 @@ export default function KioskCapturePage() {
   const channelRef = useRef<BroadcastChannel | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const initCameraRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const handleConfirmUploadRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   // Camera & Stream state
   const [cameraActive, setCameraActive] = useState<boolean>(false);
   const [isAiVisionReady, setIsAiVisionReady] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number }>({ width: 16, height: 9 });
+  const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.035);
+  const currentStreamRef = useRef<MediaStream | null>(null);
 
   // Gesture detection & tracking
   const [holdProgress, setHoldProgress] = useState<number>(0);
@@ -48,7 +54,9 @@ export default function KioskCapturePage() {
   const [handAreaRatio, setHandAreaRatio] = useState<number>(0);
   const [isForeground, setIsForeground] = useState<boolean>(true);
   const holdStartTimeRef = useRef<number | null>(null);
+  const lastPalmSeenTimeRef = useRef<number>(0);
   const previewGestureLockRef = useRef<boolean>(false);
+  const previewEnterTimeRef = useRef<number>(0);
 
   const [countdown, setCountdown] = useState<number>(3);
   const [previewSeconds, setPreviewSeconds] = useState<number>(10);
@@ -106,15 +114,32 @@ export default function KioskCapturePage() {
       } else if (data.type === 'KIOSK_COMMAND') {
         if (data.command === 'RESET_STANDBY') {
           send({ type: 'FORCE_RESET' });
+          setHoldProgress(0);
+          holdStartTimeRef.current = null;
           setIsPaused(false);
         } else if (data.command === 'SKIP_PREVIEW') {
           if (isPreviewing) {
-            handleConfirmUpload();
+            handleConfirmUploadRef.current();
           }
         } else if (data.command === 'PAUSE_BOOTH') {
           setIsPaused(true);
         } else if (data.command === 'RESUME_BOOTH') {
           setIsPaused(false);
+        } else if (data.command === 'RELOAD_CAMERA') {
+          initCameraRef.current();
+        } else if (data.command === 'CANCEL_COUNTDOWN') {
+          send({ type: 'FORCE_RESET' });
+          setCountdown(3);
+          setHoldProgress(0);
+          holdStartTimeRef.current = null;
+        } else if (data.command === 'SET_THRESHOLD') {
+          if (typeof data.value === 'number') {
+            setHandAreaThreshold(data.value);
+          }
+        } else if (data.command === 'SET_PUBLIC_DOMAIN') {
+          if (data.value && typeof window !== 'undefined') {
+            localStorage.setItem('swu_booth_host', data.value);
+          }
         }
       }
     };
@@ -217,6 +242,7 @@ export default function KioskCapturePage() {
         if (res.ok) {
           const data = await res.json();
           if (data.photoUrl) finalPhotoUrl = data.photoUrl;
+          if (data.qrUrl) qrUrl = data.qrUrl;
         }
       } catch (err) {
         console.warn('Backend storage offline, syncing via local event bus:', err);
@@ -266,24 +292,27 @@ export default function KioskCapturePage() {
   }, [capturedPhotoUrl, send]);
 
   const handleRetake = useCallback(() => {
-    if (retakeCount >= 1) {
-      handleConfirmUpload();
-      return;
-    }
-    setRetakeCount((prev) => prev + 1);
     previewGestureLockRef.current = false;
+    setHoldProgress(0);
+    holdStartTimeRef.current = null;
+    setCountdown(3);
+    setPreviewSeconds(10);
     send({ type: 'GESTURE_RETAKE_FIST' });
-  }, [retakeCount, send, handleConfirmUpload]);
+  }, [send]);
 
   // Initialize WebRTC Camera
-  useEffect(() => {
-    let stream: MediaStream | null = null;
+  const initCamera = useCallback(async () => {
+    try {
+      if (currentStreamRef.current) {
+        currentStreamRef.current.getTracks().forEach((track) => track.stop());
+        currentStreamRef.current = null;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('WebRTC not supported');
+      }
 
-    async function initCamera() {
+      let stream: MediaStream;
       try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error('WebRTC not supported');
-        }
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             width: { ideal: 1920 },
@@ -292,26 +321,48 @@ export default function KioskCapturePage() {
           },
           audio: false,
         });
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => {});
-          setCameraActive(true);
-        }
-      } catch (err: any) {
-        console.warn('WebRTC camera unavailable, using simulation mode:', err.message);
-        setCameraActive(false);
+      } catch (firstErr) {
+        console.warn('1080p camera constraint failed, attempting basic video constraint:', firstErr);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
       }
+
+      currentStreamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          if (videoRef.current) {
+            setVideoDimensions({
+              width: videoRef.current.videoWidth || 16,
+              height: videoRef.current.videoHeight || 9,
+            });
+          }
+        };
+        await videoRef.current.play().catch(() => {});
+        setCameraActive(true);
+      }
+    } catch (err: any) {
+      console.warn('WebRTC camera unavailable, using simulation mode:', err.message);
+      setCameraActive(false);
     }
+  }, []);
 
+  // Keep callback refs continuously synced
+  initCameraRef.current = initCamera;
+  handleConfirmUploadRef.current = handleConfirmUpload;
+
+  useEffect(() => {
     initCamera();
-
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+      if (currentStreamRef.current) {
+        currentStreamRef.current.getTracks().forEach((track) => track.stop());
+        currentStreamRef.current = null;
       }
     };
-  }, []);
+  }, [initCamera]);
 
   // Initialize MediaPipe HandLandmarker dynamically (Client-Only)
   useEffect(() => {
@@ -394,7 +445,7 @@ export default function KioskCapturePage() {
               setDetectedGestureText(detected);
 
               // Depth & Area Filter: reject distant background passers-by (>= 3.5% required)
-              const inForeground = isHandInForeground(primaryHand, 0.035);
+              const inForeground = isHandInForeground(primaryHand, handAreaThreshold);
               setIsForeground(inForeground);
 
               let minX = 1;
@@ -411,6 +462,7 @@ export default function KioskCapturePage() {
 
               if (isIdle || isDetecting) {
                 if (detected === 'OPEN_PALM' && inForeground) {
+                  lastPalmSeenTimeRef.current = performance.now();
                   if (holdStartTimeRef.current === null) {
                     holdStartTimeRef.current = performance.now();
                     send({ type: 'HAND_DETECTED' });
@@ -425,19 +477,35 @@ export default function KioskCapturePage() {
                     send({ type: 'TRIGGER_ACTIVATED' });
                   }
                 } else {
-                  if (holdStartTimeRef.current !== null) {
-                    holdStartTimeRef.current = null;
-                    setHoldProgress(0);
-                    send({ type: 'HAND_LOST' });
+                  const timeSinceLast = performance.now() - (lastPalmSeenTimeRef.current || 0);
+                  if (timeSinceLast > 250) {
+                    if (holdStartTimeRef.current !== null) {
+                      holdStartTimeRef.current = null;
+                      setHoldProgress(0);
+                      send({ type: 'HAND_LOST' });
+                    }
                   }
                 }
               } else if (isPreviewing && !previewGestureLockRef.current) {
-                if (detected === 'FIST') {
-                  previewGestureLockRef.current = true;
-                  handleRetake();
-                } else if (detected === 'OPEN_PALM') {
-                  previewGestureLockRef.current = true;
-                  handleConfirmUpload();
+                const timeInPreview = performance.now() - previewEnterTimeRef.current;
+                // Grace period: ignore first 1.2s of preview so lingering posing hand does not accidentally trigger upload
+                if (timeInPreview > 1200) {
+                  if (detected === 'FIST') {
+                    previewGestureLockRef.current = true;
+                    handleRetake();
+                  } else if (detected === 'OPEN_PALM') {
+                    // Require deliberate hold (800ms) during preview to confirm
+                    if (holdStartTimeRef.current === null) {
+                      holdStartTimeRef.current = performance.now();
+                    }
+                    const palmHold = performance.now() - holdStartTimeRef.current;
+                    if (palmHold >= 800) {
+                      previewGestureLockRef.current = true;
+                      handleConfirmUploadRef.current();
+                    }
+                  } else {
+                    holdStartTimeRef.current = null;
+                  }
                 }
               }
             } else {
@@ -445,10 +513,13 @@ export default function KioskCapturePage() {
               setDetectedGestureText('NONE');
               setHandAreaRatio(0);
               setIsForeground(true);
-              if ((isIdle || isDetecting) && holdStartTimeRef.current !== null) {
-                holdStartTimeRef.current = null;
-                setHoldProgress(0);
-                send({ type: 'HAND_LOST' });
+              const timeSinceLast = performance.now() - (lastPalmSeenTimeRef.current || 0);
+              if (timeSinceLast > 250) {
+                if ((isIdle || isDetecting) && holdStartTimeRef.current !== null) {
+                  holdStartTimeRef.current = null;
+                  setHoldProgress(0);
+                  send({ type: 'HAND_LOST' });
+                }
               }
             }
           } catch {}
@@ -494,14 +565,18 @@ export default function KioskCapturePage() {
     }
   }, [isCapturing, send]);
 
-  // Preview countdown timer (10s auto-proceed)
+  // Preview countdown timer (10s auto-proceed) & Grace Period initialization
   useEffect(() => {
     let previewInterval: NodeJS.Timeout;
     if (isPreviewing) {
+      previewEnterTimeRef.current = performance.now();
+      previewGestureLockRef.current = false;
+      setPreviewSeconds(10);
+
       previewInterval = setInterval(() => {
         setPreviewSeconds((prev) => {
           if (prev <= 1) {
-            handleConfirmUpload();
+            handleConfirmUploadRef.current();
             return 0;
           }
           return prev - 1;
@@ -519,7 +594,7 @@ export default function KioskCapturePage() {
         if (isIdle || isDetecting) {
           send({ type: 'TRIGGER_ACTIVATED' });
         } else if (isPreviewing) {
-          handleConfirmUpload();
+          handleConfirmUploadRef.current();
         }
       } else if (key === 'f') {
         if (isPreviewing) {
@@ -556,12 +631,33 @@ export default function KioskCapturePage() {
 
         {/* Fallback Simulation View if camera not open */}
         {!cameraActive && showLiveFeed && (
-          <div className="absolute inset-0 h-full w-full bg-[#06080D] flex items-center justify-center">
+          <div className="absolute inset-0 h-full w-full bg-[#06080D] flex items-center justify-center z-10">
             <div className="engineering-grid absolute inset-0 opacity-40" />
-            <div className="text-center space-y-3 z-10">
-              <Camera className="size-16 text-[#CE1126] mx-auto animate-pulse" />
-              <h3 className="text-xl font-bold text-white">STUDIO CAMERA SIMULATION</h3>
-              <p className="text-xs text-slate-400">กดปุ่ม <b>P</b> เพื่อจำลองแบมือ หรือ <b>S</b> เพื่อเริ่มถ่าย</p>
+            <div className="text-center space-y-4 z-10 max-w-md px-6">
+              <div className="size-16 rounded-2xl bg-[#CE1126]/10 border border-[#CE1126]/30 flex items-center justify-center mx-auto text-[#CE1126]">
+                <Camera className="size-8" strokeWidth={1.8} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight">
+                  ระบบกล้องกำลังเชื่อมต่อ (Camera Standby)
+                </h3>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  กรุณาอนุญาตการเข้าถึงกล้องบนเบราว์เซอร์ หรือกดปุ่มด้านล่างเพื่อเชื่อมต่อกล้อง
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => initCamera()}
+                  className="rounded-xl bg-[#CE1126] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#8F0B20] transition-colors shadow-lg flex items-center gap-2 cursor-pointer"
+                >
+                  <Camera className="size-4" />
+                  <span>เชื่อมต่อกล้องทันที</span>
+                </button>
+              </div>
+              <div className="mono text-[11px] text-slate-500 pt-2">
+                โหมดทดสอบ: กดปุ่ม P เพื่อจำลองแบมือ หรือ S เพื่อถ่ายภาพ
+              </div>
             </div>
           </div>
         )}
@@ -675,52 +771,31 @@ export default function KioskCapturePage() {
           </div>
         </aside>
 
-        {/* Live Palm Hold State & Mesh Overlay */}
-        {(isIdle || isDetecting) && (
-          <div className="pointer-events-none absolute left-[56%] top-[26%] z-30 aspect-square w-[18%]">
-            <HandMesh active={holdProgress > 0} landmarks={liveLandmarks} />
+        {/* Full-Screen Real-Time 1:1 Hand Mesh Overlay */}
+        {(isIdle || isDetecting) && showLiveFeed && liveLandmarks && (
+          <HandMesh
+            active={holdProgress > 0 || isDetecting}
+            landmarks={liveLandmarks}
+            holdProgress={holdProgress}
+            mode="overlay"
+            handAreaRatio={handAreaRatio}
+            isForeground={isForeground}
+            gestureText={detectedGestureText}
+            videoDimensions={videoDimensions}
+          />
+        )}
 
-            <div className="mono absolute -top-[14%] left-0 w-max bg-cyan-400/90 px-[.55vw] py-[.25vw] text-[clamp(.34rem,.42vw,.5rem)] font-bold text-[#07131A] shadow-sm">
-              PRIMARY HAND · {handAreaRatio > 0 ? `AREA ${(handAreaRatio * 100).toFixed(1)}% ${isForeground ? '≥ 3.5% OK' : '< 3.5% (TOO FAR)'}` : 'AI 21-LANDMARK MODEL'}
+        {/* Dynamic Tracking Status Badge - Positioned on the Side (Non-intrusive HUD Telemetry) */}
+        {(isIdle || isDetecting) && showLiveFeed && liveLandmarks && (
+          <div className="pointer-events-none absolute left-[13.8%] bottom-[3%] z-30 flex items-center">
+            <div className="mono flex items-center gap-2 rounded-full bg-[#090D16]/90 border border-cyan-400/30 px-3.5 py-1.5 text-[clamp(.36rem,.46vw,.55rem)] text-slate-300 backdrop-blur-md shadow-lg transition-all duration-200">
+              <span className={`size-2 rounded-full ${isForeground ? 'bg-cyan-400 animate-pulse' : 'bg-amber-400'}`} />
+              <span>PRIMARY HAND · {isForeground ? `AREA ${(handAreaRatio * 100).toFixed(1)}% (OK)` : `< 3.5% (เข้าใกล้กล้องอีกนิด)`}</span>
+              <span className="text-slate-500">|</span>
+              <span className="text-cyan-300 font-bold">
+                {holdProgress > 0 ? `OPEN_PALM ${Math.round(holdProgress)}%` : detectedGestureText}
+              </span>
             </div>
-
-            {holdProgress > 0 && (
-              <>
-                <svg
-                  className="absolute inset-[-10%] h-[120%] w-[120%] -rotate-90"
-                  viewBox="0 0 120 120"
-                >
-                  <circle
-                    cx="60"
-                    cy="60"
-                    r="54"
-                    fill="none"
-                    stroke="rgba(255,255,255,.16)"
-                    strokeWidth="2.5"
-                  />
-                  <circle
-                    cx="60"
-                    cy="60"
-                    r="54"
-                    fill="none"
-                    stroke="#CE1126"
-                    strokeLinecap="round"
-                    strokeWidth="3.5"
-                    strokeDasharray="339.292"
-                    strokeDashoffset={339.292 - (339.292 * holdProgress) / 100}
-                    style={{ transition: 'stroke-dashoffset 80ms linear' }}
-                  />
-                </svg>
-                <div className="absolute left-1/2 top-[108%] w-max -translate-x-1/2 bg-[#090D16]/95 border border-[#CE1126]/40 px-[1.2vw] py-[.65vw] text-center backdrop-blur shadow-2xl">
-                  <div className="text-[clamp(.75rem,1.1vw,1.3rem)] font-bold text-white">
-                    กำลังเริ่มถ่าย... {Math.round(holdProgress)}%
-                  </div>
-                  <div className="mono mt-1 text-[clamp(.4rem,.48vw,.58rem)] tracking-[.14em] text-[#CE1126]">
-                    HOLD PALM · 1.5S
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         )}
 
@@ -743,41 +818,47 @@ export default function KioskCapturePage() {
           <div className="kiosk-flash pointer-events-none absolute inset-0 z-50 bg-white" />
         )}
 
-        {/* Preview State: Review & Retake Controls */}
+        {/* Preview State: Review & Retake Controls - Clean, Formal & No Emojis */}
         {isPreviewing && (
           <div className="absolute inset-x-0 bottom-0 z-40 flex flex-col items-center justify-end pb-8">
-            <div className="flex items-center gap-6 rounded-2xl bg-[#090D16]/95 border border-white/10 px-8 py-5 shadow-2xl backdrop-blur-md">
-              {/* Fist: Retake Button */}
+            <div className="flex items-center gap-6 rounded-2xl bg-[#090D16]/95 border border-white/15 px-7 py-3.5 shadow-2xl backdrop-blur-xl">
+              {/* Fist: Retake Button (Unlimited Retakes) */}
               <button
+                type="button"
                 onClick={handleRetake}
-                className="group flex items-center gap-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 px-5 py-3 transition-all"
+                className="group flex items-center gap-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 px-5 py-2.5 transition-all cursor-pointer"
               >
-                <span className="text-2xl">✊</span>
+                <div className="flex size-9 items-center justify-center rounded-lg bg-white/10 text-white group-hover:rotate-[-45deg] transition-transform">
+                  <RotateCcw className="size-4" />
+                </div>
                 <div className="text-left">
-                  <div className="text-sm font-bold text-white">กำมือ เพื่อถ่ายใหม่</div>
-                  <div className="mono text-[10px] text-slate-400">
-                    RETAKE ({1 - retakeCount} LEFT)
-                  </div>
+                  <div className="text-xs font-bold text-white">กำมือ เพื่อถ่ายใหม่</div>
+                  <div className="mono text-[10px] text-slate-400">RETAKE PHOTO</div>
                 </div>
               </button>
 
               {/* Center Timer */}
-              <div className="flex flex-col items-center px-4">
+              <div className="flex flex-col items-center px-4 min-w-[70px]">
                 <div className="mono text-2xl font-black text-cyan-400 tabular-nums">
                   {previewSeconds}s
                 </div>
-                <div className="text-[10px] font-bold text-slate-500 uppercase">AUTO PROCEED</div>
+                <div className="mono text-[9px] font-bold text-slate-400 tracking-wider uppercase">
+                  AUTO PROCEED
+                </div>
               </div>
 
               {/* Palm: Confirm Button */}
               <button
+                type="button"
                 onClick={handleConfirmUpload}
-                className="group flex items-center gap-3 rounded-xl bg-[#CE1126] hover:bg-[#e1132b] px-6 py-3 transition-all shadow-lg"
+                className="group flex items-center gap-3 rounded-xl bg-[#CE1126] hover:bg-[#8F0B20] border border-[#CE1126]/60 px-6 py-2.5 transition-all shadow-[0_4px_20px_rgba(206,17,38,0.35)] cursor-pointer"
               >
-                <span className="text-2xl">✋</span>
+                <div className="flex size-9 items-center justify-center rounded-lg bg-black/25 text-white">
+                  <Check className="size-5" strokeWidth={2.5} />
+                </div>
                 <div className="text-left">
-                  <div className="text-sm font-bold text-white">แบมือ ยืนยันรูปนี้</div>
-                  <div className="mono text-[10px] text-white/80">PROCEED TO SCREEN 2</div>
+                  <div className="text-xs font-bold text-white">แบมือ ยืนยันรูปนี้</div>
+                  <div className="mono text-[10px] text-white/90">CONFIRM & CREATE QR</div>
                 </div>
               </button>
             </div>
