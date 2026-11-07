@@ -828,29 +828,17 @@ export default function KioskCapturePage() {
           />
         )}
 
-        {/* Dynamic Tracking Status Badge in 4:3 Zone */}
-        {(isIdle || isDetecting) && showLiveFeed && (
-          <div className="pointer-events-none absolute left-1/2 bottom-[4%] z-30 -translate-x-1/2 flex flex-col items-center gap-2">
-            {holdProgress > 0 ? (
-              <div className="flex items-center gap-3 rounded-full bg-[#090D16]/95 border border-[#06B6D4] px-6 py-2.5 shadow-2xl backdrop-blur-md animate-pulse">
-                <span className="text-xl">✋</span>
-                <div>
-                  <div className="text-sm font-bold text-white">
-                    แบมือค้างไว้... {Math.round(holdProgress)}%
-                  </div>
-                  <div className="mono text-[10px] text-cyan-400 font-bold">
-                    HOLD PALM STEADY · 1.5S
-                  </div>
-                </div>
-              </div>
-            ) : liveLandmarks ? (
-              <div className="mono flex items-center gap-2 rounded-full bg-[#090D16]/85 border border-cyan-400/30 px-4 py-1.5 text-[clamp(.36rem,.46vw,.55rem)] text-slate-300 backdrop-blur">
-                <span className={`size-2 rounded-full ${isForeground ? 'bg-cyan-400 animate-pulse' : 'bg-amber-400'}`} />
-                <span>PRIMARY HAND · {isForeground ? `AREA ${(handAreaRatio * 100).toFixed(1)}% (OK)` : `< 3.5% (เข้าใกล้กล้องอีกนิด)`}</span>
-                <span className="text-slate-500">|</span>
-                <span className="text-cyan-300 font-bold">{detectedGestureText}</span>
-              </div>
-            ) : null}
+        {/* Dynamic Tracking Status Badge - Positioned on the Side (Non-intrusive HUD Telemetry) */}
+        {(isIdle || isDetecting) && showLiveFeed && liveLandmarks && (
+          <div className="pointer-events-none absolute left-[13.8%] bottom-[3%] z-30 flex items-center">
+            <div className="mono flex items-center gap-2 rounded-full bg-[#090D16]/90 border border-cyan-400/30 px-3.5 py-1.5 text-[clamp(.36rem,.46vw,.55rem)] text-slate-300 backdrop-blur-md shadow-lg transition-all duration-200">
+              <span className={`size-2 rounded-full ${isForeground ? 'bg-cyan-400 animate-pulse' : 'bg-amber-400'}`} />
+              <span>PRIMARY HAND · {isForeground ? `AREA ${(handAreaRatio * 100).toFixed(1)}% (OK)` : `< 3.5% (เข้าใกล้กล้องอีกนิด)`}</span>
+              <span className="text-slate-500">|</span>
+              <span className="text-cyan-300 font-bold">
+                {holdProgress > 0 ? `OPEN_PALM ${Math.round(holdProgress)}%` : detectedGestureText}
+              </span>
+            </div>
           </div>
         )}
 
