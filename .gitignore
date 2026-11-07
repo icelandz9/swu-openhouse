@@ -18,6 +18,13 @@ __pycache__/
 *.png
 fivepalm_capture_*.jpg
 !web/public/frames/*.png
+# Design assets (not photos of people): frame overlays and stickers
+!web/public/frames/cpe/
+!web/public/frames/cpe/*.png
+!web/public/stickers/
+!web/public/stickers/*.png
+!web/public/stickers/*.jpg
+!web/public/stickers/*.jpeg
 
 # misc
 .DS_Store

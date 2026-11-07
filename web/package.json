@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "setup-assets": "node scripts/setup-assets.mjs",
-    "predev": "node scripts/setup-assets.mjs",
+    "predev": "node scripts/setup-assets.mjs && node scripts/build-sticker-manifest.mjs",
     "dev": "next dev -H 0.0.0.0 -p 3000",
-    "prebuild": "node scripts/setup-assets.mjs",
+    "prebuild": "node scripts/setup-assets.mjs && node scripts/build-sticker-manifest.mjs",
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",
     "typecheck": "tsc --noEmit"
