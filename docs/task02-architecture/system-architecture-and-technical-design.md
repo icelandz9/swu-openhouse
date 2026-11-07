@@ -15,7 +15,7 @@
 ระบบ AI Photo Booth ภาควิชาวิศวกรรมคอมพิวเตอร์ มหาวิทยาลัยศรีนครินทรวิโรฒ (CPE SWU Open House) ออกแบบขึ้นโดยมีเป้าหมายเชิงเทคนิค 4 ประการ:
 1. **Low Latency & High Frame Rate**: การตรวจจับท่ามือแบบเรียลไทม์ 60 FPS ด้วยโมเดล Google MediaPipe บนเบราว์เซอร์ผ่าน WebGL (Client-side 100%)
 2. **Zero Queue Congestion**: แยกกระบวนการถ่ายภาพ (หน้าตู้) ออกจากการแต่งภาพและเลือกกรอบรูป (บนสมาร์ตโฟนของผู้ใช้) เพื่อให้ตู้ใช้เวลาบริการเฉลี่ยไม่เกิน 20–30 วินาทีต่อคน
-3. **Network Resilience & Blocking Guarantee**: เมื่อบันทึกภาพแล้ว ระบบจะตรวจสอบการเชื่อมต่ออินเทอร์เน็ต หากเน็ตหลุดจะเข้าสู่โหมดรอสัญญาณเน็ต (Blocking Mode) พร้อมระบบแจ้งเตือนสตาฟ และส่งต่อภาพเข้าสู่ Cloudflare R2 ทันทีที่เน็ตกลับมา ก่อนสร้าง QR Code
+3. **Network Resilience (Non-Blocking)**: เมื่อบันทึกภาพแล้ว ระบบเซฟลง Disk เครื่องตู้และแสดง QR Code ทันที ส่วนการอัปโหลดขึ้น Cloudflare R2 ทำเบื้องหลัง (Background Sync) หากเน็ตหลุดจะเก็บสถานะ `PENDING` แล้ว Retry อัตโนมัติเมื่อเน็ตกลับมา คิวหน้าตู้ไม่หยุด
 4. **Zero Cloud Infrastructure Cost**: ประมวลผลภาพบนเบราว์เซอร์ Client-side Canvas 2D ทั้งหมด และจัดเก็บไฟล์ภาพบน Cloudflare R2 (ฟรีค่า Egress) พร้อมระบบลบไฟล์อัตโนมัติ 7 วันตามมาตรฐาน PDPA
 
 ---
@@ -45,7 +45,7 @@ flowchart TB
     Visitor -->|"3. สแกน QR Code เข้าสู่เว็บแต่งรูป"| MobilePortal
     MobilePortal -->|"4. แต่งสี 6 พรีเซ็ต + เลือกกรอบ CPE 3 แบบ + โหลดรูป"| Visitor
 
-    KioskSystem -->|"อัปโหลดภาพต้นฉบับ 1080p (รอจนเน็ตติด)"| R2_Storage
+    KioskSystem -->|"อัปโหลดภาพต้นฉบับเบื้องหลัง (Background Sync)"| R2_Storage
     KioskSystem -->|"บันทึกประวัติการถ่าย (OPH-XXXX, เวลา, URL)"| Metadata_Store
 
     Staff -->|"เข้าสู่ระบบด้วย PIN จัดการตู้ และกู้คืน QR"| StaffBackOffice
@@ -82,7 +82,7 @@ flowchart TB
     end
 
     subgraph BackendLayer["ฝั่งเซิร์ฟเวอร์ (Next.js Server & Cloud Services)"]
-        APIRoutes["Next.js Route Handlers & Server Actions<br>(/api/upload, /api/photos, /api/admin)"]
+        APIRoutes["Next.js Route Handlers & Server Actions<br>(/api/upload, /api/photo/[code], /api/admin/*)"]
         R2Bucket["Cloudflare R2 Bucket (oph-photos)<br>(Public Read via Custom Domain, Egress ฟรี)"]
         MetadataKV["Metadata Key-Value Store<br>(เก็บบันทึก shortCode, timestamp, photoUrl)"]
     end
@@ -117,25 +117,14 @@ stateDiagram-v2
     DETECTING_HAND --> COUNTDOWN_ACTIVE: แบมือ 5 นิ้วค้างครบ 1.5 วินาที
     IDLE --> COUNTDOWN_ACTIVE: แตะปุ่มบนหน้าจอ (Touch Fallback)
 
-    COUNTDOWN_ACTIVE --> IDLE: ชักมือกลับระหว่างนับถอยหลัง (Auto-Cancel)
-    COUNTDOWN_ACTIVE --> FLASH_CAPTURE: ตัวเลขนับถอยหลัง 3.. 2.. 1.. ถึง 0
+    COUNTDOWN_ACTIVE --> FLASH_CAPTURE: นับถอยหลัง 5.. 4.. 3.. 2.. 1.. ถึง 0 (ระหว่างนับเปลี่ยนท่าโพสได้อิสระ)
 
-    FLASH_CAPTURE --> PREVIEW_RETAKE: สว่างวาบสีขาว 150ms และบันทึกภาพสำเร็จ
+    FLASH_CAPTURE --> PREVIEW_RETAKE: สว่างวาบสีขาว 100ms และบันทึกภาพสำเร็จ
 
     PREVIEW_RETAKE --> COUNTDOWN_ACTIVE: กดปุ่ม 'ถ่ายใหม่' (จำกัดสิทธิ์ 1 ครั้ง)
-    PREVIEW_RETAKE --> NETWORK_CHECK_UPLOAD: หมดเวลานับถอยหลัง 10 วินาที หรือกดยืนยัน
+    PREVIEW_RETAKE --> SAVE_LOCAL: หมดเวลานับถอยหลัง 8 วินาที หรือกดยืนยัน
 
-    state NETWORK_CHECK_UPLOAD {
-        [*] --> CHECK_SIGNAL
-        CHECK_SIGNAL --> UPLOAD_R2: เชื่อมต่ออินเทอร์เน็ตได้
-        CHECK_SIGNAL --> WAITING_NETWORK: สัญญาณเน็ตหลุด / ออฟไลน์
-        WAITING_NETWORK --> WAITING_NETWORK: วนลูปตรวจสอบสัญญาณเน็ตเรื่อยๆ
-        WAITING_NETWORK --> UPLOAD_R2: สัญญาณเน็ตกลับมา (Resume Process)
-        WAITING_NETWORK --> STAFF_INTERVENTION: สตาฟกรอกรหัส PIN เข้าปลดล็อก
-        STAFF_INTERVENTION --> UPLOAD_R2: สตาฟสั่ง Retry หรือสลับเน็ต
-    }
-
-    NETWORK_CHECK_UPLOAD --> SHOW_QR_CLEAN: อัปโหลดและบันทึก Metadata สำเร็จ
+    SAVE_LOCAL --> SHOW_QR_CLEAN: บันทึกลง Disk ตู้ + เข้าคิว Background Sync สำเร็จ
 
     SHOW_QR_CLEAN --> RESET_COOLDOWN: หมดเวลานับถอยหลัง 15-20 วินาที
     SHOW_QR_CLEAN --> RESET_COOLDOWN: กดปุ่ม 'คนถัดไป'
@@ -151,11 +140,11 @@ stateDiagram-v2
 | :--- | :--- | :--- | :--- | :--- |
 | **`IDLE`** | หน้าจอพร้อมใช้งาน แสดง Live Viewfinder จากกล้องเว็บแคม | ระบบเปิดใช้งาน หรือรีเซ็ตเสร็จสิ้น | `DETECTING_HAND` | รัน MediaPipe บน WebGL ดักจับพิกัด 21 จุด |
 | **`DETECTING_HAND`** | ประเมินท่าทางมือ Open Palm | ตรวจพบมือในเฟรมกล้อง | `COUNTDOWN_ACTIVE` | จับเวลา Hold Timer ครบ 1.5 วินาที |
-| **`COUNTDOWN_ACTIVE`** | แสดงตัวเลขนับถอยหลังขนาดใหญ่ 3.. 2.. 1.. บนหน้าจอ | Hold Timer ครบ 1.5 วิ หรือแตะปุ่มจอ | `FLASH_CAPTURE` | หากชักมือกลับจะยกเลิกและกลับ `IDLE` |
-| **`FLASH_CAPTURE`** | หน้าจอสว่างวาบสีขาวเต็มจอ (White Flash 150ms) | ตัวเลขนับถอยหลังถึง 0 | `PREVIEW_RETAKE` | Freeze เฟรม ตัด Center Crop 9:16 บันทึกลง Memory |
-| **`PREVIEW_RETAKE`** | แสดงภาพพรีวิวทันที พร้อมเวลานับถอยหลัง **10 วินาที** | บันทึกภาพสำเร็จ | `NETWORK_CHECK_UPLOAD` | มีปุ่ม "ถ่ายใหม่" (1 ครั้ง) หากหมดเวลา 10 วิจะไปต่อเอง |
-| **`WAITING_NETWORK`** | แสดงหน้าจอสถานะ "กำลังรอสัญญาณอินเทอร์เน็ต..." | เน็ตหลุดขณะจะอัปโหลด | `UPLOAD_R2` | วนลูปตรวจเช็กเน็ตแบบ Infinite Wait + มีปุ่ม Staff PIN |
-| **`SHOW_QR_CLEAN`** | แสดงเฉพาะ QR Code ขนาดใหญ่ นับถอยหลัง 15–20 วิ | อัปโหลดสำเร็จ | `RESET_COOLDOWN` | **ไม่แสดงรหัสตัวอักษรบนหน้าตู้** มีปุ่ม "คนถัดไป" |
+| **`COUNTDOWN_ACTIVE`** | แสดงตัวเลขนับถอยหลังขนาดใหญ่ 5.. 4.. 3.. 2.. 1.. บนหน้าจอ | Hold Timer ครบ 1.5 วิ หรือแตะปุ่มจอ | `FLASH_CAPTURE` | นับ 5 วินาที ไม่ยกเลิกเมื่อชักมือกลับ (ให้เปลี่ยนท่าโพสได้) |
+| **`FLASH_CAPTURE`** | หน้าจอสว่างวาบสีขาวเต็มจอ (White Flash 100ms) | ตัวเลขนับถอยหลังถึง 0 | `PREVIEW_RETAKE` | Freeze เฟรม ตัด Center Crop 9:16 บันทึกลง Memory |
+| **`PREVIEW_RETAKE`** | แสดงภาพพรีวิวทันที พร้อมเวลานับถอยหลัง **8 วินาที** | บันทึกภาพสำเร็จ | `SAVE_LOCAL` | มีปุ่ม "ถ่ายใหม่" (1 ครั้ง) หากหมดเวลา 8 วิจะไปต่อเอง |
+| **`SAVE_LOCAL`** | บันทึกภาพ + Metadata ลง Disk เครื่องตู้ และเข้าคิวอัปโหลด | ยืนยันภาพ | `SHOW_QR_CLEAN` | Background Sync อัปโหลดขึ้น R2 เอง ถ้าเน็ตหลุดเก็บเป็น `PENDING` แล้ว Retry |
+| **`SHOW_QR_CLEAN`** | แสดงเฉพาะ QR Code ขนาดใหญ่ นับถอยหลัง 15–20 วิ | บันทึกลงเครื่องสำเร็จ | `RESET_COOLDOWN` | **ไม่แสดงรหัสตัวอักษรบนหน้าตู้** มีปุ่ม "คนถัดไป" |
 | **`RESET_COOLDOWN`** | ล้างหน่วยความจำชั่วคราว คืนทรัพยากรระบบ | หมดเวลา QR หรือกดคนถัดไป | `IDLE` | รีเซ็ต Viewfinder ให้ว่าง พร้อมเริ่มรอบใหม่ใน 1 วินาที |
 
 ---
@@ -181,7 +170,7 @@ flowchart LR
 
     subgraph CaptureEngine["การจับภาพและตัดสัดส่วน"]
         Crop916["Center Crop 9:16 Processor<br>(ตัดพิกัดตรงกลาง 608x1080 px)"]
-        WhiteFlash["White Flash Animation Overlay<br>(ความสว่างเต็มจอ 150ms)"]
+        WhiteFlash["White Flash Animation Overlay<br>(ความสว่างเต็มจอ 100ms)"]
     end
 
     Cam --> Stream
@@ -189,7 +178,7 @@ flowchart LR
     VideoElement --> BlazePalm
     BlazePalm --> Landmarker
     Landmarker --> GestureLogic
-    GestureLogic -->|"เมื่อครบ 1.5 วินาที"| WhiteFlash
+    GestureLogic -->|"แบมือครบ 1.5 วิ → นับถอยหลัง 5 วิ"| WhiteFlash
     WhiteFlash --> Crop916
 ```
 
@@ -286,10 +275,11 @@ sequenceDiagram
 * **การตัดสินใจ**: หน้าตู้ Kiosk แสดงเฉพาะ QR Code ขนาดใหญ่ (ไม่แสดงตัวหนังสือรหัส) ส่วนรหัส `OPH-XXXX` จะแสดงที่หัวเว็บมือถือให้น้องจดเก็บไว้
 * **ผลลัพธ์**: หน้าตู้สะอาด สื่อสารชัดเจน น้องไม่สับสน
 
-### ADR-04: นโยบายการรอสัญญาณเน็ตแบบ Blocking Mode พร้อมช่องทางปลดล็อกของสตาฟ
-* **บริบท**: ป้องกันปัญหาน้องสแกน QR แล้วมือถือเปิดรูปไม่ติดเพราะรูปยังไม่อัปโหลดขึ้นคลาวด์
-* **การตัดสินใจ**: เมื่อถ่ายเสร็จ หากเน็ตหลุด ให้หน้าตู้แสดงสถานะ "กำลังรอสัญญาณอินเทอร์เน็ต..." ค้างไว้จนกว่าเน็ตจะกลับมา แล้วจึงแสดง QR Code โดยมีปุ่มให้สตาฟกรอก PIN ปลดล็อกได้
-* **ผลลัพธ์**: รับประกันว่าภาพทุกภาพที่มี QR Code ถูกอัปโหลดขึ้น Cloudflare R2 สำเร็จแล้ว 100%
+### ADR-04: อัปโหลดเบื้องหลังแบบไม่บล็อกตู้ (Non-Blocking Background Sync)
+* **บริบท**: เน็ตในงานอาจหลุด ถ้าตู้ต้องรออัปโหลดเสร็จก่อนจะทำให้คิวหยุดทั้งแถว
+* **การตัดสินใจ**: บันทึกภาพลง Disk เครื่องตู้แล้วแสดง QR Code ทันที อัปโหลดขึ้น Cloudflare R2 เบื้องหลังพร้อม Retry อัตโนมัติ (แก้ไขมติเดิมที่เคยเป็น Blocking Mode — ดู [บันทึกการแก้ไขมติ](../decisions.md))
+* **ผลลัพธ์**: คิวหน้าตู้ไม่หยุด ภาพไม่หาย
+* **ข้อแลกเปลี่ยน**: ถ้าน้องสแกนตอนภาพยังอัปโหลดไม่เสร็จ หน้ามือถือต้องแสดง "กำลังเตรียมรูป..." และลองโหลดซ้ำอัตโนมัติ
 
 ### ADR-05: การประมวลผลภาพบนมือถือด้วย Client-Side Canvas 2D
 * **บริบท**: ลดต้นทุนและภาระการประมวลผลบนคลาวด์
@@ -318,7 +308,7 @@ sequenceDiagram
 | สถานการณ์ขัดข้อง (Fault Scenario) | ผลกระทบต่อระบบ | กลไกการตรวจจับ (Detection) | แผนการกู้คืนและการทำงานอัตโนมัติ (Recovery Strategy) |
 | :--- | :--- | :--- | :--- |
 | **กล้องเว็บแคมหลุด หรือถูกดึงสาย** | Viewfinder ดับ | Event `ended` หรือ MediaStream inactive | แสดงหน้าจอ Error ทันทีพร้อมแจ้งเตือนสตาฟให้เสียบสายใหม่ ระบบจะ Re-init กล้องอัตโนมัติ |
-| **น้องชักมือกลับตอนนับถอยหลัง** | ตัวเลขนับถอยหลังค้าง | MediaPipe ตรวจไม่พบ Landmarks ต่อเนื่อง 500ms | ยกเลิกการนับถอยหลังทันที และรีเซ็ตสถานะกลับสู่ `IDLE` พร้อมรับการทำท่ามือใหม่ |
-| **สัญญาณ Wi-Fi หลุดขณะอัปโหลด** | ไม่สามารถส่งภาพขึ้นคลาวด์ได้ | Fetch Request โยนข้อผิดพลาด `NetworkError` | สลับเข้าสู่สถานะ `WAITING_NETWORK` หมุนรอสัญญาณเน็ตกลับมา แล้ว Resume การอัปโหลดต่ออัตโนมัติ |
-| **เน็ตดับยาวนานเกินไป** | คิวหน้าตู้เริ่มสะสม | หน้าจอค้างที่ `WAITING_NETWORK` | สตาฟแตะหน้าจอเพื่อกรอก PIN เข้าเมนูฉุกเฉิน สลับไปใช้ Hotspot มือถือ หรือสั่งแคชรูปลงเครื่องแล้วข้ามขั้นตอน |
+| **น้องชักมือกลับตอนนับถอยหลัง** | ไม่มีผลกระทบ | — | นับถอยหลังต่อจนถ่าย เพราะช่วง 5 วินาทีเปิดให้เปลี่ยนท่าโพสได้อิสระ |
+| **สัญญาณ Wi-Fi หลุดขณะอัปโหลด** | ไม่สามารถส่งภาพขึ้นคลาวด์ได้ชั่วคราว | Fetch Request โยนข้อผิดพลาด `NetworkError` | ภาพอยู่บน Disk ตู้สถานะ `PENDING` Background Sync Retry อัตโนมัติ หน้าตู้ให้บริการคนถัดไปตามปกติ |
+| **เน็ตดับยาวนาน** | น้องเปิดรูปบนมือถือไม่ได้จนกว่าจะซิงค์ | Staff Modal แสดงจำนวนภาพ `PENDING` | สตาฟสลับไปใช้ Hotspot มือถือ หรือสั่ง Force Sync ภาพจะเปิดได้เมื่ออัปโหลดเสร็จ |
 | **น้องสแกน QR Code หน้าตู้ไม่ทัน** | หน้าจอตู้รีเซ็ตกลับหน้าแรกแล้ว | ผู้ใช้แจ้งสตาฟที่บูท | สตาฟเปิดหน้า `/admin` ดึงรายการรูปตามเวลา (Timeline) ขยาย QR Code ให้น้องสแกนใหม่ได้ทันที |
