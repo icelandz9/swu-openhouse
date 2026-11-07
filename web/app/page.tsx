@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Cpu,
 } from 'lucide-react';
+import { CpeLogo } from '@/components/CpeLogo';
 
 export default function Home() {
   return (
@@ -18,9 +19,7 @@ export default function Home() {
       {/* Top Brand Banner */}
       <header className="relative z-10 w-full max-w-6xl mx-auto flex items-center justify-between border-b border-[#1C1C1C] pb-6">
         <div className="flex items-center gap-3.5">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-[#CE1126] font-black text-white text-base shadow-[0_0_20px_rgba(206,17,38,0.4)] border border-white/10">
-            CPE
-          </div>
+          <CpeLogo className="h-11" />
           <div>
             <div className="mono text-[10px] tracking-[.18em] text-[#CE1126] font-bold uppercase">
               SRINAKHARINWIROT UNIVERSITY • FACULTY OF ENGINEERING

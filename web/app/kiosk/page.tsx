@@ -21,6 +21,7 @@ import { classifyGesture, LandmarkPoint } from '@/lib/ai-vision/gestureRules';
 import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
 import { calculate43Crop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
+import { CpeLogo } from '@/components/CpeLogo';
 
 export default function KioskCapturePage() {
   const {
@@ -683,9 +684,7 @@ export default function KioskCapturePage() {
         <aside className="kiosk-pillar absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col justify-between border-r border-white/10 bg-[rgba(0,0,0,0.92)] p-[1.65%] backdrop-blur-md">
           <div>
             <div className="flex items-center gap-2">
-              <div className="grid aspect-square w-[2.4vw] max-w-11 min-w-7 place-items-center bg-[#CE1126] text-[clamp(.48rem,.67vw,.78rem)] font-extrabold tracking-[-.06em] text-white">
-                SWU
-              </div>
+              <CpeLogo className="h-[clamp(1.4rem,2.2vw,2.6rem)] max-w-full" />
               <div className="h-px flex-1 bg-[#CE1126]/60" />
             </div>
             <p className="mt-[2.2vw] text-[clamp(.55rem,.76vw,.92rem)] font-bold leading-[1.45] tracking-[-.02em] text-white">

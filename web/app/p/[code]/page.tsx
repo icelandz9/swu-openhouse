@@ -13,6 +13,7 @@ import {
   loadStickerCatalog,
 } from '@/lib/mobile/stickers';
 import { StickerLayer } from '@/components/StickerLayer';
+import { CpeLogo } from '@/components/CpeLogo';
 
 const FILTER_LIST: { id: FilterPresetId; label: string; thai: string }[] = [
   { id: 'original', label: 'Original', thai: 'ต้นฉบับ' },
@@ -220,9 +221,7 @@ export default function MobilePhotoEditorPage({
       {/* Top Header Bar */}
       <header className="flex h-16 items-center justify-between border-b border-white/10 px-5 bg-[#0A0A0A]">
         <div className="flex items-center gap-3">
-          <div className="grid size-8 place-items-center bg-[#CE1126] text-xs font-black tracking-[-.06em] text-white rounded">
-            SWU
-          </div>
+          <CpeLogo className="h-8" />
           <div>
             <div className="text-[10px] font-bold tracking-widest text-[#CE1126] uppercase">CPE OPEN HOUSE</div>
             <div className="mono text-xs font-bold text-white">#{normalizedCode.replace('OPH-', '')}</div>

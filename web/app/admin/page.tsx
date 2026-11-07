@@ -28,6 +28,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { CpeLogo } from '@/components/CpeLogo';
 import { PhotoRecord, ScreenSyncEvent, SCREEN_SYNC_CHANNEL } from '@/lib/contracts';
 
 const DEFAULT_SAMPLE_PHOTOS: PhotoRecord[] = [
@@ -375,9 +376,7 @@ export default function StaffAdminPortal() {
       {/* Top Header */}
       <header className="flex min-h-20 items-center justify-between border-b border-[#1C1C1C] bg-[#0A0A0A] px-8">
         <div className="flex items-center gap-4">
-          <div className="grid size-10 place-items-center bg-[#CE1126] text-xs font-extrabold tracking-[-.06em] text-white">
-            CPE
-          </div>
+          <CpeLogo className="h-10" />
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-sm font-bold text-white">Staff Master Dashboard</h1>

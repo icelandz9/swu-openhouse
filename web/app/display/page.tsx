@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL } from '@/lib/contracts';
+import { CpeLogo } from '@/components/CpeLogo';
 
 interface GalleryItem {
   code: string;
@@ -278,8 +279,8 @@ export default function ShowcaseDisplayScreen() {
         {/* Right Section (70%): Live Photo Wall / Gallery */}
         <section className="absolute inset-y-0 right-0 flex w-[70%] flex-col bg-black px-[2.45vw] py-[.75vw]">
           <header className="flex items-center justify-between border-b border-white/10 pb-3">
-            <h2 className="text-[clamp(1.55rem,2.5vw,3rem)] font-extrabold tracking-[-.05em]">
-              <span className="text-[#CE1126]">CPE</span>{' '}
+            <h2 className="flex items-center gap-[.3em] text-[clamp(1.55rem,2.5vw,3rem)] font-extrabold tracking-[-.05em]">
+              <CpeLogo className="h-[1em]" />
               <span className="text-white">OPEN HOUSE</span>
             </h2>
             <div className="text-[clamp(.5rem,.68vw,.82rem)] font-medium text-slate-400">

@@ -25,6 +25,9 @@ fivepalm_capture_*.jpg
 !web/public/stickers/*.png
 !web/public/stickers/*.jpg
 !web/public/stickers/*.jpeg
+!web/public/logo/
+!web/public/logo/*.png
+!web/app/icon.png
 
 # misc
 .DS_Store

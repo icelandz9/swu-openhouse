@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Search, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { CpeLogo } from '@/components/CpeLogo';
 
 export default function FindPhotoPage() {
   const [code, setCode] = useState('');
@@ -21,9 +22,7 @@ export default function FindPhotoPage() {
   return (
     <main className="mobile-app-shell mx-auto grid min-h-dvh w-full max-w-[390px] place-items-center bg-black px-6 text-slate-200 select-none">
       <div className="w-full">
-        <div className="mb-8 grid size-12 place-items-center bg-[#CE1126] text-sm font-extrabold tracking-[-.06em] text-white rounded">
-          SWU
-        </div>
+        <CpeLogo className="mb-8 h-12" />
         <h1 className="text-[32px] font-extrabold leading-[1.05] tracking-[-.04em] text-white">
           ค้นหารูปถ่าย
           <br />
