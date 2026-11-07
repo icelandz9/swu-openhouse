@@ -97,6 +97,34 @@ web/
 └── data/                       รูปที่ถ่าย (ไม่ commit — ข้อมูลส่วนบุคคล PDPA)
 ```
 
+## การตรวจท่ามือ
+
+`useMediaPipeHand` คืนข้อมูลของแต่ละมือเป็น array ลำดับเดียวกัน ส่งเข้า `classifyGesture` ได้ตรง ๆ:
+
+```ts
+const { hands, worldHands, handedness } = useMediaPipeHand(video, enabled);
+
+const gesture = classifyGesture(
+  hands[i],
+  worldHands[i],
+  handedness[i],
+  video.videoWidth / video.videoHeight
+);
+```
+
+| ผลลัพธ์ | เงื่อนไข |
+|---|---|
+| `OPEN_PALM` | นิ้วเหยียดครบ 5 นิ้ว และหันฝ่ามือเข้ากล้อง (หลังมือได้ `NONE`) |
+| `FIST` | นิ้วทั้ง 4 พับ และนิ้วโป้งไม่ชูออกมา |
+| `PEACE_SIGN` | นิ้วชี้กับนิ้วกลางเหยียด นิ้วนางกับนิ้วก้อยพับ |
+
+- ตรวจได้แม้มือเอียง เพราะวัดจากระยะห่างจากข้อมือ ไม่ได้เทียบแกน y
+- ใช้ได้กับภาพที่กลับด้านและไม่กลับด้าน
+- **ยังไม่ได้ต่อเข้าหน้า `/kiosk`** และยังไม่ได้ทดสอบในเบราว์เซอร์ ทดสอบแล้วเฉพาะตรรกะกับพิกัดมือจากรูปจริง
+- `useGestureTrigger` ยังรีเซ็ตเวลาค้างมือทันทีเมื่อท่าหลุดเฟรมเดียว ซึ่งเกิดขึ้นจริงกับกล้อง ตอนต่อเข้าตู้ควรทำให้ผลนิ่งก่อน เช่น ใช้เสียงข้างมากของ 5 เฟรมล่าสุดแบบ [`fivepalm_shutter.py`](../scripts/model-training/fivepalm_shutter.py)
+
+เดโมบนเครื่องสำหรับลองกติกาเดียวกันกับกล้องจริงอยู่ที่ [scripts/model-training](../scripts/model-training/README.md)
+
 ## ลำดับการพัฒนา
 
 | ขั้น | งาน | สถานะ |
