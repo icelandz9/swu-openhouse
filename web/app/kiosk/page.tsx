@@ -678,38 +678,131 @@ export default function KioskCapturePage() {
           </div>
         </aside>
 
-        {/* Right Pillar (12.5%): Gesture Guide & Instructions */}
-        <aside className="kiosk-pillar absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col justify-between border-l border-white/10 bg-[rgba(9,13,22,.88)] p-[1.45%] backdrop-blur-md">
-          <div className="text-[clamp(.43rem,.52vw,.62rem)] font-bold tracking-[.16em] text-slate-400">
-            GESTURE GUIDE
+        {/* Right Pillar (12.5%): Gesture Guide & Instructions with Top-to-Bottom Processing Flow */}
+        <aside className="kiosk-pillar absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col justify-between border-l border-white/10 bg-[rgba(9,13,22,.88)] p-[1.45%] backdrop-blur-md overflow-hidden">
+          <div className="flex items-center justify-between">
+            <div className="text-[clamp(.43rem,.52vw,.62rem)] font-bold tracking-[.16em] text-slate-400">
+              PROCESS FLOW
+            </div>
+            {holdProgress > 0 && (
+              <span className="mono text-[clamp(.36rem,.44vw,.52rem)] text-cyan-400 font-bold animate-pulse">
+                {Math.round(holdProgress)}%
+              </span>
+            )}
           </div>
 
-          <div className="flex flex-1 flex-col justify-center gap-[2.4vw]">
+          {/* Vertical 3-Step Flow Pipeline */}
+          <div className="relative flex flex-1 flex-col justify-center gap-[1.8vw] my-2">
+            {/* Background vertical circuit rail with downward laser flow */}
+            <div className="absolute left-[0.4vw] top-[5%] bottom-[5%] w-[2px] bg-white/10 rounded-full overflow-hidden">
+              <div
+                className={`w-full bg-gradient-to-b from-[#22D3EE] via-[#CE1126] to-[#10B981] transition-all duration-300 ${
+                  holdProgress > 0 ? 'h-full animate-pulse' : isCountingDown ? 'h-2/3' : isPreviewing ? 'h-full' : 'h-1/3 opacity-50'
+                }`}
+                style={{
+                  boxShadow: '0 0 8px rgba(34, 211, 238, 0.8)',
+                }}
+              />
+            </div>
+
             {[
-              { icon: Hand, line1: 'แบมือค้าง', line2: '1.5 วินาที', english: 'HOLD TO START' },
-              { icon: Timer, line1: 'โพสอิสระ', line2: 'ช่วง 3..2..1', english: 'POSE FREELY' },
-              { icon: QrCode, line1: 'รับรูปที่', line2: 'จอหมายเลข 2', english: 'SCAN AT SCREEN 2' },
+              {
+                icon: Hand,
+                line1: 'แบมือค้าง',
+                line2: '1.5 วินาที',
+                english: 'HOLD TO START',
+              },
+              {
+                icon: Timer,
+                line1: 'โพสอิสระ',
+                line2: 'ช่วง 3..2..1',
+                english: 'POSE FREELY',
+              },
+              {
+                icon: QrCode,
+                line1: 'รับรูปที่',
+                line2: 'จอหมายเลข 2',
+                english: 'SCAN AT SCREEN 2',
+              },
             ].map((step, index) => {
               const GuideIcon = step.icon;
+
+              const isCurrent =
+                (index === 0 && (isIdle || isDetecting)) ||
+                (index === 1 && (isCountingDown || isCapturing)) ||
+                (index === 2 && (isPreviewing || isSyncing || state === 'RESET_COOLDOWN'));
+
+              const isCompleted =
+                (index === 0 && (isCountingDown || isCapturing || isPreviewing || isSyncing || state === 'RESET_COOLDOWN')) ||
+                (index === 1 && (isPreviewing || isSyncing || state === 'RESET_COOLDOWN'));
+
               return (
-                <div key={step.english} className="relative">
-                  <div className="mb-[.7vw] flex items-center gap-[.6vw]">
-                    <span className="mono text-[clamp(.4rem,.48vw,.58rem)] text-[#CE1126] font-bold">
-                      0{index + 1}
-                    </span>
-                    <span className="h-px flex-1 bg-white/10" />
+                <div
+                  key={step.english}
+                  className={`relative pl-[1.4vw] transition-all duration-300 rounded-lg p-[0.6vw] ${
+                    isCurrent
+                      ? 'bg-gradient-to-r from-white/10 to-transparent border-l-2 border-[#22D3EE] shadow-lg'
+                      : isCompleted
+                      ? 'opacity-80'
+                      : 'opacity-40'
+                  }`}
+                >
+                  {/* Top-to-bottom progress wash inside Step 1 during palm hold */}
+                  {index === 0 && isCurrent && holdProgress > 0 && (
+                    <div
+                      className="absolute inset-0 bg-gradient-to-b from-cyan-500/20 via-cyan-400/10 to-transparent pointer-events-none transition-all duration-75 rounded-lg"
+                      style={{ height: `${holdProgress}%` }}
+                    />
+                  )}
+
+                  <div className="mb-[.5vw] flex items-center justify-between">
+                    <div className="flex items-center gap-[.5vw]">
+                      <span
+                        className={`mono text-[clamp(.4rem,.48vw,.58rem)] font-bold ${
+                          isCompleted
+                            ? 'text-emerald-400'
+                            : isCurrent
+                            ? 'text-cyan-400'
+                            : 'text-[#CE1126]'
+                        }`}
+                      >
+                        {isCompleted ? '✓ 0' : '0'}{index + 1}
+                      </span>
+                      <span className="h-px w-[2vw] bg-white/10" />
+                    </div>
+                    {isCurrent && (
+                      <span className="size-1.5 rounded-full bg-cyan-400 animate-ping" />
+                    )}
                   </div>
-                  <GuideIcon
-                    className="mb-[.7vw] size-[clamp(1.15rem,1.55vw,1.85rem)] text-white"
-                    strokeWidth={1.25}
-                  />
-                  <div className="text-[clamp(.52rem,.65vw,.78rem)] font-semibold leading-[1.5] text-slate-100">
+
+                  <div className="flex items-center gap-2">
+                    <GuideIcon
+                      className={`size-[clamp(1.15rem,1.55vw,1.85rem)] transition-colors duration-200 ${
+                        isCompleted
+                          ? 'text-emerald-400'
+                          : isCurrent
+                          ? index === 1
+                            ? 'text-[#CE1126] animate-bounce'
+                            : 'text-cyan-300 animate-pulse'
+                          : 'text-white/60'
+                      }`}
+                      strokeWidth={1.5}
+                    />
+                    {index === 1 && isCountingDown && (
+                      <span className="mono text-[clamp(.7rem,.95vw,1.15rem)] font-black text-white tabular-nums animate-pulse">
+                        {countdown}s
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-1 text-[clamp(.5rem,.62vw,.75rem)] font-semibold leading-[1.4] text-slate-100">
                     {step.line1}
                     <br />
                     {step.line2}
                   </div>
-                  <div className="mt-1 text-[clamp(.35rem,.4vw,.48rem)] font-bold tracking-[.1em] text-slate-500">
-                    {step.english}
+
+                  <div className="mt-0.5 text-[clamp(.33rem,.38vw,.45rem)] font-bold tracking-[.08em] text-slate-500">
+                    {isCompleted ? 'COMPLETED' : isCurrent ? (index === 0 && holdProgress > 0 ? `PROCESSING ${Math.round(holdProgress)}%` : 'IN PROGRESS') : step.english}
                   </div>
                 </div>
               );

@@ -121,19 +121,66 @@ export default function StaffAdminPortal() {
     };
   }, []);
 
-  // Fetch photos from API
-  const loadPhotos = async () => {
+  // Fetch photos combining server, localStorage, and seeds, strictly excluding deleted codes
+  const loadPhotos = async (currentDeleted?: string[] | unknown) => {
+      const activeDeletedList = Array.isArray(currentDeleted) ? currentDeleted : undefined;
     try {
+      let activeDeleted = activeDeletedList;
+      if (!activeDeleted && typeof window !== 'undefined') {
+        try {
+          const rawDel = localStorage.getItem('swu_deleted_codes') || '[]';
+          activeDeleted = JSON.parse(rawDel);
+        } catch {}
+      }
+      const deletedSet = new Set(activeDeleted || deletedCodes);
+
+      // 1. Fetch from server API
       const res = await fetch('/api/photos');
       const data = await res.json();
-      if (data?.photos && Array.isArray(data.photos) && data.photos.length > 0) {
-        setPhotos(data.photos);
+      const serverPhotos: PhotoRecord[] = data?.photos && Array.isArray(data.photos) ? data.photos : [];
+
+      // 2. Read from client local gallery
+      let localPhotos: PhotoRecord[] = [];
+      if (typeof window !== 'undefined') {
+        try {
+          const raw = localStorage.getItem('swu_photo_gallery') || '[]';
+          localPhotos = JSON.parse(raw);
+        } catch {}
       }
-    } catch {}
+
+      // 3. Merge server + local + default sample photos
+      const map = new Map<string, PhotoRecord>();
+      [...serverPhotos, ...localPhotos, ...DEFAULT_SAMPLE_PHOTOS].forEach((p) => {
+        if (p?.code && !deletedSet.has(p.code)) {
+          if (!map.has(p.code)) {
+            map.set(p.code, p);
+          }
+        }
+      });
+
+      const list = Array.from(map.values());
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setPhotos(list);
+    } catch (err) {
+      console.warn('Failed to load photos:', err);
+    }
   };
 
   useEffect(() => {
-    loadPhotos();
+    let initialDeleted: string[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const rawDel = localStorage.getItem('swu_deleted_codes') || '[]';
+        const parsed = JSON.parse(rawDel);
+        if (Array.isArray(parsed)) {
+          initialDeleted = parsed;
+          setDeletedCodes(parsed);
+        }
+      } catch {}
+    }
+
+    loadPhotos(initialDeleted);
+
     if (typeof window !== 'undefined') {
       const savedHost = localStorage.getItem('swu_booth_host') || process.env.NEXT_PUBLIC_APP_URL || '';
       setPublicDomain(savedHost);
@@ -178,13 +225,29 @@ export default function StaffAdminPortal() {
     } catch {}
   };
   const handleDeletePhoto = async (code: string) => {
-    try {
-      await fetch('/api/photos/' + code, { method: 'DELETE' });
-    } catch {}
+    // 1. Immediately persist to localStorage deleted set
+    let updatedDeleted: string[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const rawDel = localStorage.getItem('swu_deleted_codes') || '[]';
+        const cur: string[] = JSON.parse(rawDel);
+        updatedDeleted = Array.from(new Set([...cur, code]));
+        localStorage.setItem('swu_deleted_codes', JSON.stringify(updatedDeleted));
+      } catch {
+        updatedDeleted = [code];
+      }
+    } else {
+      updatedDeleted = [code];
+    }
+    setDeletedCodes(updatedDeleted);
 
-    setDeletedCodes((prev) => [...prev, code]);
+    // 2. Remove from component state & close modal if open
     setPhotos((prev) => prev.filter((p) => p.code !== code));
+    if (selectedPhoto?.code === code) {
+      setSelectedPhoto(null);
+    }
 
+    // 3. Remove from local gallery & latest photo storage
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('swu_photo_gallery');
@@ -195,9 +258,22 @@ export default function StaffAdminPortal() {
             localStorage.setItem('swu_photo_gallery', JSON.stringify(filtered));
           }
         }
+        const savedLatest = localStorage.getItem('swu_latest_photo');
+        if (savedLatest) {
+          const latestItem = JSON.parse(savedLatest);
+          if (latestItem?.code === code) {
+            localStorage.removeItem('swu_latest_photo');
+          }
+        }
       } catch {}
     }
 
+    // 4. Send API DELETE request to server storage
+    try {
+      await fetch('/api/photos/' + encodeURIComponent(code), { method: 'DELETE' });
+    } catch {}
+
+    // 5. Broadcast deletion to Screen 2 (Showcase) and Screen 1 (Kiosk)
     try {
       channelRef.current?.postMessage({
         type: 'PHOTO_DELETED',
@@ -205,7 +281,7 @@ export default function StaffAdminPortal() {
       } as ScreenSyncEvent);
     } catch {}
 
-    setCommandNotice('ลบรูป ' + code + ' สำเร็จและซิงค์กับจอ Showcase แล้ว');
+    setCommandNotice('ลบรูป ' + code + ' ถาวรสำเร็จและซิงค์กับทุกจอแล้ว');
     setTimeout(() => setCommandNotice(''), 2500);
   };
 
@@ -561,7 +637,7 @@ export default function StaffAdminPortal() {
                 />
               </label>
               <button
-                onClick={loadPhotos}
+                onClick={() => loadPhotos()}
                 className="flex h-11 items-center gap-2 rounded-lg border border-white/10 px-4 text-xs font-semibold text-slate-300 hover:bg-white/5 transition-colors"
               >
                 <RefreshCcw className="size-4" /> รีเฟรช
@@ -571,6 +647,13 @@ export default function StaffAdminPortal() {
 
           {/* Gallery Grid */}
           <div className="grid grid-cols-2 gap-4 p-6 lg:grid-cols-3 xl:grid-cols-4">
+            {filteredPhotos.length === 0 && (
+              <div className="col-span-full py-16 text-center space-y-3">
+                <HardDrive className="size-12 text-slate-600 mx-auto" />
+                <div className="text-sm font-bold text-slate-400">ไม่มีรูปภาพในแกลเลอรี</div>
+                <p className="text-xs text-slate-600">รูปภาพทั้งหมดถูกลบแล้ว หรือยังไม่มีรูปใหม่ที่ถ่ายจากตู้ Kiosk</p>
+              </div>
+            )}
             {filteredPhotos.map((photo, index) => (
               <article
                 key={`${photo.code}-${index}`}

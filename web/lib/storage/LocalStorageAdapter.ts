@@ -14,8 +14,10 @@ interface StoredMetadata {
 export class LocalStorageAdapter implements IPhotoStorage {
   private baseDir = path.join(process.cwd(), 'data', 'photos');
   private metaFile = path.join(process.cwd(), 'data', 'photos-meta.json');
+  private deletedFile = path.join(process.cwd(), 'data', 'deleted-codes.json');
   private memoryCache: Map<string, Buffer> = new Map();
   private metaCache: Map<string, StoredMetadata> = new Map();
+  private deletedCodes: Set<string> = new Set();
   private initialized = false;
 
   private async ensureInit() {
@@ -30,6 +32,17 @@ export class LocalStorageAdapter implements IPhotoStorage {
     } catch {
       // Ignore initial file read errors
     }
+
+    try {
+      const delContent = await fs.readFile(this.deletedFile, 'utf-8').catch(() => '[]');
+      const delList: string[] = JSON.parse(delContent);
+      for (const c of delList) {
+        this.deletedCodes.add(c);
+      }
+    } catch {
+      // Ignore initial file read errors
+    }
+
     this.initialized = true;
   }
 
@@ -42,8 +55,23 @@ export class LocalStorageAdapter implements IPhotoStorage {
     }
   }
 
+  private async saveDeleted() {
+    try {
+      const list = Array.from(this.deletedCodes);
+      await fs.writeFile(this.deletedFile, JSON.stringify(list, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Failed to save deleted codes list:', err);
+    }
+  }
+
   async savePhoto(shortCode: string, imageBuffer: Buffer): Promise<StoredPhotoResult> {
     await this.ensureInit();
+    // If it was previously marked deleted, un-delete it on new capture
+    if (this.deletedCodes.has(shortCode)) {
+      this.deletedCodes.delete(shortCode);
+      await this.saveDeleted();
+    }
+
     const filePath = path.join(this.baseDir, `${shortCode}.jpg`);
     await fs.writeFile(filePath, imageBuffer);
     this.memoryCache.set(shortCode, imageBuffer);
@@ -74,6 +102,9 @@ export class LocalStorageAdapter implements IPhotoStorage {
 
   async getPhotoUrl(shortCode: string): Promise<string | null> {
     await this.ensureInit();
+    if (this.deletedCodes.has(shortCode)) {
+      return null;
+    }
     if (this.memoryCache.has(shortCode)) {
       return `/api/photos/${shortCode}/file`;
     }
@@ -88,6 +119,9 @@ export class LocalStorageAdapter implements IPhotoStorage {
 
   async getPhotoBuffer(shortCode: string): Promise<Buffer | null> {
     await this.ensureInit();
+    if (this.deletedCodes.has(shortCode)) {
+      return null;
+    }
     if (this.memoryCache.has(shortCode)) {
       return this.memoryCache.get(shortCode)!;
     }
@@ -103,7 +137,9 @@ export class LocalStorageAdapter implements IPhotoStorage {
 
   async getAllPhotos(): Promise<PhotoRecord[]> {
     await this.ensureInit();
-    const list = Array.from(this.metaCache.values());
+    const list = Array.from(this.metaCache.values()).filter(
+      (p) => !this.deletedCodes.has(p.code)
+    );
     // Sort descending by createdAt
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return list;
@@ -113,14 +149,17 @@ export class LocalStorageAdapter implements IPhotoStorage {
     await this.ensureInit();
     this.memoryCache.delete(shortCode);
     this.metaCache.delete(shortCode);
+    this.deletedCodes.add(shortCode);
     await this.saveMeta();
+    await this.saveDeleted();
+
     const filePath = path.join(this.baseDir, `${shortCode}.jpg`);
     try {
       await fs.unlink(filePath);
-      return true;
     } catch {
-      return false;
+      // Ignore if file did not exist on disk
     }
+    return true;
   }
 
   isExpired(createdAtIso: string): boolean {

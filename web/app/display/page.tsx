@@ -86,15 +86,24 @@ export default function ShowcaseDisplayScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // Load photos from localStorage / API on start
+  // Load photos from localStorage / API on start, excluding deleted codes
   useEffect(() => {
+    let deletedCodes: string[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const rawDel = localStorage.getItem('swu_deleted_codes') || '[]';
+        deletedCodes = JSON.parse(rawDel);
+      } catch {}
+    }
+
     if (typeof window !== 'undefined') {
       try {
         const savedGallery = localStorage.getItem('swu_photo_gallery');
         if (savedGallery) {
           const parsed = JSON.parse(savedGallery);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setPhotos(parsed);
+            const clean = parsed.filter((p: any) => !deletedCodes.includes(p?.code));
+            setPhotos(clean.length > 0 ? clean : DEFAULT_SEEDS.filter(s => !deletedCodes.includes(s.code)));
           }
         }
       } catch {}
@@ -104,11 +113,13 @@ export default function ShowcaseDisplayScreen() {
     fetch('/api/photos')
       .then((res) => res.json())
       .then((data) => {
-        if (data?.photos && Array.isArray(data.photos) && data.photos.length > 0) {
+        if (data?.photos && Array.isArray(data.photos)) {
           setPhotos((prev) => {
             const map = new Map<string, GalleryItem>();
             [...data.photos, ...prev].forEach((item: any) => {
-              if (item?.code) map.set(item.code, item);
+              if (item?.code && !deletedCodes.includes(item.code)) {
+                map.set(item.code, item);
+              }
             });
             return Array.from(map.values());
           });
@@ -154,6 +165,13 @@ export default function ShowcaseDisplayScreen() {
         }
       } else if (data.type === 'PHOTO_DELETED') {
         const deletedCode = data.code;
+        if (typeof window !== 'undefined') {
+          try {
+            const rawDel = localStorage.getItem('swu_deleted_codes') || '[]';
+            const cur: string[] = JSON.parse(rawDel);
+            localStorage.setItem('swu_deleted_codes', JSON.stringify(Array.from(new Set([...cur, deletedCode]))));
+          } catch {}
+        }
         setPhotos((prev) => {
           const updated = prev.filter((p) => p.code !== deletedCode);
           if (typeof window !== 'undefined') {
