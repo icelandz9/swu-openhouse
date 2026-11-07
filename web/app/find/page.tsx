@@ -19,7 +19,7 @@ export default function FindPhotoPage() {
   };
 
   return (
-    <main className="mobile-app-shell mx-auto grid min-h-dvh w-full max-w-[390px] place-items-center bg-[#090D16] px-6 text-slate-200 select-none">
+    <main className="mobile-app-shell mx-auto grid min-h-dvh w-full max-w-[390px] place-items-center bg-[#1C1F26] px-6 text-slate-200 select-none">
       <div className="w-full">
         <div className="mb-8 grid size-12 place-items-center bg-[#CE1126] text-sm font-extrabold tracking-[-.06em] text-white rounded">
           SWU

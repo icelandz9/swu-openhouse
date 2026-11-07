@@ -205,8 +205,8 @@ export default function ShowcaseDisplayScreen() {
     : latest.qrUrl || `/p/${latest.code}`;
 
   return (
-    <main className="display-shell grid h-dvh w-screen place-items-center overflow-hidden bg-[#090D16] select-none">
-      <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-[#090D16]">
+    <main className="display-shell grid h-dvh w-screen place-items-center overflow-hidden bg-[#16181E] select-none">
+      <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-[#20242D]">
         {/* Left Section (30%): Live Polaroid Showcase & White QR Pill Station */}
         <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col border-r border-[#1E293B] px-[1.2%] py-[1.25%] justify-between">
           <div>
@@ -231,7 +231,7 @@ export default function ShowcaseDisplayScreen() {
                   alt={`รูปล่าสุด ${latest.code}`}
                   className="h-full w-full object-cover"
                 />
-                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-[#090D16]/85 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-[#1E222B]/90 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
                   <span className="text-[clamp(.42rem,.52vw,.62rem)] font-bold">
                     <span className="text-[#EF4444]">CPE</span> OPEN HOUSE
                   </span>
@@ -262,7 +262,7 @@ export default function ShowcaseDisplayScreen() {
                   value={qrTargetUrl}
                   level="H"
                   bgColor="#FFFFFF"
-                  fgColor="#090D16"
+                  fgColor="#1C1F26"
                   className="h-full w-full"
                   title={`รับรูป ${latest.code}`}
                 />
@@ -276,7 +276,7 @@ export default function ShowcaseDisplayScreen() {
         </section>
 
         {/* Right Section (70%): Live Photo Wall / Gallery */}
-        <section className="absolute inset-y-0 right-0 flex w-[70%] flex-col bg-[#06080D] px-[2.45vw] py-[.75vw]">
+        <section className="absolute inset-y-0 right-0 flex w-[70%] flex-col bg-[#1E222B] px-[2.45vw] py-[.75vw]">
           <header className="flex items-center justify-between border-b border-white/10 pb-3">
             <h2 className="text-[clamp(1.55rem,2.5vw,3rem)] font-extrabold tracking-[-.05em]">
               <span className="text-[#2DD4BF]">CPE</span>{' '}
