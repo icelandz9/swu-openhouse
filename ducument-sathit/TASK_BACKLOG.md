@@ -138,27 +138,22 @@ flowchart TD
 ---
 
 #### 🔹 Task 02: สถาปัตยกรรมระบบและการออกแบบเชิงเทคนิค (SAD/C4, LLD, ADRs)
-- **สถานะ**: 🔲 To Do
+- **สถานะ**: ✅ เสร็จสมบูรณ์ (Approved & Locked via /grill-me)
 - **เป้าหมาย**: กำหนดโครงสร้างระบบซอฟต์แวร์ ลำดับการทำงานของคอมโพเนนต์ และบันทึกการตัดสินใจทางสถาปัตยกรรม
-- **รายละเอียดงาน**:
-  1. **SAD / HLD**: วาดแผนผังระบบตามมาตรฐาน **C4 Model**:
-     - System Context Diagram: ผู้ใช้, เครื่องตู้ Kiosk, Cloud Storage, และสมาร์ตโฟน
-     - Container Diagram: Next.js Kiosk App, WebGL MediaPipe Engine, HTML5 Canvas Compositor, Cloudflare R2
+- **เอกสารส่งมอบ**:
+  - `ducument-sathit/task02/task-02-system-architecture-and-technical-design.md` (C4 Architecture, Kiosk FSM State Machine, Camera & Vision Pipeline, Canvas Compositor, Staff Portal, ADRs 01-08)
+  - `ducument-sathit/task02/task-02-qa-and-decisions.md` (บันทึกบทสนทนาถาม-ตอบ /grill-me พร้อมตัวเลือกและคำตอบที่เลือก)
+- **รายละเอียดงานที่เสร็จสิ้น**:
+  1. **SAD / HLD**: วาดแผนผังระบบตามมาตรฐาน **C4 Model** (Context, Container, Component)
   2. **LLD / TDD**:
-     - Sequence Diagrams: ลำดับขั้นตอน Gesture Trigger -> Visual Countdown -> Frame Capture -> Canvas Layering -> QR Generation
-     - State Machine Diagram: สถานะของตู้ถ่ายรูป (`Idle` -> `Detecting_Hand` -> `Counting_Down` -> `Flash_Capture` -> `Compositing` -> `Show_QR`)
-  3. **ADR (Architecture Decision Records)**:
-     - ADR-01: การเลือก Google MediaPipe บน WebGL (60 FPS On-device)
-     - ADR-02: การเลือกสถาปัตยกรรม Hybrid UX (ตู้เร็ว + แต่งต่อบนมือถือ)
-     - ADR-03: การเลือก Next.js Monorepo แทน Go
-     - ADR-04: นโยบาย Short Code 6 หลัก และ Retention 7 วัน
-- **สิ่งที่ต้องส่งมอบ (Deliverables)**:
-  - System Architecture Document (Mermaid C4 Diagrams)
-  - Low-Level Sequence & State Machine Diagrams
-  - Architecture Decision Records (ADR 01-04)
+     - Kiosk Finite State Machine (FSM): กำหนด State Transitions ครบถ้วน (`IDLE` -> `DETECTING_HAND` -> `COUNTDOWN_ACTIVE` 3..2..1.. -> `FLASH_CAPTURE` 150ms -> `PREVIEW_RETAKE` 10s -> `NETWORK_CHECK_UPLOAD` Blocking Mode -> `SHOW_QR_CLEAN` -> `RESET_COOLDOWN`)
+     - กลไก Blocking Network: รอจนกว่าเน็ตจะกลับมาแล้วอัปโหลดต่ออัตโนมัติ พร้อมปุ่มให้สตาฟกรอก PIN ปลดล็อก
+     - สถาปัตยกรรมเทมเพลต CPE SWU 3 แบบ (Official Classic, Youthful Tech Graphic, Photostrip Minimalist)
+     - สถาปัตยกรรมหลังบ้านสตาฟ `/admin` พร้อมโหมดดูรูปทั้งหมด (View All Photos) และ Re-issue QR Code ย้อนหลัง
+  3. **ADR (Architecture Decision Records)**: บันทึกมติ ADR-01 ถึง ADR-08 ครบถ้วน
 - **เกณฑ์การตรวจรับ (Acceptance Criteria)**:
-  - Diagram แสดง Component ครบถ้วน รวมถึงการทำงานแบบ Offline-first
-  - Sequence Flow มีการจัดการ Success และ Error Handling Case (เช่น มือหายระหว่างนับถอยหลัง, กล้องหลุด)
+  - ผ่านการตรวจสอบ Diagram ด้วย Script ตรวจสอบ Mermaid (0 syntax errors)
+  - รองรับทั้ง Happy Path, Unhappy Path (เน็ตหลุด, มือหลุดระหว่างนับถอยหลัง) และ Staff Recovery Flow
 
 ---
 
