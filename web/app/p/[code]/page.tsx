@@ -216,9 +216,9 @@ export default function MobilePhotoEditorPage({
   );
 
   return (
-    <main className="mobile-app-shell mx-auto min-h-screen max-w-md bg-[#090D16] text-slate-200 flex flex-col justify-between pb-6 select-none shadow-2xl">
+    <main className="mobile-app-shell mx-auto min-h-screen max-w-md bg-black text-slate-200 flex flex-col justify-between pb-6 select-none shadow-2xl">
       {/* Top Header Bar */}
-      <header className="flex h-16 items-center justify-between border-b border-white/10 px-5 bg-[#0D111A]">
+      <header className="flex h-16 items-center justify-between border-b border-white/10 px-5 bg-[#0A0A0A]">
         <div className="flex items-center gap-3">
           <div className="grid size-8 place-items-center bg-[#CE1126] text-xs font-black tracking-[-.06em] text-white rounded">
             SWU
@@ -264,7 +264,7 @@ export default function MobilePhotoEditorPage({
             />
           )}
           {!photoLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#06080D]">
+            <div className="absolute inset-0 flex items-center justify-center bg-black">
               <div className="mono text-xs text-slate-400 animate-pulse">กำลังโหลดรูปภาพ...</div>
             </div>
           )}
@@ -274,7 +274,7 @@ export default function MobilePhotoEditorPage({
       {/* Editing Controls */}
       <div className="px-5 space-y-4">
         {/* Brightness */}
-        <div className="rounded-xl border border-white/10 bg-[#0D111A] p-4 space-y-2">
+        <div className="rounded-xl border border-white/10 bg-[#0A0A0A] p-4 space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-slate-300">
             <span className="flex items-center gap-2">
               <Sun className="size-3.5 text-amber-400" /> ปรับความสว่าง
@@ -292,7 +292,7 @@ export default function MobilePhotoEditorPage({
         </div>
 
         {/* Tabs */}
-        <div className="flex rounded-xl border border-white/10 bg-[#0D111A] p-1">
+        <div className="flex rounded-xl border border-white/10 bg-[#0A0A0A] p-1">
           {tabButton('frames', <><Frame className="size-3.5" /> กรอบรูป ({FRAME_TEMPLATES.length})</>)}
           {tabButton('filters', <><Sparkles className="size-3.5" /> ฟิลเตอร์ ({FILTER_LIST.length})</>)}
           {tabButton('stickers', <><Sticker className="size-3.5" /> สติกเกอร์</>)}
@@ -306,7 +306,7 @@ export default function MobilePhotoEditorPage({
               className={`flex aspect-[3/4] flex-col items-center justify-center rounded-xl border text-center transition-all ${
                 selectedFrameId === NO_FRAME_ID
                   ? 'border-[#CE1126] bg-[#CE1126]/10 text-white shadow-md'
-                  : 'border-white/10 bg-[#0D111A] text-slate-400'
+                  : 'border-white/10 bg-[#0A0A0A] text-slate-400'
               }`}
             >
               <div className="text-[11px] font-bold">ไม่มีกรอบ</div>
@@ -321,7 +321,7 @@ export default function MobilePhotoEditorPage({
                   selectedFrameId === f.id ? 'border-[#CE1126] shadow-md' : 'border-transparent opacity-80'
                 }`}
               >
-                <img src={f.src} alt={f.name} className="block aspect-[3/4] w-full bg-slate-700 object-cover" />
+                <img src={f.src} alt={f.name} className="block aspect-[3/4] w-full bg-[#1C1C1C] object-cover" />
               </button>
             ))}
           </div>
@@ -337,7 +337,7 @@ export default function MobilePhotoEditorPage({
                 className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all text-center ${
                   selectedFilter === f.id
                     ? 'border-[#06B6D4] bg-[#06B6D4]/10 text-white shadow-md'
-                    : 'border-white/10 bg-[#0D111A] text-slate-400 hover:text-white'
+                    : 'border-white/10 bg-[#0A0A0A] text-slate-400 hover:text-white'
                 }`}
               >
                 <div className="text-xs font-bold">{f.label}</div>
@@ -351,7 +351,7 @@ export default function MobilePhotoEditorPage({
         {activeTab === 'stickers' && (
           <div className="space-y-3">
             {stickerCatalog.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-white/15 bg-[#0D111A] p-6 text-center">
+              <div className="rounded-xl border border-dashed border-white/15 bg-[#0A0A0A] p-6 text-center">
                 <Sticker className="mx-auto size-7 text-slate-500" />
                 <div className="mt-2 text-xs font-bold text-slate-300">สติกเกอร์กำลังจะมาเร็ว ๆ นี้</div>
                 <div className="mt-1 text-[10px] text-slate-500">Coming soon</div>
@@ -362,7 +362,7 @@ export default function MobilePhotoEditorPage({
                   <button
                     key={s.src}
                     onClick={() => addSticker(s)}
-                    className="grid aspect-square place-items-center rounded-xl border border-white/10 bg-[#0D111A] p-2 active:scale-95 transition-transform"
+                    className="grid aspect-square place-items-center rounded-xl border border-white/10 bg-[#0A0A0A] p-2 active:scale-95 transition-transform"
                   >
                     <img src={s.src} alt="" className="max-h-full max-w-full object-contain" draggable={false} />
                   </button>

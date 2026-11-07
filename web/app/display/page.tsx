@@ -205,10 +205,10 @@ export default function ShowcaseDisplayScreen() {
     : latest.qrUrl || `/p/${latest.code}`;
 
   return (
-    <main className="display-shell grid h-dvh w-screen place-items-center overflow-hidden bg-[#090D16] select-none">
-      <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-[#090D16]">
+    <main className="display-shell grid h-dvh w-screen place-items-center overflow-hidden bg-black select-none">
+      <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-black">
         {/* Left Section (30%): Live Polaroid Showcase & White QR Pill Station */}
-        <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col border-r border-[#1E293B] px-[1.2%] py-[1.25%] justify-between">
+        <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col border-r border-[#1C1C1C] px-[1.2%] py-[1.25%] justify-between">
           <div>
             {/* Live Indicator Banner */}
             <div className="mono flex items-center justify-between text-[clamp(.48rem,.62vw,.74rem)]">
@@ -231,7 +231,7 @@ export default function ShowcaseDisplayScreen() {
                   alt={`รูปล่าสุด ${latest.code}`}
                   className="h-full w-full object-cover"
                 />
-                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-[#090D16]/85 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/85 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
                   <span className="text-[clamp(.42rem,.52vw,.62rem)] font-bold">
                     <span className="text-[#CE1126]">CPE</span> OPEN HOUSE
                   </span>
@@ -262,7 +262,7 @@ export default function ShowcaseDisplayScreen() {
                   value={qrTargetUrl}
                   level="H"
                   bgColor="#FFFFFF"
-                  fgColor="#090D16"
+                  fgColor="#000000"
                   className="h-full w-full"
                   title={`รับรูป ${latest.code}`}
                 />
@@ -276,7 +276,7 @@ export default function ShowcaseDisplayScreen() {
         </section>
 
         {/* Right Section (70%): Live Photo Wall / Gallery */}
-        <section className="absolute inset-y-0 right-0 flex w-[70%] flex-col bg-[#06080D] px-[2.45vw] py-[.75vw]">
+        <section className="absolute inset-y-0 right-0 flex w-[70%] flex-col bg-black px-[2.45vw] py-[.75vw]">
           <header className="flex items-center justify-between border-b border-white/10 pb-3">
             <h2 className="text-[clamp(1.55rem,2.5vw,3rem)] font-extrabold tracking-[-.05em]">
               <span className="text-[#CE1126]">CPE</span>{' '}
@@ -299,7 +299,7 @@ export default function ShowcaseDisplayScreen() {
                   return (
                     <figure
                       key={`${photo.code}-${index}`}
-                      className={`group relative aspect-[4/3] overflow-hidden rounded-[.3vw] bg-[#111827] border border-white/5 transition duration-300 hover:border-[#CE1126] ${
+                      className={`group relative aspect-[4/3] overflow-hidden rounded-[.3vw] bg-[#0A0A0A] border border-white/5 transition duration-300 hover:border-[#CE1126] ${
                         isNew ? 'photo-wall-enter' : ''
                       }`}
                     >
