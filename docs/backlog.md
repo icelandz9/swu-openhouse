@@ -143,6 +143,8 @@ flowchart TD
 - **เอกสารส่งมอบ**:
   - [task02-architecture/system-architecture-and-technical-design.md](task02-architecture/system-architecture-and-technical-design.md) (C4 Architecture, Kiosk FSM State Machine, Camera & Vision Pipeline, Canvas Compositor, Staff Portal, ADRs 01-08)
   - [task02-architecture/qa-decisions.md](task02-architecture/qa-decisions.md) (บันทึกบทสนทนาถาม-ตอบ /grill-me พร้อมตัวเลือกและคำตอบที่เลือก)
+  - [task02-architecture/team-execution-and-github-plan.md](task02-architecture/team-execution-and-github-plan.md) (แผนการแบ่งงาน 3 คน และกระบวนการทำงานร่วมกันบน GitHub)
+  - [task02-architecture/project-structure-and-clean-architecture-guide.md](task02-architecture/project-structure-and-clean-architecture-guide.md) (คู่มือวิเคราะห์โครงสร้างโปรเจกต์ Clean Architecture vs Pragmatic Feature-Driven, ADR-09)
 - **รายละเอียดงานที่เสร็จสิ้น**:
   1. **SAD / HLD**: วาดแผนผังระบบตามมาตรฐาน **C4 Model** (Context, Container, Component)
   2. **LLD / TDD**:
@@ -237,6 +239,9 @@ flowchart TD
 #### 🔹 Task 06: การบริหารโปรเจกต์และแผนการทดสอบ (WBS, Gantt, Master Test Plan/UAT)
 - **สถานะ**: 🔲 To Do
 - **เป้าหมาย**: กำหนดแผนงานย่อย ลำดับเวลาการส่งมอบ และเอกสารแผนการทดสอบคุณภาพ
+- **หมุดหมายสำคัญ (Key Milestones)**:
+  - **10 พ.ย. 2026 (เวลา 18:00 น.)**: ★ ส่งมอบระบบหลัก (Core System Sign-off: ตู้ Kiosk + AI Vision + Capture 4:3 + Upload + แสดง QR Code)
+  - **12 พ.ย. 2026 (เวลา 12:00 น.)**: ★ ส่งมอบระบบสมบูรณ์ 100% (Final Handover & Go-Live: มือถือแต่งรูป 6 สี 3 กรอบ + หน้าสตาฟ + ติดตั้งหน้างานจริง)
 - **รายละเอียดงาน**:
   1. จัดทำ **WBS (Work Breakdown Structure)** ซอยงานระดับโมดูลพร้อมประเมินระยะเวลา
   2. จัดทำ **Project Schedule / Gantt Chart & Milestone Plan**
