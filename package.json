@@ -1,0 +1,25 @@
+{
+  "name": "openhouse",
+  "version": "1.0.0",
+  "description": "```mermaid\r flowchart TB\r     subgraph KioskBooth[\"ตู้ถ่ายภาพหน้างาน (Physical Kiosk Booth)\"]\r         Cam[\"กล้อง USB Webcam 1080p\"] -->|\"WebRTC Video Stream\"| Engine[\"Google MediaPipe Tasks-Vision<br>(21 Hand Landmarks Model)\"]\r         Engine -->|\"Open Palm Hold 1.5s\"| FSM[\"Kiosk Viewfinder & FSM Engine\"]\r         FSM -->|\"Capture Snapshot\"| LocalQueue[\"Local Cache & Sync Queue\"]\r         FSM -->|\"แสดงเฉพาะ QR Code ใหญ่<br>(ไม่แสดงรหัสตัวอักษร)\"| Screen[\"จอแสดงผล Kiosk (16:9 Landscape)\"]\r     end",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/icelandz9/swu-openhouse.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/icelandz9/swu-openhouse/issues"
+  },
+  "homepage": "https://github.com/icelandz9/swu-openhouse#readme",
+  "dependencies": {
+    "jsdom": "^31.0.0",
+    "mermaid": "^12.3.0"
+  }
+}
