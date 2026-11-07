@@ -251,9 +251,12 @@ export default function ShowcaseDisplayScreen() {
             </div>
           </div>
 
-          {/* White QR Pill Card for Immediate Mobile Scan */}
-          <div className="qr-card mx-auto mt-[1vw] grid min-h-[26%] w-[96%] shrink-0 grid-cols-[.48fr_1fr] items-center gap-[1vw] rounded-[1vw] bg-white p-[.85vw]">
-            <div className="aspect-square bg-white p-[.2vw] flex items-center justify-center">
+          {/* White QR Card - Centered, Clean & Minimal */}
+          <div className="qr-card mx-auto mt-[0.8vw] flex flex-col items-center justify-center rounded-[1vw] bg-white p-[1.1vw] shadow-2xl shrink-0 w-[96%] text-center">
+            <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
+              สแกนรับ<span className="text-[#06B6D4]">รูป</span>
+            </div>
+            <div className="aspect-square w-[75%] max-w-[210px] min-w-[135px] bg-white p-[0.3vw] flex items-center justify-center">
               {isMounted ? (
                 <QRCodeSVG
                   value={qrTargetUrl}
@@ -268,20 +271,6 @@ export default function ShowcaseDisplayScreen() {
                   QR CODE
                 </div>
               )}
-            </div>
-            <div className="text-[#0F172A]">
-              <div className="text-[clamp(.85rem,1.18vw,1.42rem)] font-extrabold tracking-[-.03em]">
-                ← สแกนรับ<span className="text-[#06B6D4]">รูป</span>
-              </div>
-              <div className="mt-[.35vw] text-[clamp(.43rem,.55vw,.66rem)] font-semibold text-slate-600 leading-snug">
-                เปิดกล้องมือถือแล้วสแกน
-              </div>
-              <div className="mt-0.5 text-[clamp(.38rem,.47vw,.56rem)] text-slate-400">
-                ต้องต่อ WiFi เดียวกับบูท
-              </div>
-              <div className="mono mt-[.4vw] text-[clamp(.45rem,.58vw,.7rem)] font-bold text-[#CE1126]">
-                #{latest.code.replace('OPH-', '')}
-              </div>
             </div>
           </div>
         </section>

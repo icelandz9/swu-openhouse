@@ -1,79 +1,103 @@
 import { IPhotoStorage } from './IPhotoStorage';
 import { StoredPhotoResult, PhotoRecord } from '../contracts';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { LocalStorageAdapter } from './LocalStorageAdapter';
+import crypto from 'node:crypto';
+
+function getSignatureKey(key: string, dateStamp: string, regionName: string, serviceName: string) {
+  const kDate = crypto.createHmac('sha256', 'AWS4' + key).update(dateStamp).digest();
+  const kRegion = crypto.createHmac('sha256', kDate).update(regionName).digest();
+  const kService = crypto.createHmac('sha256', kRegion).update(serviceName).digest();
+  return crypto.createHmac('sha256', kService).update('aws4_request').digest();
+}
 
 /**
- * Cloudflare R2 / AWS S3 S3-Compatible Storage Adapter
- * Activated when STORAGE_DRIVER=r2 or when R2 credentials are configured
+ * Cloudflare R2 S3-Compatible Storage Adapter (Zero External Dependencies)
+ * Uses native Node.js crypto and fetch for AWS Signature Version 4 (SigV4).
+ * Activated when R2 credentials are configured or STORAGE_DRIVER=r2.
  */
 export class CloudflareR2Adapter implements IPhotoStorage {
-  private s3Client: S3Client | null = null;
+  private accountId: string | undefined;
+  private accessKeyId: string | undefined;
+  private secretAccessKey: string | undefined;
   private bucketName: string;
   private publicDomain: string;
   private fallbackAdapter: LocalStorageAdapter;
 
   constructor() {
     this.fallbackAdapter = new LocalStorageAdapter();
-    const accountId = process.env.R2_ACCOUNT_ID;
-    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+    this.accountId = process.env.R2_ACCOUNT_ID;
+    this.accessKeyId = process.env.R2_ACCESS_KEY_ID;
+    this.secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
     this.bucketName = process.env.R2_BUCKET_NAME || 'swu-photobooth';
     this.publicDomain = (process.env.R2_PUBLIC_DOMAIN || 'https://photos.cpe-swu.com').replace(/\/+$/, '');
-
-    if (accountId && accessKeyId && secretAccessKey) {
-      try {
-        this.s3Client = new S3Client({
-          region: 'auto',
-          endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-          credentials: {
-            accessKeyId,
-            secretAccessKey,
-          },
-        });
-      } catch (err) {
-        console.warn('Failed to initialize Cloudflare R2 client, will use local storage fallback:', err);
-      }
-    }
   }
 
   async savePhoto(shortCode: string, imageBuffer: Buffer): Promise<StoredPhotoResult> {
     const key = `${shortCode}.jpg`;
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    if (this.s3Client) {
+    if (this.accountId && this.accessKeyId && this.secretAccessKey) {
       try {
-        await this.s3Client.send(
-          new PutObjectCommand({
-            Bucket: this.bucketName,
-            Key: key,
-            Body: imageBuffer,
-            ContentType: 'image/jpeg',
-            CacheControl: 'public, max-age=604800, immutable',
-          })
-        );
+        const host = `${this.accountId}.r2.cloudflarestorage.com`;
+        const path = `/${this.bucketName}/${key}`;
+        const endpoint = `https://${host}${path}`;
 
-        // Also save locally for instant kiosk/display caching
-        await this.fallbackAdapter.savePhoto(shortCode, imageBuffer).catch(() => {});
+        const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+        const dateStamp = amzDate.substring(0, 8);
+        const payloadHash = crypto.createHash('sha256').update(imageBuffer).digest('hex');
 
-        return {
-          photoId: shortCode,
-          shortCode,
-          url: `${this.publicDomain}/${key}`,
-          storageDriver: 'r2',
-          expiresAt,
-        };
+        const canonicalHeaders = `content-type:image/jpeg\nhost:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`;
+        const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
+        const canonicalRequest = `PUT\n${path}\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
+
+        const credentialScope = `${dateStamp}/auto/s3/aws4_request`;
+        const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${crypto
+          .createHash('sha256')
+          .update(canonicalRequest)
+          .digest('hex')}`;
+
+        const signingKey = getSignatureKey(this.secretAccessKey, dateStamp, 'auto', 's3');
+        const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex');
+
+        const authHeader = `AWS4-HMAC-SHA256 Credential=${this.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+        const res = await fetch(endpoint, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'image/jpeg',
+            Host: host,
+            'x-amz-content-sha256': payloadHash,
+            'x-amz-date': amzDate,
+            Authorization: authHeader,
+          },
+          body: new Uint8Array(imageBuffer),
+        });
+
+        if (res.ok) {
+          // Also save locally for instant kiosk/display caching
+          await this.fallbackAdapter.savePhoto(shortCode, imageBuffer).catch(() => {});
+
+          return {
+            photoId: shortCode,
+            shortCode,
+            url: `${this.publicDomain}/${key}`,
+            storageDriver: 'r2',
+            expiresAt,
+          };
+        } else {
+          console.warn(`R2 upload responded with ${res.status}: ${await res.text()}`);
+        }
       } catch (err) {
-        console.error('R2 upload failed, falling back to local storage:', err);
+        console.error('R2 upload failed, using local storage fallback:', err);
       }
     }
 
-    // Fallback to local storage if R2 not configured or network error
+    // Fallback to local storage if credentials not configured or upload fails
     return this.fallbackAdapter.savePhoto(shortCode, imageBuffer);
   }
 
   async getPhotoUrl(shortCode: string): Promise<string | null> {
-    if (this.s3Client) {
+    if (this.accountId && this.accessKeyId && this.secretAccessKey) {
       return `${this.publicDomain}/${shortCode}.jpg`;
     }
     return this.fallbackAdapter.getPhotoUrl(shortCode);
@@ -89,24 +113,47 @@ export class CloudflareR2Adapter implements IPhotoStorage {
 
   async deletePhoto(shortCode: string): Promise<boolean> {
     const key = `${shortCode}.jpg`;
-    let r2Success = true;
 
-    if (this.s3Client) {
+    if (this.accountId && this.accessKeyId && this.secretAccessKey) {
       try {
-        await this.s3Client.send(
-          new DeleteObjectCommand({
-            Bucket: this.bucketName,
-            Key: key,
-          })
-        );
+        const host = `${this.accountId}.r2.cloudflarestorage.com`;
+        const path = `/${this.bucketName}/${key}`;
+        const endpoint = `https://${host}${path}`;
+
+        const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+        const dateStamp = amzDate.substring(0, 8);
+        const emptyPayloadHash = crypto.createHash('sha256').update('').digest('hex');
+
+        const canonicalHeaders = `host:${host}\nx-amz-content-sha256:${emptyPayloadHash}\nx-amz-date:${amzDate}\n`;
+        const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+        const canonicalRequest = `DELETE\n${path}\n\n${canonicalHeaders}\n${signedHeaders}\n${emptyPayloadHash}`;
+
+        const credentialScope = `${dateStamp}/auto/s3/aws4_request`;
+        const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${crypto
+          .createHash('sha256')
+          .update(canonicalRequest)
+          .digest('hex')}`;
+
+        const signingKey = getSignatureKey(this.secretAccessKey, dateStamp, 'auto', 's3');
+        const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex');
+
+        const authHeader = `AWS4-HMAC-SHA256 Credential=${this.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+        await fetch(endpoint, {
+          method: 'DELETE',
+          headers: {
+            Host: host,
+            'x-amz-content-sha256': emptyPayloadHash,
+            'x-amz-date': amzDate,
+            Authorization: authHeader,
+          },
+        }).catch(() => {});
       } catch (err) {
-        console.warn('Failed to delete from R2:', err);
-        r2Success = false;
+        console.warn('R2 delete request failed:', err);
       }
     }
 
-    const localSuccess = await this.fallbackAdapter.deletePhoto(shortCode);
-    return r2Success || localSuccess;
+    return this.fallbackAdapter.deletePhoto(shortCode);
   }
 
   isExpired(createdAtIso: string): boolean {
