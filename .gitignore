@@ -1,17 +1,7 @@
-# dependencies
+# Rules for the whole repo. App-specific rules live in web/.gitignore.
+
+# dependencies (root tooling: mermaid validator)
 /node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
 
 # misc
 .DS_Store
@@ -25,7 +15,3 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
