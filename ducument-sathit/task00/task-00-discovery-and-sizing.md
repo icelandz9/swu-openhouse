@@ -37,7 +37,7 @@
   * ตอบโจทย์เยาวชนที่ต้องการภาพดิจิทัลไปแชร์ลง Instagram Story / TikTok ทันที
 
 ### 🖼️ ADR-06: รูปแบบภาพถ่าย (Photo Layout Modes) & Reminder Flag
-* **มติ**: **รองรับทั้ง 2 โหมด (Dual-Mode Architecture: Single Shot 9:16 และ Photostrip 3–4 ช็อต)**
+* **มติ**: **รองรับทั้ง 2 โหมด (Dual-Mode Architecture: Single Shot 4:3 และ Photostrip 3–4 ช็อต)**
 * **การตั้งค่า**: ควบคุมผ่าน Configuration (`boothConfig.supportedModes = ['single', 'photostrip']`)
 * ⚠️ **REMINDER FLAG (แจ้งเตือน)**: บันทึกมาร์กไว้ว่าระบบเปิดให้ปรับเปลี่ยนสลับโหมดได้ในอนาคต หากทีมงานไม่ได้กลับมาสรุปเจาะจงก่อนวันงานจริง ระบบจะแจ้งเตือนให้เคาะโหมดหลักก่อนเริ่มงาน
 

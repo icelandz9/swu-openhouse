@@ -99,7 +99,7 @@
   3. ผู้ใช้เลือกได้ 2 โหมด: หน้าตู้มีปุ่มให้เลือกว่าจะถ่ายแบบ '1 ช็อตด่วน' หรือ '4 ช็อต Photostrip'
 * **คำตอบที่เลือก**: `ตอนนี้ให้ได้ 2 โหมดไปก่อน อาจมีการปรับเปลี่ยนแพลนในอนาคต มาร์กไว้ให้ปรับได้ด้วย แต่ถ้าไม่กลับมาปรับให้เตือน`
 * **มติทางวิศวกรรม (ADR-06)**:
-  * ออกแบบเอนจิน Canvas ให้รองรับ Dual-Mode (Single Shot 9:16 และ Photostrip 3–4 ช็อตแนวตั้ง)
+  * ออกแบบเอนจิน Canvas ให้รองรับ Dual-Mode (Single Shot 4:3 และ Photostrip 3–4 ช็อต)
   * ควบคุมการเปิด-ปิดโหมดผ่าน Configuration Flag
   * บันทึก Reminder Flag ในเอกสารเพื่อแจ้งเตือนให้ทีมสรุปโหมดหลักก่อนเริ่มงาน
 
@@ -165,7 +165,7 @@
 | **ADR-03** | Retention & PDPA | Short Code OPH-XXXX บนมือถือ + หน้าตู้โชว์ QR Only + คลาวด์เก็บ 7 วัน | Locked |
 | **ADR-04** | Tech Stack Framework | Next.js Full-Stack (TypeScript Monorepo) | Locked |
 | **ADR-05** | Delivery Output | Digital-Only 100% (งบกระดาษ/หมึก 0 บาท) | Locked |
-| **ADR-06** | Photo Layout Modes | Dual-Mode (Single 9:16 + Photostrip 3–4 ช็อต) พร้อม Reminder Flag | Locked |
+| **ADR-06** | Photo Layout Modes | Dual-Mode (Single 4:3 + Photostrip 3–4 ช็อต) พร้อม Reminder Flag | Locked |
 | **ADR-07** | AI Multi-person Filtering | Largest Hand Area / Depth Filter + ปุ่ม Tap ถ่ายสำรองบนจอ | Locked |
 | **ADR-08** | Camera Hardware | External USB Webcam Full HD 1080p | Locked |
 | **ADR-09** | Staff Controls | Dual Channels: แตะโลโก้ 5 ครั้งบนหน้าตู้ + หน้า `/admin` บนมือถือ | Locked |

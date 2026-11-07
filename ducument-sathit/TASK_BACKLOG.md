@@ -193,7 +193,7 @@ flowchart TD
      - Mobile Wireframe (Photo Preview, Filter Carousel, Template Selector, Download Button)
   4. **UI Style Guide & Design System (Atomic Design)**:
      - Design Tokens: ชุดสี มศว (SWU Red `#E31B23`, Dark Red `#B3141A`, Gray `#F4F4F6`), Typography
-     - กราฟิกเทมเพลตกรอบรูปอัตลักษณ์ มศว Open House (ขนาด 9:16 และ Photostrip)
+     - กราฟิกเทมเพลตกรอบรูปอัตลักษณ์ มศว Open House (ขนาด 4:3 และ Photostrip)
 - **สิ่งที่ต้องส่งมอบ (Deliverables)**:
   - Information Architecture & User Flow Diagrams
   - UI Wireframes & Layout Specification
