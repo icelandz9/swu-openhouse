@@ -34,6 +34,11 @@ yarn-error.log*
 
 # MediaPipe model downloaded by scripts/model-training
 hand_landmarker.task
+pose_landmarker_lite.task
+face_landmarker.task
+
+# Gesture GIF demo: third-party memes
+scripts/model-training/gifs/
 
 # Trained model (the web kiosk loads the exported gesture_weights.json instead)
 gesture_classifier.joblib
