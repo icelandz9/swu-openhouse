@@ -17,7 +17,7 @@ Architecture & Features:
 4. State Machine:
    - IDLE -> DEBOUNCE (0.8s continuous hold, 0% to 100% visual feedback, instant reset if dropped)
    - COUNTDOWN (3s visual countdown: 3.. 2.. 1..)
-   - CAPTURE (Flash + saves clean frame as fivepalm_capture_<timestamp>.jpg)
+   - CAPTURE (Flash + saves clean frame as captures/capture_<date>_<time>.jpg)
    - COOLDOWN (3.0s lockout preventing accidental re-triggers)
 5. HUD & Controls: Color-coded UI (Green hold, Yellow countdown, Red cooldown), 'q' to quit.
 """
@@ -383,10 +383,14 @@ def draw_hud(
 
 
 def save_capture_frame(clean_frame: np.ndarray, output_dir: str = ".") -> str:
-    """Saves the high-resolution clean camera frame with monotonic timestamp naming."""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:19]
-    filename = f"fivepalm_capture_{timestamp}.jpg"
-    filepath = os.path.join(output_dir, filename)
+    """Saves the clean camera frame as capture_YYYY-MM-DD_HH-MM-SS.jpg (adds _2, _3 on clashes)."""
+    os.makedirs(output_dir, exist_ok=True)
+    stem = f"capture_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    filepath = os.path.join(output_dir, f"{stem}.jpg")
+    suffix = 2
+    while os.path.exists(filepath):
+        filepath = os.path.join(output_dir, f"{stem}_{suffix}.jpg")
+        suffix += 1
 
     # Save at high JPEG quality
     cv2.imwrite(filepath, clean_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
@@ -626,7 +630,8 @@ def run_shutter_loop(camera_index: int = 0, output_dir: str = ".") -> None:
 
 def main() -> None:
     """CLI Entry Point."""
-    output_dir = os.path.dirname(os.path.abspath(__file__))
+    # Photos must stay in captures/, never next to the code, and are never committed (see AGENTS.md)
+    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")
     run_shutter_loop(camera_index=0, output_dir=output_dir)
 
 
