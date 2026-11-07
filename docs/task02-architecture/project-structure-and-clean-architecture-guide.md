@@ -1,0 +1,317 @@
+# คู่มือการออกแบบโครงสร้างโปรเจกต์และสถาปัตยกรรมซอฟต์แวร์ (Project Structure & Architecture Guide)
+## ระบบ AI Photo Booth สำหรับงานเปิดบ้าน มศว (SWU Open House)
+
+เอกสารฉบับนี้จัดทำขึ้นเพื่อตอบคำถามเชิงสถาปัตยกรรมวิศวกรรมซอฟต์แวร์ (Software Engineering Architecture): **"โครงสร้างโปรเจกต์ควรเป็น Clean Architecture หรือรูปแบบไหน จึงจะเหมาะสมและมีประสิทธิภาพสูงสุดสำหรับงานนี้"** พร้อมบันทึกข้อตกลงเชิงสถาปัตยกรรม (ADR-09) และโครงสร้างโฟลเดอร์ฉบับสมบูรณ์สำหรับทีมพัฒนา 3 คน
+
+---
+
+## 1. การประเมินเปรียบเทียบเชิงสถาปัตยกรรม (Architectural Patterns Comparison)
+
+ในการพัฒนาซอฟต์แวร์ระดับงานอีเวนต์ที่มีทั้ง **Client-Side AI Computer Vision (MediaPipe)**, **Hardware/Browser Lifecycle (Webcam, Canvas 2D)**, **State Machine แบบเรียลไทม์**, และ **Serverless API สำหรับแจกจ่ายภาพถ่าย** เราได้ทำการประเมิน 3 ทางเลือกหลัก:
+
+```mermaid
+flowchart TD
+    subgraph OptionA["ทางเลือกที่ 1: Pure Clean Architecture (Uncle Bob 4-Layer)"]
+        A1["Entities (Enterprise Rules)"] --> A2["Use Cases (Application Rules)"]
+        A2 --> A3["Interface Adapters (Controllers / Presenters)"]
+        A3 --> A4["Frameworks & Drivers (React UI, DB, WebCam)"]
+    end
+
+    subgraph OptionB["ทางเลือกที่ 2: Flat / Standard Next.js Structure"]
+        B1["app/ (UI Pages ผสม Logic)"]
+        B2["components/ (กองรวมกันทุกฟีเจอร์)"]
+        B3["api/ (Route Handlers ต่อ Storage ตรง)"]
+    end
+
+    subgraph OptionC["ทางเลือกที่ 3 (แนะนำ): Pragmatic Feature-Driven Clean Architecture"]
+        C1["Boundary Contracts (lib/contracts.ts)"]
+        C2["Vertical Slices ตามเจ้าของงาน 3 คน (AI / Kiosk / Mobile)"]
+        C3["Pure Domain Logic (FSM, Gesture Math, Canvas Matrix) แยกจาก React"]
+        C4["Ports & Adapters สำหรับ I/O (Local Mock Storage vs Cloudflare R2)"]
+        C1 --- C2 --- C3 --- C4
+    end
+```
+
+### ตารางเปรียบเทียบข้อดี-ข้อเสีย (Architecture Trade-off Matrix)
+
+| มิติการประเมิน | ทางเลือกที่ 1: Pure Clean Architecture (Uncle Bob) | ทางเลือกที่ 2: Flat / Unstructured Next.js | ทางเลือกที่ 3: Pragmatic Feature-Driven Architecture (แนะนำ) |
+| :--- | :--- | :--- | :--- |
+| **ความเร็วในการส่งมอบ (Velocity & TTM)** | 🔴 **ต่ำมาก**: ต้องสร้างไฟล์ DTO, Presenter, UseCase, Repository Interface ซ้ำซ้อน 4-6 ไฟล์ต่อหนึ่งฟังก์ชัน | 🟡 **เร็วช่วงแรกแต่ช้าช่วงหลัง**: โค้ดปนกัน แก้ยากเมื่อระบบเริ่มซับซ้อน | 🟢 **สูงสุด**: แบ่งงานชัดเจน ไม่เสียเวลาเขียน boilerplate ที่ไม่จำเป็น |
+| **ความเข้ากันได้กับ React & Next.js 15** | 🔴 **ขัดกับธรรมชาติของ React**: ฝืนแปลง State และ Browser Lifecycle (Webcam, Canvas, Audio) ให้กลายเป็น Use Case & Presenter | 🟢 **เข้ากันได้ตามมาตรฐาน Next.js**: ใช้งาน App Router ปกติ | 🟢 **ดีที่สุด**: ใช้ Custom Hooks เป็น Application Layer และใช้ Pure TS Functions เป็น Domain Layer |
+| **การทดสอบ (Testability)** | 🟢 **สูง**: แยก Mock ชัดเจน | 🔴 **ต่ำมาก**: Logic ผูกติดกับ UI Component ทดสอบแยกไม่ได้ | 🟢 **สูงมาก**: Pure FSM และ Gesture Math ทดสอบได้ 100% โดยไม่ต้องมี DOM |
+| **การทำงานร่วมกัน 3 คน (Git Conflict)** | 🟡 **ปานกลาง**: มีโอกาสชนกันที่ Container / DI Resolver กลาง | 🔴 **เสี่ยงสูงมาก**: ทุกคนแก้โฟลเดอร์ `components/` และ `lib/` รวมกัน | 🟢 **ปราศจากการชนกัน (Zero-Conflict)**: แยก Vertical Slice ตามโฟลเดอร์ของแต่ละคน |
+| **ความคุ้มค่าต่องานอีเวนต์ 2 วัน (ROI)** | 🔴 **Over-engineering รุนแรง**: ความซับซ้อนเกินขนาดโจทย์ธุรกิจ | 🔴 **เสี่ยงระบบล่มหน้างาน**: แก้บั๊กยาก ไม่มี Boundary ป้องกัน | 🟢 **สมดุลสมบูรณ์แบบ**: แข็งแกร่ง บำรุงรักษาง่าย และเสร็จทันเวลา |
+
+---
+
+## 2. เหตุผลทางวิศวกรรม: ทำไม "Pure Clean Architecture" จึงเป็น Anti-Pattern สำหรับงานนี้
+
+> [!WARNING] ข้อผิดพลาดที่พบบ่อยในการนำ Clean Architecture มาใช้กับ Frontend
+> Uncle Bob (Robert C. Martin) คิดค้น Clean Architecture ขึ้นมาสำหรับระบบ Enterprise Backend (เช่น ธนาคาร, ประกันภัย) ที่มีกฎเกณฑ์ทางธุรกิจ (Business Rules) ซับซ้อนและเปลี่ยนแปลงบ่อย โดยมองว่า UI และฐานข้อมูลเป็นเพียง "Detail" ภายนอกเท่านั้น
+> 
+> แต่สำหรับระบบ **SWU AI Photo Booth**:
+> 1. **งาน 85% คือ Client-Side Computing & Hardware Interaction**:
+>    - การประมวลผลโมเดล MediaPipe 21 จุด บน WebGL/WASM 60 FPS
+>    - การควบคุมกล้อง WebRTC 1080p และตัดรูป Center Crop 4:3
+>    - การจัดการสถานะ Kiosk FSM (Countdown, Screen Flash, Sound Effect, Retake Preview)
+>    - การประมวลผล Canvas 2D (Color Filter Matrix, Brightness Slider, Frame Compositing)
+>    สิ่งเหล่านี้ไม่ใช่ "Detail ปลีกย่อย" แต่เป็น **หัวใจหลักของระบบ (Core Capabilities)** การนำ UI และ Browser APIs ไปยัดไว้ที่ Outer Layer แล้วสร้าง Presenter/Controller มาห่อหุ้ม ทำให้เกิดความล่าช้า (Impedance Mismatch) และโค้ดบวมโดยไร้ประโยชน์
+> 2. **Backend มีขอบเขตจำกัด (Lean Backend)**:
+>    - Backend มีเพียง 4 Endpoints: บันทึกรูปภาพลง Storage, ส่งภาพกลับตามรหัส `OPH-XXXX`, แสดงรายการภาพให้สตาฟ และตรวจสอบ PIN
+>    - การสร้าง Entity -> UseCase -> Interactor -> Gateway Interface -> Controller สำหรับแค่ฟังก์ชันอัปโหลดไฟล์ 1 ไฟล์ เป็นการสร้าง **Accidental Complexity** เกินความจำเป็น
+
+---
+
+## 3. มติสถาปัตยกรรม ADR-09: Pragmatic Feature-Driven Clean Architecture
+
+### บันทึกการตัดสินใจทางสถาปัตยกรรม (ADR-09)
+* **สถานะ**: ✅ อนุมัติ (Approved)
+* **บริบท**: ระบบต้องการความเสถียรสูง ไม่ค้าง ไม่กระตุก รองรับผู้ใช้งาน 60–80 คน/ชม. พัฒนาโดยทีม 3 คนในระยะเวลาจำกัด
+* **การตัดสินใจ (Decision)**: เลือกใช้สถาปัตยกรรมแบบ **"Pragmatic Feature-Driven Clean Architecture"** (การผสมผสานระหว่าง Vertical Slice Architecture เข้ากับหลักการแยก Layer ของ Clean Architecture เฉพาะจุดที่คุ้มค่า)
+
+```mermaid
+flowchart TD
+    subgraph Layer1["1. Presentation Layer (React UI & Components)"]
+        UI_Kiosk["web/app/kiosk/page.tsx<br>(ตู้ถ่ายภาพ 16:9 ไกด์ 4:3)"]
+        UI_Mobile["web/app/p/[code]/page.tsx<br>(มือถือแต่งรูป OPH-XXXX)"]
+        UI_Admin["web/app/admin/page.tsx<br>(แดชบอร์ดสตาฟ + Re-issue QR)"]
+    end
+
+    subgraph Layer2["2. Application Layer (Headless React Hooks)"]
+        Hook_Vision["useWebcamStream & useGestureTrigger<br>(ควบคุม WebRTC, นับเวลาแบมือ 1.5s)"]
+        Hook_FSM["useKioskFSM<br>(เชื่อมต่อ FSM เข้ากับ React Lifecycle)"]
+        Hook_Canvas["useCanvasFilter<br>(จัดการ Color Presets & Brightness)"]
+    end
+
+    subgraph Layer3["3. Pure Domain Layer (Framework-Agnostic / Zero React)"]
+        Domain_Heuristics["gestureRules.ts<br>(คำนวณเวกเตอร์ 21 จุดมือ, คัดขนาดมือ)"]
+        Domain_FSM["kioskStateMachine.ts<br>(Pure Reducer: State Transitions 8 สถานะ)"]
+        Domain_Crop["imageCropMath.ts<br>(สูตรคำนวณ Center Crop 4:3 จาก 16:9)"]
+        Domain_ShortCode["shortCodeGenerator.ts<br>(สุ่ม OPH-XXXX และตัดอักขระสับสน)"]
+    end
+
+    subgraph Layer4["4. Infrastructure & I/O Layer (Ports & Adapters)"]
+        Port_Storage["IPhotoStorageService (Port)"]
+        Adapter_Local["LocalStorageAdapter<br>(บันทึกลง web/data/ สำหรับ Dev & Offline)"]
+        Adapter_R2["CloudflareR2Adapter<br>(บันทึกลง S3/R2 สำหรับ Production)"]
+        Port_Storage --> Adapter_Local
+        Port_Storage --> Adapter_R2
+    end
+
+    subgraph SharedContract["Contracts (Shared Single Source of Truth)"]
+        Contracts["web/lib/contracts.ts<br>(DTOs, Interfaces, Enums, Constants: 4:3, OPH-XXXX)"]
+    end
+
+    Layer1 --> Layer2
+    Layer2 --> Layer3
+    Layer1 --> SharedContract
+    Layer2 --> SharedContract
+    Layer3 --> SharedContract
+    Layer4 --> SharedContract
+```
+
+---
+
+## 4. กฎเหล็กของสถาปัตยกรรม (Architecture Boundary Rules)
+
+เพื่อให้โค้ดสะอาด เป็นระเบียบ และบำรุงรักษาง่าย กำหนดกฎ 4 ข้อดังนี้:
+
+1. **Rule 1: Pure Domain ห้าม Import Framework (Zero React / Next.js Dependencies)**
+   - โค้ดใน `gestureRules.ts`, `kioskStateMachine.ts`, `imageCropMath.ts`, `shortCodeGenerator.ts` ต้องเป็น Pure TypeScript เท่านั้น
+   - **ห้าม** `import React`, `import useState`, หรือ `import 'next/...'` ในไฟล์เหล่านี้
+   - **ผลลัพธ์**: สามารถเขียน Unit Test รันผ่าน Vitest / Node.js ได้ในเวลาไม่กี่มิลลิวินาทีโดยไม่ต้องจำลอง Browser DOM
+2. **Rule 2: Application Hooks เป็นสะพานเชื่อมระหว่าง Domain กับ UI**
+   - หน้าจอ UI (React Components) จะไม่เรียก Logic ตรงๆ แต่จะเรียกผ่าน Custom Hook
+   - ตัวอย่าง: `KioskPage` จะไม่เขียน `if (handDetected) count++` ใน Component แต่จะเรียกใช้ `const { state, send } = useKioskFSM()`
+3. **Rule 3: I/O และ Storage ต้องผ่าน Port & Adapter เสมอ**
+   - API Route ห้ามเรียก SDK ของ Cloudflare R2 หรือเขียนไฟล์ `fs` โดยตรง
+   - ให้เรียกผ่าน `photoStorageService.savePhoto(...)` เพื่อให้สามารถสลับระหว่าง Local Storage (ตอนทดสอบออฟไลน์หน้างาน) กับ Cloudflare R2 (ตอนเปิดบริการจริง) ได้ทันทีผ่าน Environment Variable `STORAGE_DRIVER=local|r2`
+4. **Rule 4: Shared Contracts คือสัญญาฉบับเดียว (`web/lib/contracts.ts`)**
+   - ค่าคงที่ สเปกอัตราส่วน (`4:3`), ตัวแปรสถานะ FSM (`KioskState`), และโครงสร้างข้อมูล API Request/Response ต้องประกาศที่นี่ที่เดียว ห้ามประกาศซ้ำในโฟลเดอร์ของตัวเอง
+
+---
+
+## 5. โครงสร้างโฟลเดอร์ฉบับสมบูรณ์ (Complete Project Directory Layout)
+
+```text
+PhotoBooth-OpenHouseSWU/
+├── ducument-sathit/                               # เอกสารวิศวกรรมระบบ (IEEE 830, SAD, ADRs)
+│   ├── task00/                                   # Task 00: Discovery, PoC, BOM/BOQ
+│   ├── task01/                                   # Task 01: SRS, BRD, PRD, RTM
+│   └── task02/                                   # Task 02: SAD, FSM, ADRs, Project Structure
+│       ├── task-02-system-architecture-and-technical-design.md
+│       ├── task-02-qa-and-decisions.md
+│       ├── team-execution-and-github-plan.md
+│       └── project-structure-and-clean-architecture-guide.md  # [เอกสารฉบับนี้]
+│
+├── poc/                                          # สคริปต์ทดสอบและ Proof of Concepts
+│   ├── test_poc.mjs                              # PoC ชุดทดสอบ 4 ด้าน
+│   └── validate_mermaid.mjs                      # สคริปต์ตรวจไวยากรณ์ Diagram
+│
+├── scripts/
+│   └── model-training/                           # [Dev 1: AI Engineer]
+│       ├── dataset_collector.py                  # สคริปต์บันทึกพิกัด 21 จุดมือลง CSV
+│       ├── train_gesture_classifier.py           # สคริปต์เทรนโมเดล (MLP / Heuristic Weights)
+│       └── export_model_weights.py               # แปลงโมเดลเป็น JSON / TFLite Web Format
+│
+└── web/                                          # Next.js 15 App (React 19, TypeScript)
+    ├── package.json
+    ├── tsconfig.json
+    ├── next.config.ts
+    │
+    ├── public/
+    │   ├── frames/                               # กรอบรูป มศว สัดส่วน 4:3 (1440x1080 PNG โปร่งใส)
+    │   │   ├── template-1-classic.png            # แบบที่ 1: Official Classic (ตรา มศว แดง-เทา)
+    │   │   ├── template-2-cpe-tech.png           # แบบที่ 2: Youthful Tech Graphic (ธีม CPE คอมพิวเตอร์)
+    │   │   └── template-3-photostrip.png         # แบบที่ 3: Photostrip Minimalist
+    │   └── models/                               # โมเดลและ WASM Assets สำหรับ MediaPipe
+    │
+    ├── app/                                      # [Presentation Layer: Next.js App Router]
+    │   ├── layout.tsx                            # Root Layout (ธีม SWU Red #C8102E)
+    │   ├── globals.css                           # Tailwind CSS / สไตล์กลาง
+    │   ├── page.tsx                              # หน้า Landing Page ต้อนรับ
+    │   │
+    │   ├── kiosk/                                # [Dev 2: Kiosk Engineer]
+    │   │   └── page.tsx                          # จอตู้ถ่ายภาพ 16:9 ไกด์ 4:3 แนวนอน
+    │   │
+    │   ├── p/                                    # [Dev 3: Mobile & Cloud Engineer]
+    │   │   └── [code]/
+    │   │       └── page.tsx                      # เว็บมือถือแต่งรูป (โชว์รหัส OPH-XXXX ชัดเจน)
+    │   │
+    │   ├── find/                                 # [Dev 3: Mobile & Cloud Engineer]
+    │   │   └── page.tsx                          # หน้าค้นหารูปย้อนหลังด้วยรหัส OPH-XXXX
+    │   │
+    │   ├── admin/                                # [Dev 3: Mobile & Cloud Engineer]
+    │   │   └── page.tsx                          # แดชบอร์ดสตาฟ (ดูรูปทั้งหมด + Re-issue QR)
+    │   │
+    │   └── api/                                  # [Serverless Route Handlers]
+    │       ├── photos/
+    │       │   ├── route.ts                      # POST บันทึกรูป / GET ดูรูปทั้งหมด (Staff)
+    │       │   └── [code]/
+    │       │       └── route.ts                  # GET ดึงข้อมูลและไฟล์รูปตามรหัส OPH-XXXX
+    │       ├── admin/
+    │       │   └── auth/
+    │       │       └── route.ts                  # POST ตรวจสอบรหัส Staff PIN
+    │       └── health/
+    │           └── route.ts                      # GET Health-check ตรวจสอบความพร้อมระบบ
+    │
+    ├── lib/                                      # [Application & Domain Logic]
+    │   ├── contracts.ts                          # [Shared Contract] Types, DTOs, 4:3 Constants
+    │   │
+    │   ├── ai-vision/                            # [Dev 1: Domain & Application - AI Vision]
+    │   │   ├── gestureRules.ts                   # (Pure Domain) ตรรกะคณิตศาสตร์เวกเตอร์ 21 จุด
+    │   │   ├── depthAreaFilter.ts                # (Pure Domain) คัดเฉพาะมือที่อยู่ใกล้กล้องที่สุด
+    │   │   ├── useWebcamStream.ts                # (App Hook) เปิดกล้อง WebRTC 1080p 60 FPS
+    │   │   ├── useMediaPipeHand.ts               # (App Hook) โหลดและรัน MediaPipe Vision Task
+    │   │   └── useGestureTrigger.ts              # (App Hook) จับเวลาแบมือค้าง 1.5 วินาที
+    │   │
+    │   ├── kiosk/                                # [Dev 2: Domain & Application - Kiosk Experience]
+    │   │   ├── kioskStateMachine.ts              # (Pure Domain) Finite State Machine 8 สถานะ
+    │   │   ├── centerCropper.ts                  # (Pure Domain) สูตรคำนวณ Crop 1440x1080 จาก 1920x1080
+    │   │   ├── useKioskFSM.ts                    # (App Hook) เชื่อมต่อ State Machine กับ UI
+    │   │   ├── components/                       # UI Sub-components ของตู้
+    │   │   │   ├── ViewfinderFrame.tsx           # กรอบกล้อง 16:9 พร้อมแถบดำไกด์ 4:3
+    │   │   │   ├── CountdownOverlay.tsx          # แอนิเมชันนับถอยหลัง 3.. 2.. 1..
+    │   │   │   ├── WhiteFlashEffect.tsx          # แฟลชจอขาว 150ms
+    │   │   │   ├── PreviewRetake.tsx             # หน้าพรีวิว 10 วินาที + ปุ่มถ่ายใหม่
+    │   │   │   ├── NetworkWaitScreen.tsx         # หน้าจอรอเน็ต Blocking Mode + ปุ่มกรอก PIN
+    │   │   │   └── CleanQRDisplay.tsx            # หน้าแสดงเฉพาะ QR Code ขนาดใหญ่
+    │   │
+    │   ├── mobile/                               # [Dev 3: Domain & Application - Mobile & Canvas]
+    │   │   ├── colorFilters.ts                   # (Pure Domain) เมทริกซ์แปลงสี 6 โทน + Brightness
+    │   │   ├── canvasCompositor.ts               # (Pure Domain) รวมภาพถ่ายเข้ากับกรอบ มศว 4:3
+    │   │   ├── shortCodeGenerator.ts             # (Pure Domain) สุ่มรหัส OPH-XXXX ปราศจากตัวสับสน
+    │   │   └── useCanvasCompositor.ts            # (App Hook) จัดการ Touch, Preview และ Render
+    │   │
+    │   └── storage/                              # [Dev 3: Infrastructure - Ports & Adapters]
+    │       ├── IPhotoStorage.ts                  # (Port Interface) สัญญาการบันทึก/ดึงไฟล์
+    │       ├── LocalStorageAdapter.ts            # (Adapter) บันทึกไฟล์ลง Local Disk (web/data/)
+    │       ├── CloudflareR2Adapter.ts            # (Adapter) บันทึกไฟล์ขึ้น Cloudflare R2
+    │       └── storageService.ts                 # Factory สลับ Driver ตาม STORAGE_DRIVER
+    │
+    └── data/                                     # ที่เก็บไฟล์รูปภาพในเครื่องสำหรับ Local Dev & Offline
+        └── photos/                               # สร้างอัตโนมัติ ไม่ถูก commit ขึ้น Git (.gitignore)
+```
+
+---
+
+## 6. ตัวอย่างการใช้ Ports & Adapters เพื่อความยืดหยุ่น (Storage Implementation)
+
+เพื่อให้เห็นภาพการนำ Clean Architecture (Ports & Adapters) มาใช้อย่างคุ้มค่าในจุด I/O:
+
+### 1. Port Interface (`lib/storage/IPhotoStorage.ts`)
+```typescript
+export interface StoredPhotoResult {
+  photoId: string;
+  shortCode: string;
+  url: string;
+  storageDriver: 'local' | 'r2';
+  expiresAt: string;
+}
+
+export interface IPhotoStorage {
+  savePhoto(shortCode: string, imageBuffer: Buffer, mimeType: string): Promise<StoredPhotoResult>;
+  getPhotoUrl(shortCode: string): Promise<string | null>;
+  isExpired(createdAt: string): boolean;
+}
+```
+
+### 2. Local Adapter (`lib/storage/LocalStorageAdapter.ts`)
+```typescript
+import { IPhotoStorage, StoredPhotoResult } from './IPhotoStorage';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+export class LocalStorageAdapter implements IPhotoStorage {
+  private baseDir = path.join(process.cwd(), 'data', 'photos');
+
+  async savePhoto(shortCode: string, imageBuffer: Buffer): Promise<StoredPhotoResult> {
+    await fs.mkdir(this.baseDir, { recursive: true });
+    const filePath = path.join(this.baseDir, `${shortCode}.jpg`);
+    await fs.writeFile(filePath, imageBuffer);
+    
+    return {
+      photoId: shortCode,
+      shortCode,
+      url: `/api/photos/${shortCode}/file`,
+      storageDriver: 'local',
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    };
+  }
+
+  async getPhotoUrl(shortCode: string): Promise<string | null> {
+    return `/api/photos/${shortCode}/file`;
+  }
+
+  isExpired(createdAt: string): boolean {
+    const ageDays = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    return ageDays > 7;
+  }
+}
+```
+
+---
+
+## 7. ข้อห้ามทางสถาปัตยกรรม (Anti-Pattern Guards)
+
+1. ❌ **ห้ามเขียน State Machine ปนอยู่ใน UI Component**:
+   - *ผิด*: เขียน `useState` ซ้อนกัน 8 ตัวใน `kiosk/page.tsx`
+   - *ถูก*: นิยาม State และ Transitions ทั้งหมดใน `lib/kiosk/kioskStateMachine.ts` แล้วเรียกผ่าน `useKioskFSM`
+2. ❌ **ห้ามประมวลผล Canvas บนเซิร์ฟเวอร์**:
+   - การใส่ฟิลเตอร์ 6 สีและการซ้อนกรอบรูป 3 แบบ **ต้องทำบนเบราว์เซอร์ของมือถือนักเรียน 100%** ผ่าน HTML5 Canvas 2D
+   - เซิร์ฟเวอร์ทำหน้าที่แค่รับรูปและเก็บลง Storage เท่านั้น เพื่อให้ CPU ของ Server ไม่ทำงานหนัก และรองรับโหลดได้ไม่จำกัดด้วยต้นทุน 0 บาท
+3. ❌ **ห้ามเข้าถึง Storage SDK โดยตรงใน Route Handlers**:
+   - ใน `app/api/photos/route.ts` ห้าม import AWS S3 Client หรือ fs ตรงๆ
+   - ให้เรียกผ่าน `storageService.savePhoto(...)` เสมอ เพื่อให้ตู้สามารถรันออฟไลน์ในเครื่องโน้ตบุ๊กได้ทันทีหากหน้างานไม่มีอินเทอร์เน็ต
+4. ❌ **ห้าม Hardcode สัดส่วนรูปภาพ 16:9 ในขั้นตอน Capture**:
+   - ทุกขั้นตอนในการบันทึกภาพ ต้องใช้สัดส่วน **4:3 (1440x1080 px)** ตามที่กำหนดไว้ใน `lib/contracts.ts`
+
+---
+
+## 8. สรุปคำแนะนำสำหรับทีม (Final Architecture Verdict)
+
+| คำถาม | คำตอบทางวิศวกรรม |
+| :--- | :--- |
+| **ควรใช้ Clean Architecture เต็มรูปแบบหรือไม่?** | **ไม่ควรใช้แบบเต็ม 4 ชั้น (Uncle Bob)** เพราะงานส่วนใหญ่เป็น Client-Side Vision/Canvas/FSM การสร้าง Interactors/Presenters ทุกฟังก์ชันจะทำให้เกิดความล่าช้าและ Over-engineering |
+| **รูปแบบที่ดีที่สุดสำหรับงานนี้คืออะไร?** | **Pragmatic Feature-Driven Clean Architecture** (แยก Vertical Slice ตามความรับผิดชอบของ 3 คน + แยก Pure Domain Logic ออกจาก React + ใช้ Ports & Adapters เฉพาะจุด I/O Storage) |
+| **สิ่งที่ทีมจะได้รับทันที** | 1. โค้ดแต่ละคนแยกโฟลเดอร์กันเด็ดขาด ทำงานพร้อมกันได้โดยไม่มี Git Merge Conflict<br>2. Logic สำคัญ (FSM, Hand Gesture, Crop Math) เขียน Unit Test ตรวจสอบความถูกต้องได้โดยไม่ต้องเปิดหน้าเว็บ<br>3. สลับการทำงานระหว่างโหมดมีเน็ต (Cloudflare R2) และโหมดออฟไลน์ (Local Disk) ได้ด้วย Config เดียว |

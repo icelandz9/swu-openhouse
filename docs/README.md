@@ -28,6 +28,8 @@
 | เอกสาร | เนื้อหา |
 |---|---|
 | [system-architecture-and-technical-design.md](task02-architecture/system-architecture-and-technical-design.md) | C4, Kiosk FSM, Vision Pipeline, Canvas Compositor, Staff Portal, ADR-01 ถึง 08 |
+| [team-execution-and-github-plan.md](task02-architecture/team-execution-and-github-plan.md) | แผนการแบ่งงาน 3 คน, ลำดับการรวมโค้ดเข้า main (Milestone 10 พ.ย. และ 12 พ.ย.), และคู่มือ Git Flow |
+| [project-structure-and-clean-architecture-guide.md](task02-architecture/project-structure-and-clean-architecture-guide.md) | สถาปัตยกรรม 4-Layer Pragmatic Feature-Driven, ADR-09, Ports & Adapters, และโครงสร้าง web/ |
 | [qa-decisions.md](task02-architecture/qa-decisions.md) | บันทึกถาม-ตอบ 9 ข้อ |
 
 ## หมายเหตุ

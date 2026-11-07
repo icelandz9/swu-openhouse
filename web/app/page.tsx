@@ -8,7 +8,7 @@ export default function Home() {
       </h1>
       <p>ระบบถ่ายรูปด้วยท่ามือ สแกน QR รับรูป แต่งฟิลเตอร์และกรอบบนมือถือ</p>
       <div className="home-links">
-        <Link className="btn btn-primary" href="/booth">
+        <Link className="btn btn-primary" href="/kiosk">
           เปิดหน้าตู้ (Kiosk)
         </Link>
       </div>
