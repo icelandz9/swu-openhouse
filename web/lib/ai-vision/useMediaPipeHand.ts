@@ -44,7 +44,7 @@ export function useMediaPipeHand(video: HTMLVideoElement | null, enabled: boolea
         landmarkerRef.current = landmarker;
         setIsModelReady(true);
       } catch {
-        if (!cancelled) setModelError('โหลดโมเดลจับมือไม่สำเร็จ — รัน npm run dev ใหม่');
+        if (!cancelled) setModelError('โหลดโมเดลจับมือไม่สำเร็จ — กำลังใช้โหมดสำรอง');
       }
     }
 
@@ -65,12 +65,14 @@ export function useMediaPipeHand(video: HTMLVideoElement | null, enabled: boolea
       const landmarker = landmarkerRef.current;
       if (landmarker && video.readyState >= 2 && video.currentTime !== lastTime) {
         lastTime = video.currentTime;
-        const result = landmarker.detectForVideo(video, performance.now());
-        setFrame({
-          hands: result.landmarks,
-          worldHands: result.worldLandmarks,
-          handedness: result.handedness.map((categories) => categories[0]?.categoryName ?? ''),
-        });
+        try {
+          const result = landmarker.detectForVideo(video, performance.now());
+          setFrame({
+            hands: result.landmarks as LandmarkPoint[][],
+            worldHands: result.worldLandmarks as LandmarkPoint[][],
+            handedness: result.handedness.map((categories) => categories[0]?.categoryName ?? ''),
+          });
+        } catch {}
       }
       frameId = requestAnimationFrame(loop);
     };
@@ -79,5 +81,5 @@ export function useMediaPipeHand(video: HTMLVideoElement | null, enabled: boolea
     return () => cancelAnimationFrame(frameId);
   }, [enabled, isModelReady, video]);
 
-  return { ...frame, isModelReady, modelError };
+  return { ...frame, isModelReady, modelError, landmarkerRef };
 }

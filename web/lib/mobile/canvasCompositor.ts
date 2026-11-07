@@ -25,7 +25,7 @@ export function composePhoto(
   const preset = COLOR_FILTER_PRESETS[filter];
   const clamped = Math.max(-30, Math.min(30, brightness));
   const brightnessCss = `brightness(${1 + clamped / 100})`;
-  ctx.filter = preset.cssFilter === 'none' ? brightnessCss : `${preset.cssFilter} ${brightnessCss}`;
+  ctx.filter = !preset || preset.cssFilter === 'none' ? brightnessCss : `${preset.cssFilter} ${brightnessCss}`;
   ctx.drawImage(photo, 0, 0, width, height);
 
   ctx.filter = 'none';

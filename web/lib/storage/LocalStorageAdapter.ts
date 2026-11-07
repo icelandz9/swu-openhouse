@@ -1,34 +1,125 @@
 import { IPhotoStorage } from './IPhotoStorage';
-import { StoredPhotoResult } from '../contracts';
+import { StoredPhotoResult, PhotoRecord } from '../contracts';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+interface StoredMetadata {
+  code: string;
+  photoUrl: string;
+  qrUrl: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
 export class LocalStorageAdapter implements IPhotoStorage {
   private baseDir = path.join(process.cwd(), 'data', 'photos');
+  private metaFile = path.join(process.cwd(), 'data', 'photos-meta.json');
+  private memoryCache: Map<string, Buffer> = new Map();
+  private metaCache: Map<string, StoredMetadata> = new Map();
+  private initialized = false;
+
+  private async ensureInit() {
+    if (this.initialized) return;
+    try {
+      await fs.mkdir(this.baseDir, { recursive: true });
+      const metaContent = await fs.readFile(this.metaFile, 'utf-8').catch(() => '[]');
+      const list: StoredMetadata[] = JSON.parse(metaContent);
+      for (const item of list) {
+        this.metaCache.set(item.code, item);
+      }
+    } catch {
+      // Ignore initial file read errors
+    }
+    this.initialized = true;
+  }
+
+  private async saveMeta() {
+    try {
+      const list = Array.from(this.metaCache.values());
+      await fs.writeFile(this.metaFile, JSON.stringify(list, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Failed to save photo metadata:', err);
+    }
+  }
 
   async savePhoto(shortCode: string, imageBuffer: Buffer): Promise<StoredPhotoResult> {
-    await fs.mkdir(this.baseDir, { recursive: true });
+    await this.ensureInit();
     const filePath = path.join(this.baseDir, `${shortCode}.jpg`);
     await fs.writeFile(filePath, imageBuffer);
+    this.memoryCache.set(shortCode, imageBuffer);
 
+    const createdAt = new Date().toISOString();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const photoUrl = `/api/photos/${shortCode}/file`;
+    const qrUrl = `/p/${shortCode}`;
+
+    const meta: StoredMetadata = {
+      code: shortCode,
+      photoUrl,
+      qrUrl,
+      createdAt,
+      expiresAt,
+    };
+    this.metaCache.set(shortCode, meta);
+    await this.saveMeta();
 
     return {
       photoId: shortCode,
       shortCode,
-      url: `/api/photos/${shortCode}/file`,
+      url: photoUrl,
       storageDriver: 'local',
       expiresAt,
     };
   }
 
   async getPhotoUrl(shortCode: string): Promise<string | null> {
+    await this.ensureInit();
+    if (this.memoryCache.has(shortCode)) {
+      return `/api/photos/${shortCode}/file`;
+    }
     const filePath = path.join(this.baseDir, `${shortCode}.jpg`);
     try {
       await fs.access(filePath);
       return `/api/photos/${shortCode}/file`;
     } catch {
       return null;
+    }
+  }
+
+  async getPhotoBuffer(shortCode: string): Promise<Buffer | null> {
+    await this.ensureInit();
+    if (this.memoryCache.has(shortCode)) {
+      return this.memoryCache.get(shortCode)!;
+    }
+    const filePath = path.join(this.baseDir, `${shortCode}.jpg`);
+    try {
+      const buf = await fs.readFile(filePath);
+      this.memoryCache.set(shortCode, buf);
+      return buf;
+    } catch {
+      return null;
+    }
+  }
+
+  async getAllPhotos(): Promise<PhotoRecord[]> {
+    await this.ensureInit();
+    const list = Array.from(this.metaCache.values());
+    // Sort descending by createdAt
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return list;
+  }
+
+  async deletePhoto(shortCode: string): Promise<boolean> {
+    await this.ensureInit();
+    this.memoryCache.delete(shortCode);
+    this.metaCache.delete(shortCode);
+    await this.saveMeta();
+    const filePath = path.join(this.baseDir, `${shortCode}.jpg`);
+    try {
+      await fs.unlink(filePath);
+      return true;
+    } catch {
+      return false;
     }
   }
 

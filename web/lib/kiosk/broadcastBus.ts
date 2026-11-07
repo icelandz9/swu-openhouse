@@ -2,10 +2,12 @@
 
 import { SCREEN_SYNC_CHANNEL, ScreenSyncEvent } from '../contracts';
 
+export { SCREEN_SYNC_CHANNEL };
+
 /**
- * Broadcast Bus between Screen 1 (/kiosk) and Screen 2 (/display).
- * Both screens run in the same browser on one laptop, so BroadcastChannel
- * delivers events instantly and works fully offline.
+ * Broadcast Bus between Screen 1 (/kiosk), Screen 2 (/display), and Screen 3 (/admin).
+ * All screens run in the browser on the laptop / extended display setup,
+ * so BroadcastChannel delivers events instantly with 0ms network overhead and works 100% offline.
  */
 export function openScreenBus() {
   const channel = new BroadcastChannel(SCREEN_SYNC_CHANNEL);

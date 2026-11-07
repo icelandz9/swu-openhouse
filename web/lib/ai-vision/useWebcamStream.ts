@@ -15,8 +15,11 @@ export function useWebcamStream() {
   const [deviceId, setDeviceId] = useState<string | undefined>(undefined);
 
   const refreshDevices = useCallback(async () => {
-    const all = await navigator.mediaDevices.enumerateDevices();
-    setDevices(all.filter((d) => d.kind === 'videoinput'));
+    try {
+      if (!navigator.mediaDevices?.enumerateDevices) return;
+      const all = await navigator.mediaDevices.enumerateDevices();
+      setDevices(all.filter((d) => d.kind === 'videoinput'));
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -27,6 +30,9 @@ export function useWebcamStream() {
       setIsReady(false);
       setError(null);
       try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error('WebRTC getUserMedia not supported');
+        }
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
@@ -36,14 +42,17 @@ export function useWebcamStream() {
             frameRate: { ideal: 60 },
           },
         });
-        if (cancelled) return;
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
         const video = videoRef.current;
         if (video) {
           video.srcObject = stream;
-          await video.play();
+          await video.play().catch(() => {});
         }
         setIsReady(true);
-        await refreshDevices(); // labels are only available after permission is granted
+        await refreshDevices();
       } catch (err) {
         if (cancelled) return;
         const name = err instanceof DOMException ? err.name : '';
