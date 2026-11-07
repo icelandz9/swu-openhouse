@@ -14,5 +14,6 @@ export function generateShortCode(): string {
 }
 
 export function isValidShortCode(code: string): boolean {
-  return /^OPH-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{4}$/i.test(code);
+  if (!code || typeof code !== 'string') return false;
+  return /^OPH-[A-Za-z0-9]{4}$/i.test(code.trim());
 }

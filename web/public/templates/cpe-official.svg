@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1080" width="1440" height="1080">
+  <rect x="16" y="16" width="1408" height="1048" fill="none" stroke="#CE1126" stroke-width="16" />
+  <rect x="32" y="32" width="1376" height="1016" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+  <path d="M16 64 V16 H64 M1376 16 H1424 V64 M16 1016 V1064 H64 M1376 1064 H1424 V1016" stroke="#CE1126" stroke-width="8" fill="none" />
+  <rect x="34" y="962" width="1372" height="84" fill="#0D111A" fill-opacity="0.95" />
+  <rect x="34" y="962" width="1372" height="4" fill="#CE1126" />
+  <circle cx="88" cy="1004" r="28" fill="#CE1126" />
+  <text x="88" y="1011" font-family="'Plus Jakarta Sans', sans-serif" font-weight="bold" font-size="20" fill="#FFFFFF" text-anchor="middle">SWU</text>
+  <text x="132" y="996" font-family="'Plus Jakarta Sans', 'Prompt', sans-serif" font-weight="bold" font-size="22" fill="#F8FAFC">SRINAKHARINWIROT UNIVERSITY</text>
+  <text x="132" y="1024" font-family="'Plus Jakarta Sans', 'Prompt', sans-serif" font-weight="500" font-size="15" fill="#94A3B8">COMPUTER ENGINEERING • OPEN HOUSE 2026</text>
+  <text x="1380" y="1010" font-family="'JetBrains Mono', monospace" font-weight="bold" font-size="15" fill="#CE1126" text-anchor="end">ENGINEERING CPE</text>
+</svg>

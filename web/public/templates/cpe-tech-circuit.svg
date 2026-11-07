@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1080" width="1440" height="1080">
+  <rect x="12" y="12" width="1416" height="1056" fill="none" stroke="#0D111A" stroke-width="12" />
+  <path d="M30 160 V40 H160 L190 70 H320" stroke="#06B6D4" stroke-width="3" fill="none" />
+  <circle cx="320" cy="70" r="6" fill="#06B6D4" />
+  <circle cx="30" cy="160" r="5" fill="#06B6D4" />
+  <path d="M1410 160 V40 H1260 L1230 70 H1100" stroke="#CE1126" stroke-width="3" fill="none" />
+  <circle cx="1100" cy="70" r="6" fill="#CE1126" />
+  <circle cx="1410" cy="160" r="5" fill="#CE1126" />
+  <rect x="28" y="976" width="1384" height="76" fill="#06080D" fill-opacity="0.9" stroke="#06B6D4" stroke-width="2" />
+  <text x="46" y="1000" font-family="'JetBrains Mono', monospace" font-size="12" fill="rgba(6,182,212,0.4)">01000011 01010000 01000101 // SWU_CPE_NEURAL_VISION_CORE // V4.2</text>
+  <text x="46" y="1032" font-family="'JetBrains Mono', monospace" font-weight="bold" font-size="22" fill="#06B6D4">CPE • AI PHOTO BOOTH</text>
+  <text x="1394" y="1030" font-family="'JetBrains Mono', monospace" font-weight="bold" font-size="16" fill="#CE1126" text-anchor="end">[ SYS_STATUS: OPERATIONAL ]</text>
+</svg>

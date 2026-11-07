@@ -31,3 +31,5 @@ if (fs.existsSync(modelPath)) {
   fs.writeFileSync(modelPath, Buffer.from(await res.arrayBuffer()));
   console.log("[setup-assets] Hand model saved");
 }
+
+import "./generate-assets.mjs";

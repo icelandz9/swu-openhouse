@@ -1,7 +1,8 @@
-// Shared TypeScript Contracts for the 3-Person Development Team
-// Dev 1: AI & Computer Vision (web/lib/ai-vision/)
-// Dev 2: Kiosk Frontend & FSM (web/app/kiosk/, web/app/display/, web/lib/kiosk/)
-// Dev 3: Mobile Editor, Storage & Staff Admin (web/app/p/, web/app/admin/, web/app/api/, web/lib/mobile/, web/lib/storage/)
+// Shared TypeScript Contracts for SWU Open House Photo Booth
+// Screen 1: Kiosk (/kiosk)
+// Screen 2: Display Showcase (/display)
+// Screen 3: Staff Admin Portal (/admin)
+// Screen 4: Mobile Editor (/p/[code]) & Lookup (/find)
 
 export type GestureType = "OPEN_PALM" | "FIST" | "PEACE_SIGN" | "MINI_HEART" | "NONE";
 
@@ -15,7 +16,18 @@ export type KioskFSMState =
   | "WAITING_NETWORK"
   | "RESET_COOLDOWN";
 
+// Kiosk timing specifications
+export const KIOSK_TIMING = {
+  holdToTriggerMs: 1500, // 1.5s palm hold starts countdown
+  countdownSeconds: 3, // 3..2..1 pose freely
+  flashMs: 150,
+  previewSeconds: 10, // 10s review: Fist = retake, Palm = proceed
+  maxRetakes: 1,
+} as const;
+
 // Inter-Screen Event Bus Contract (BroadcastChannel: 'swu_photobooth_bus')
+export const SCREEN_SYNC_CHANNEL = "swu_photobooth_bus" as const;
+
 export type ScreenSyncEvent =
   | {
       type: "PHOTO_READY_FOR_DISPLAY";
@@ -26,9 +38,16 @@ export type ScreenSyncEvent =
     }
   | {
       type: "SCREEN1_RESET";
+    }
+  | {
+      type: "STAFF_TRIGGER_CAPTURE";
+    }
+  | {
+      type: "KIOSK_COMMAND";
+      command: "RESET_STANDBY" | "SKIP_PREVIEW" | "PAUSE_BOOTH" | "RESUME_BOOTH" | string;
     };
 
-// 1. Output from Dev 1 (AI Vision Hook) -> Input to Dev 2 (Kiosk UI)
+// 1. Hand Detection State
 export interface HandDetectionState {
   isCameraReady: boolean;
   cameraError: string | null;
@@ -40,7 +59,7 @@ export interface HandDetectionState {
   isTriggerReady: boolean; // true when gesture held continuously for required duration
 }
 
-// 2. Output from Dev 3 (POST /api/photos) -> Input to Dev 2 (Sent to Screen 2)
+// 2. Output from POST /api/photos
 export interface UploadPhotoResponse {
   code: string; // e.g., "OPH-AB29"
   qrUrl: string; // e.g., "http://192.168.1.10:3000/p/OPH-AB29"

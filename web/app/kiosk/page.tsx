@@ -1,13 +1,30 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  Hand,
+  Timer,
+  QrCode,
+  ShieldAlert,
+  CheckCircle2,
+  RefreshCw,
+  Camera,
+  Pause,
+  Sliders,
+  Check,
+} from 'lucide-react';
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
-import { ScreenSyncEvent } from '@/lib/contracts';
+import { ScreenSyncEvent, CROP_DIMENSIONS_4_3, SCREEN_SYNC_CHANNEL } from '@/lib/contracts';
+import { generateShortCode } from '@/lib/mobile/shortCodeGenerator';
+import { classifyGesture, LandmarkPoint } from '@/lib/ai-vision/gestureRules';
+import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
+import { calculate43Crop } from '@/lib/kiosk/centerCropper';
+import { HandMesh } from '@/components/HandMesh';
 
 export default function KioskCapturePage() {
   const {
-    state,
     send,
+    state,
     isIdle,
     isDetecting,
     isCountingDown,
@@ -16,58 +33,474 @@ export default function KioskCapturePage() {
   } = useKioskFSM();
 
   const channelRef = useRef<BroadcastChannel | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Camera & Stream state
+  const [cameraActive, setCameraActive] = useState<boolean>(false);
+  const [isAiVisionReady, setIsAiVisionReady] = useState<boolean>(false);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+
+  // Gesture detection & tracking
+  const [holdProgress, setHoldProgress] = useState<number>(0);
+  const [liveLandmarks, setLiveLandmarks] = useState<LandmarkPoint[] | undefined>(undefined);
+  const [detectedGestureText, setDetectedGestureText] = useState<string>('NONE');
+  const [handAreaRatio, setHandAreaRatio] = useState<number>(0);
+  const [isForeground, setIsForeground] = useState<boolean>(true);
+  const holdStartTimeRef = useRef<number | null>(null);
+  const previewGestureLockRef = useRef<boolean>(false);
+
   const [countdown, setCountdown] = useState<number>(3);
   const [previewSeconds, setPreviewSeconds] = useState<number>(10);
-  const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string>(
-    'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1440&q=80'
-  );
+  const [retakeCount, setRetakeCount] = useState<number>(0);
 
-  // Initialize BroadcastChannel to synchronize with Screen 2
+  // Captured snapshot URL
+  const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string>('/sample-photo.jpg');
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [syncedCode, setSyncedCode] = useState<string>('');
+  const [staffPinModal, setStaffPinModal] = useState<boolean>(false);
+  const [pinInput, setPinInput] = useState<string>('');
+
+  // MediaPipe references
+  const landmarkerRef = useRef<any>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const lastVideoTimeRef = useRef<number>(-1);
+
+  // Sound synthesizer
+  const playBeep = useCallback((frequency: number) => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = frequency;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.13);
+      osc.onended = () => void ctx.close();
+    } catch {}
+  }, []);
+
+  // Initialize BroadcastChannel & listen to admin / display events
   useEffect(() => {
-    channelRef.current = new BroadcastChannel('swu_photobooth_bus');
+    const channel = new BroadcastChannel(SCREEN_SYNC_CHANNEL);
+    channelRef.current = channel;
+
+    channel.onmessage = (event: MessageEvent<ScreenSyncEvent>) => {
+      const data = event.data;
+      if (!data) return;
+
+      if (data.type === 'SCREEN1_RESET') {
+        send({ type: 'FORCE_RESET' });
+        holdStartTimeRef.current = null;
+        setHoldProgress(0);
+        previewGestureLockRef.current = false;
+        setIsPaused(false);
+      } else if (data.type === 'STAFF_TRIGGER_CAPTURE') {
+        send({ type: 'STAFF_TRIGGER' });
+      } else if (data.type === 'KIOSK_COMMAND') {
+        if (data.command === 'RESET_STANDBY') {
+          send({ type: 'FORCE_RESET' });
+          setIsPaused(false);
+        } else if (data.command === 'SKIP_PREVIEW') {
+          if (isPreviewing) {
+            handleConfirmUpload();
+          }
+        } else if (data.command === 'PAUSE_BOOTH') {
+          setIsPaused(true);
+        } else if (data.command === 'RESUME_BOOTH') {
+          setIsPaused(false);
+        }
+      }
+    };
+
     return () => {
-      channelRef.current?.close();
+      channel.close();
+    };
+  }, [send, isPreviewing]);
+
+  // Snapshot capture function (1440x1080 center-crop of 16:9 video feed)
+  const takeCenterCropSnapshot = useCallback(() => {
+    try {
+      const canvas = offscreenCanvasRef.current || document.createElement('canvas');
+      canvas.width = CROP_DIMENSIONS_4_3.width;
+      canvas.height = CROP_DIMENSIONS_4_3.height;
+      const ctx = canvas.getContext('2d');
+
+      if (ctx) {
+        if (videoRef.current && cameraActive && videoRef.current.videoWidth > 0) {
+          const video = videoRef.current;
+          const crop = calculate43Crop(video.videoWidth, video.videoHeight);
+
+          // Mirror horizontally for natural selfie perspective
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(
+            video,
+            crop.sx,
+            crop.sy,
+            crop.sWidth,
+            crop.sHeight,
+            0,
+            0,
+            canvas.width,
+            canvas.height
+          );
+        } else {
+          // Studio fallback simulation
+          ctx.fillStyle = '#06080D';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+          grad.addColorStop(0, '#0D111A');
+          grad.addColorStop(0.5, '#CE1126');
+          grad.addColorStop(1, '#06080D');
+          ctx.fillStyle = grad;
+          ctx.fillRect(40, 40, canvas.width - 80, canvas.height - 80);
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 54px "Plus Jakarta Sans", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('SWU OPEN HOUSE 2026', canvas.width / 2, canvas.height / 2 - 20);
+
+          ctx.font = '28px "JetBrains Mono", monospace';
+          ctx.fillStyle = '#06B6D4';
+          ctx.fillText('CPE • AI PHOTO BOOTH CAPTURE', canvas.width / 2, canvas.height / 2 + 40);
+
+          ctx.font = '20px "JetBrains Mono", monospace';
+          ctx.fillStyle = '#94A3B8';
+          ctx.fillText(new Date().toLocaleString('th-TH'), canvas.width / 2, canvas.height / 2 + 90);
+        }
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        setCapturedPhotoUrl(dataUrl);
+        return dataUrl;
+      }
+    } catch (err) {
+      console.error('Error taking snapshot:', err);
+    }
+    return capturedPhotoUrl;
+  }, [cameraActive, capturedPhotoUrl]);
+
+  // Confirm photo, post to API, broadcast to Screen 2, and reset
+  const handleConfirmUpload = useCallback(async () => {
+    send({ type: 'CONFIRM_UPLOAD' });
+    setIsSyncing(true);
+
+    try {
+      const code = generateShortCode();
+      setSyncedCode(code);
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+      let qrUrl = `${origin}/p/${code}`;
+      let finalPhotoUrl = capturedPhotoUrl;
+
+      // Check if custom booth host configured in localStorage
+      if (typeof window !== 'undefined') {
+        const customHost = localStorage.getItem('swu_booth_host');
+        if (customHost) {
+          const proto = window.location.protocol;
+          qrUrl = `${proto}//${customHost}/p/${code}`;
+        }
+      }
+
+      // 1. Post to API for storage
+      try {
+        const res = await fetch('/api/photos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: capturedPhotoUrl, code }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.photoUrl) finalPhotoUrl = data.photoUrl;
+        }
+      } catch (err) {
+        console.warn('Backend storage offline, syncing via local event bus:', err);
+      }
+
+      // 2. Prepare event payload
+      const syncEvent: ScreenSyncEvent = {
+        type: 'PHOTO_READY_FOR_DISPLAY',
+        code,
+        qrUrl,
+        photoUrl: finalPhotoUrl,
+        createdAt: new Date().toISOString(),
+      };
+
+      // 3. Broadcast to Screen 2 & 3 via BroadcastChannel
+      channelRef.current?.postMessage(syncEvent);
+
+      // 4. Save to localStorage for cross-window / tab reliability
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('swu_latest_photo', JSON.stringify(syncEvent));
+        try {
+          const rawGallery = localStorage.getItem('swu_photo_gallery') || '[]';
+          const gallery = JSON.parse(rawGallery);
+          gallery.unshift(syncEvent);
+          localStorage.setItem('swu_photo_gallery', JSON.stringify(gallery.slice(0, 50)));
+        } catch {}
+      }
+
+      // 5. Success feedback & smooth reset
+      send({ type: 'UPLOAD_SUCCESS' });
+      setTimeout(() => {
+        setIsSyncing(false);
+        previewGestureLockRef.current = false;
+        setRetakeCount(0);
+        send({ type: 'COOLDOWN_EXPIRED' });
+      }, 1500);
+    } catch (err) {
+      console.error('Error during photo upload:', err);
+      send({ type: 'UPLOAD_SUCCESS' });
+      setTimeout(() => {
+        setIsSyncing(false);
+        previewGestureLockRef.current = false;
+        setRetakeCount(0);
+        send({ type: 'COOLDOWN_EXPIRED' });
+      }, 1500);
+    }
+  }, [capturedPhotoUrl, send]);
+
+  const handleRetake = useCallback(() => {
+    if (retakeCount >= 1) {
+      handleConfirmUpload();
+      return;
+    }
+    setRetakeCount((prev) => prev + 1);
+    previewGestureLockRef.current = false;
+    send({ type: 'GESTURE_RETAKE_FIST' });
+  }, [retakeCount, send, handleConfirmUpload]);
+
+  // Initialize WebRTC Camera
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+
+    async function initCamera() {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('WebRTC not supported');
+        }
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            facingMode: 'user',
+          },
+          audio: false,
+        });
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+          setCameraActive(true);
+        }
+      } catch (err: any) {
+        console.warn('WebRTC camera unavailable, using simulation mode:', err.message);
+        setCameraActive(false);
+      }
+    }
+
+    initCamera();
+
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
     };
   }, []);
 
-  // Countdown controller
+  // Initialize MediaPipe HandLandmarker dynamically (Client-Only)
+  useEffect(() => {
+    let active = true;
+
+    async function initMediaPipe() {
+      try {
+        const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision');
+        const vision = await FilesetResolver.forVisionTasks('/mediapipe/wasm');
+
+        if (!active) return;
+
+        let landmarker: any = null;
+        try {
+          landmarker = await HandLandmarker.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: '/mediapipe/hand_landmarker.task',
+              delegate: 'GPU',
+            },
+            runningMode: 'VIDEO',
+            numHands: 2,
+          });
+        } catch {
+          landmarker = await HandLandmarker.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: '/mediapipe/hand_landmarker.task',
+              delegate: 'CPU',
+            },
+            runningMode: 'VIDEO',
+            numHands: 2,
+          });
+        }
+
+        if (active && landmarker) {
+          landmarkerRef.current = landmarker;
+          setIsAiVisionReady(true);
+        }
+      } catch (err) {
+        console.warn('MediaPipe initialization fallback (mouse/touch active):', err);
+      }
+    }
+
+    initMediaPipe();
+
+    return () => {
+      active = false;
+      if (landmarkerRef.current) {
+        try {
+          landmarkerRef.current.close();
+        } catch {}
+        landmarkerRef.current = null;
+      }
+    };
+  }, []);
+
+  // Real-time Gesture Detection Animation Frame Loop (Using Updated 3D Hand Model)
+  useEffect(() => {
+    let animId: number;
+
+    const detectLoop = () => {
+      const video = videoRef.current;
+      const landmarker = landmarkerRef.current;
+
+      if (video && video.readyState >= 2 && landmarker && !isPaused) {
+        if (video.currentTime !== lastVideoTimeRef.current) {
+          lastVideoTimeRef.current = video.currentTime;
+          try {
+            const results = landmarker.detectForVideo(video, performance.now());
+            if (results && results.landmarks && results.landmarks.length > 0) {
+              const primaryHand = results.landmarks[0];
+              const worldHand = results.worldLandmarks?.[0];
+              const handedness = results.handedness?.[0]?.[0]?.categoryName ?? 'Right';
+              const aspect = video.videoWidth > 0 && video.videoHeight > 0
+                ? video.videoWidth / video.videoHeight
+                : 4 / 3;
+
+              // Run the updated 5-finger palm facing model
+              const detected = classifyGesture(primaryHand, worldHand, handedness, aspect);
+              setLiveLandmarks(primaryHand);
+              setDetectedGestureText(detected);
+
+              // Depth & Area Filter: reject distant background passers-by (>= 3.5% required)
+              const inForeground = isHandInForeground(primaryHand, 0.035);
+              setIsForeground(inForeground);
+
+              let minX = 1;
+              let maxX = 0;
+              let minY = 1;
+              let maxY = 0;
+              for (const pt of primaryHand) {
+                if (pt.x < minX) minX = pt.x;
+                if (pt.x > maxX) maxX = pt.x;
+                if (pt.y < minY) minY = pt.y;
+                if (pt.y > maxY) maxY = pt.y;
+              }
+              setHandAreaRatio(Math.max(0, (maxX - minX) * (maxY - minY)));
+
+              if (isIdle || isDetecting) {
+                if (detected === 'OPEN_PALM' && inForeground) {
+                  if (holdStartTimeRef.current === null) {
+                    holdStartTimeRef.current = performance.now();
+                    send({ type: 'HAND_DETECTED' });
+                  }
+                  const elapsed = performance.now() - holdStartTimeRef.current;
+                  const progress = Math.min(100, (elapsed / 1500) * 100);
+                  setHoldProgress(progress);
+
+                  if (elapsed >= 1500) {
+                    holdStartTimeRef.current = null;
+                    setHoldProgress(100);
+                    send({ type: 'TRIGGER_ACTIVATED' });
+                  }
+                } else {
+                  if (holdStartTimeRef.current !== null) {
+                    holdStartTimeRef.current = null;
+                    setHoldProgress(0);
+                    send({ type: 'HAND_LOST' });
+                  }
+                }
+              } else if (isPreviewing && !previewGestureLockRef.current) {
+                if (detected === 'FIST') {
+                  previewGestureLockRef.current = true;
+                  handleRetake();
+                } else if (detected === 'OPEN_PALM') {
+                  previewGestureLockRef.current = true;
+                  handleConfirmUpload();
+                }
+              }
+            } else {
+              setLiveLandmarks(undefined);
+              setDetectedGestureText('NONE');
+              setHandAreaRatio(0);
+              setIsForeground(true);
+              if ((isIdle || isDetecting) && holdStartTimeRef.current !== null) {
+                holdStartTimeRef.current = null;
+                setHoldProgress(0);
+                send({ type: 'HAND_LOST' });
+              }
+            }
+          } catch {}
+        }
+      }
+
+      animId = requestAnimationFrame(detectLoop);
+    };
+
+    animId = requestAnimationFrame(detectLoop);
+    return () => cancelAnimationFrame(animId);
+  }, [isIdle, isDetecting, isPreviewing, isPaused, send, handleRetake, handleConfirmUpload]);
+
+  // Countdown timer logic (3..2..1 pose freely)
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isCountingDown) {
-      setCountdown(3);
-      timer = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            send({ type: 'COUNTDOWN_COMPLETE' });
-            return 0;
-          }
-          return prev - 1;
-        });
+      playBeep(countdown === 1 ? 1040 : 760);
+      timer = setTimeout(() => {
+        if (countdown > 1) {
+          setCountdown((prev) => prev - 1);
+        } else {
+          takeCenterCropSnapshot();
+          send({ type: 'COUNTDOWN_COMPLETE' });
+          playBeep(1200);
+          setCountdown(3);
+        }
       }, 1000);
+    } else {
+      setCountdown(3);
     }
-    return () => clearInterval(timer);
-  }, [isCountingDown, send]);
+    return () => clearTimeout(timer);
+  }, [isCountingDown, countdown, send, takeCenterCropSnapshot, playBeep]);
 
-  // Flash capture controller
+  // Flash duration (150ms)
   useEffect(() => {
     if (isCapturing) {
-      const timer = setTimeout(() => {
+      const flashTimer = setTimeout(() => {
         send({ type: 'CAPTURE_FLASH_DONE' });
+        setPreviewSeconds(10);
       }, 150);
-      return () => clearTimeout(timer);
+      return () => clearTimeout(flashTimer);
     }
   }, [isCapturing, send]);
 
-  // Preview 10s timer controller
+  // Preview countdown timer (10s auto-proceed)
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let previewInterval: NodeJS.Timeout;
     if (isPreviewing) {
-      setPreviewSeconds(10);
-      timer = setInterval(() => {
+      previewInterval = setInterval(() => {
         setPreviewSeconds((prev) => {
           if (prev <= 1) {
-            clearInterval(timer);
             handleConfirmUpload();
             return 0;
           }
@@ -75,158 +508,311 @@ export default function KioskCapturePage() {
         });
       }, 1000);
     }
-    return () => clearInterval(timer);
-  }, [isPreviewing]);
+    return () => clearInterval(previewInterval);
+  }, [isPreviewing, handleConfirmUpload]);
 
-  // Confirm photo, broadcast to Screen 2, and reset Screen 1 immediately
-  const handleConfirmUpload = () => {
-    send({ type: 'CONFIRM_UPLOAD' });
-    const code = 'OPH-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-    const event: ScreenSyncEvent = {
-      type: 'PHOTO_READY_FOR_DISPLAY',
-      code,
-      qrUrl: `http://192.168.1.10:3000/p/${code}`,
-      photoUrl: capturedPhotoUrl,
-      createdAt: new Date().toISOString(),
+  // Keyboard shortcut testing (P = Palm, F = Fist, S = Staff Trigger, R = Reset)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      if (key === 'p') {
+        if (isIdle || isDetecting) {
+          send({ type: 'TRIGGER_ACTIVATED' });
+        } else if (isPreviewing) {
+          handleConfirmUpload();
+        }
+      } else if (key === 'f') {
+        if (isPreviewing) {
+          handleRetake();
+        }
+      } else if (key === 's') {
+        send({ type: 'STAFF_TRIGGER' });
+      } else if (key === 'r') {
+        send({ type: 'FORCE_RESET' });
+        setHoldProgress(0);
+        previewGestureLockRef.current = false;
+        setIsPaused(false);
+      }
     };
 
-    channelRef.current?.postMessage(event);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isIdle, isDetecting, isPreviewing, send, handleRetake, handleConfirmUpload]);
 
-    setTimeout(() => {
-      send({ type: 'UPLOAD_SUCCESS' });
-      setTimeout(() => {
-        send({ type: 'COOLDOWN_EXPIRED' });
-      }, 1000);
-    }, 400);
-  };
-
-  const handleRetake = () => {
-    send({ type: 'GESTURE_RETAKE_FIST' });
-  };
-
-  const handleSimulateGestureStart = () => {
-    send({ type: 'HAND_DETECTED' });
-    setTimeout(() => {
-      send({ type: 'TRIGGER_ACTIVATED' });
-    }, 1500);
-  };
+  const showLiveFeed = !isPreviewing && state !== 'FLASH_CAPTURE' && state !== 'UPLOADING' && state !== 'RESET_COOLDOWN';
 
   return (
-    <main className="relative flex h-screen w-screen flex-col items-center justify-center bg-[#06080D] text-white select-none overflow-hidden">
-      {/* 150ms Pure White Shutter Flash */}
-      {isCapturing && (
-        <div className="absolute inset-0 z-50 bg-white pointer-events-none animate-out fade-out duration-150" />
-      )}
-
-      {/* 16:9 Viewfinder Canvas with 4:3 Center Crop Focus */}
-      <div className="relative flex aspect-video w-full h-full max-w-[1920px] max-h-[1080px] items-center justify-center overflow-hidden bg-black">
-        {/* Active Camera View / Live Stream Background */}
-        <div
-          className="absolute inset-0 bg-cover bg-center transition-all duration-300"
-          style={{ backgroundImage: `url('${capturedPhotoUrl}')` }}
+    <main className="kiosk-shell relative grid h-dvh w-screen place-items-center overflow-hidden bg-black select-none">
+      <div className="kiosk-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-[#090D16]">
+        {/* Live Camera Feed */}
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          className={`absolute inset-0 h-full w-full scale-x-[-1] object-cover transition-opacity duration-300 ${
+            showLiveFeed && cameraActive ? 'opacity-100' : 'opacity-0'
+          }`}
         />
-        <div className="absolute inset-0 bg-black/25 pointer-events-none" />
 
-        {/* Semi-transparent 12.5% Pillarbox Masks on Left & Right */}
-        <div className="absolute inset-y-0 left-0 w-[12.5%] bg-[#06080D]/85 backdrop-blur-md z-10 border-r border-white/5" />
-        <div className="absolute inset-y-0 right-0 w-[12.5%] bg-[#06080D]/85 backdrop-blur-md z-10 border-l border-white/5" />
-
-        {/* Center 4:3 Crop Active Zone (75% Width) */}
-        <div className="relative flex h-full w-[75%] items-center justify-center z-20">
-          {/* Subtle Crop Corner L-Brackets */}
-          <div className="absolute top-6 left-6 w-6 h-6 border-t-2 border-l-2 border-[#CE1126] pointer-events-none opacity-80" />
-          <div className="absolute top-6 right-6 w-6 h-6 border-t-2 border-r-2 border-[#CE1126] pointer-events-none opacity-80" />
-          <div className="absolute bottom-6 left-6 w-6 h-6 border-b-2 border-l-2 border-[#CE1126] pointer-events-none opacity-80" />
-          <div className="absolute bottom-6 right-6 w-6 h-6 border-b-2 border-r-2 border-[#CE1126] pointer-events-none opacity-80" />
-
-          {/* STATE 1: IDLE / HAND DETECTION (Ultra-Clean Floating Pill) */}
-          {(isIdle || isDetecting) && (
-            <div className="absolute bottom-10 flex flex-col items-center">
-              <div
-                onClick={handleSimulateGestureStart}
-                className="cursor-pointer bg-black/60 hover:bg-black/75 backdrop-blur-xl border border-white/10 px-6 py-3.5 rounded-full flex items-center gap-3.5 shadow-2xl transition-all"
-              >
-                <div className="relative w-8 h-8 flex items-center justify-center">
-                  <svg className="w-8 h-8 -rotate-90">
-                    <circle cx="16" cy="16" r="13" stroke="rgba(255,255,255,0.2)" strokeWidth="2.5" fill="transparent" />
-                    <circle
-                      cx="16"
-                      cy="16"
-                      r="13"
-                      stroke="#CE1126"
-                      strokeWidth="2.5"
-                      strokeDasharray="81.68"
-                      strokeDashoffset={isDetecting ? '0' : '81.68'}
-                      strokeLinecap="round"
-                      fill="transparent"
-                      className="transition-all duration-1000 ease-out"
-                    />
-                  </svg>
-                  <span className="absolute text-base">🖐️</span>
-                </div>
-                <div className="text-sm font-medium text-white tracking-wide">
-                  แบมือค้างไว้ 1.5 วินาที เพื่อเริ่มถ่ายรูป
-                </div>
-              </div>
+        {/* Fallback Simulation View if camera not open */}
+        {!cameraActive && showLiveFeed && (
+          <div className="absolute inset-0 h-full w-full bg-[#06080D] flex items-center justify-center">
+            <div className="engineering-grid absolute inset-0 opacity-40" />
+            <div className="text-center space-y-3 z-10">
+              <Camera className="size-16 text-[#CE1126] mx-auto animate-pulse" />
+              <h3 className="text-xl font-bold text-white">STUDIO CAMERA SIMULATION</h3>
+              <p className="text-xs text-slate-400">กดปุ่ม <b>P</b> เพื่อจำลองแบมือ หรือ <b>S</b> เพื่อเริ่มถ่าย</p>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* STATE 2: COUNTDOWN 3..2..1 */}
-          {isCountingDown && (
-            <div className="flex flex-col items-center justify-center">
-              <div className="text-[140px] font-extrabold text-white tracking-tighter drop-shadow-2xl tabular-nums animate-pulse">
-                {countdown}
-              </div>
-              <div className="text-xs font-medium text-white/90 bg-black/40 border border-white/10 px-4 py-1.5 rounded-full backdrop-blur-md mt-2">
-                เปลี่ยนท่าโพสได้ตามสบาย (เอามือลงได้)
-              </div>
-            </div>
-          )}
+        {/* Captured 4:3 Snapshot in Preview / Sent States */}
+        {!showLiveFeed && (
+          <div className="absolute inset-y-0 left-[12.5%] h-full w-3/4 overflow-hidden bg-black flex items-center justify-center z-15">
+            <img
+              src={capturedPhotoUrl}
+              alt="ภาพถ่ายตัวอย่าง"
+              className="h-full w-full object-cover"
+            />
+          </div>
+        )}
 
-          {/* STATE 3: PREVIEW 10 SECONDS (TOUCHLESS CONTROLS) */}
-          {isPreviewing && (
-            <div className="absolute inset-4 rounded-xl overflow-hidden flex flex-col justify-between p-6 bg-[#06080D]/95 border border-white/10 shadow-2xl">
-              {/* Top Countdown Timer Bar */}
-              <div className="w-full flex flex-col gap-1.5">
-                <div className="flex items-center justify-between text-xs text-white/90 font-medium px-1">
-                  <span>พรีวิวรูปถ่ายของคุณ</span>
-                  <span className="font-mono text-[#F59E0B] font-bold">{previewSeconds}s</span>
-                </div>
-                <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[#F59E0B] transition-all duration-1000 ease-linear"
-                    style={{ width: `${(previewSeconds / 10) * 100}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Pure 4:3 Photo Preview Center */}
-              <div className="flex-1 my-3 rounded-lg overflow-hidden border border-white/10 relative">
-                <img
-                  src={capturedPhotoUrl}
-                  alt="Captured Preview"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              {/* Two High-Contrast Touchless Action Pills */}
-              <div className="grid grid-cols-2 gap-4 pt-1">
-                <button
-                  onClick={handleRetake}
-                  className="py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 flex items-center justify-center gap-2 text-xs font-semibold text-white transition-all"
-                >
-                  <span className="text-base">✊</span> กำมือ = ถ่ายใหม่
-                </button>
-                <button
-                  onClick={handleConfirmUpload}
-                  className="py-3 px-4 rounded-xl bg-[#CE1126] hover:bg-[#E11D48] flex items-center justify-center gap-2 text-xs font-semibold text-white transition-all shadow-lg"
-                >
-                  <span className="text-base">🖐️</span> แบมือ = ยืนยันไปต่อ
-                </button>
-              </div>
-            </div>
-          )}
+        {/* 4:3 Capture Zone Overlay & Bracket Boundaries */}
+        <div className="kiosk-capture-zone pointer-events-none absolute inset-y-0 left-[12.5%] z-20 w-3/4 border-x-[1.5px] border-[#CE1126]/60" />
+        <div className="mono pointer-events-none absolute left-1/2 top-[1.4%] z-30 -translate-x-1/2 border border-[#CE1126]/40 bg-[#090D16]/85 px-[.9vw] py-[.38vw] text-[clamp(.38rem,.48vw,.58rem)] tracking-[.14em] text-white/90 backdrop-blur">
+          4:3 CAPTURE ZONE · 1440×1080 RAW
         </div>
+
+        {/* Left Pillar (12.5%): Branding & Telemetry */}
+        <aside className="kiosk-pillar absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col justify-between border-r border-white/10 bg-[rgba(9,13,22,.88)] p-[1.65%] backdrop-blur-md">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="grid aspect-square w-[2.4vw] max-w-11 min-w-7 place-items-center bg-[#CE1126] text-[clamp(.48rem,.67vw,.78rem)] font-extrabold tracking-[-.06em] text-white">
+                SWU
+              </div>
+              <div className="h-px flex-1 bg-[#CE1126]/60" />
+            </div>
+            <p className="mt-[2.2vw] text-[clamp(.55rem,.76vw,.92rem)] font-bold leading-[1.45] tracking-[-.02em] text-white">
+              SWU Computer
+              <br />
+              Engineering
+            </p>
+            <p className="mt-2 text-[clamp(.46rem,.57vw,.68rem)] font-semibold leading-relaxed tracking-[.08em] text-slate-400">
+              OPEN HOUSE 2026
+            </p>
+          </div>
+
+          <div className="space-y-[1.2vw]">
+            <div className="border-l border-cyan-400/50 pl-[.7vw]">
+              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-cyan-300">1440×1080</div>
+              <div className="mt-1 text-[clamp(.38rem,.45vw,.54rem)] font-bold tracking-[.12em] text-slate-500">
+                RAW · 4:3
+              </div>
+            </div>
+            <div className="border-l border-emerald-400/50 pl-[.7vw]">
+              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-emerald-300">
+                {cameraActive ? '60 FPS' : 'STANDBY'}
+              </div>
+              <div className="mt-1 text-[clamp(.38rem,.45vw,.54rem)] font-bold tracking-[.08em] text-slate-500">
+                VISION READY
+              </div>
+            </div>
+            <div className="border-l border-cyan-400/50 pl-[.7vw]">
+              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-cyan-300 uppercase">
+                {detectedGestureText}
+              </div>
+              <div className="mt-1 text-[clamp(.36rem,.43vw,.51rem)] font-bold tracking-[.08em] text-slate-500">
+                AI MODEL ACTIVE
+              </div>
+            </div>
+            <div className="mono flex items-center gap-2 text-[clamp(.38rem,.46vw,.55rem)] text-slate-400">
+              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              BUS READY · 0ms
+            </div>
+          </div>
+        </aside>
+
+        {/* Right Pillar (12.5%): Gesture Guide & Instructions */}
+        <aside className="kiosk-pillar absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col justify-between border-l border-white/10 bg-[rgba(9,13,22,.88)] p-[1.45%] backdrop-blur-md">
+          <div className="text-[clamp(.43rem,.52vw,.62rem)] font-bold tracking-[.16em] text-slate-400">
+            GESTURE GUIDE
+          </div>
+
+          <div className="flex flex-1 flex-col justify-center gap-[2.4vw]">
+            {[
+              { icon: Hand, line1: 'แบมือค้าง', line2: '1.5 วินาที', english: 'HOLD TO START' },
+              { icon: Timer, line1: 'โพสอิสระ', line2: 'ช่วง 3..2..1', english: 'POSE FREELY' },
+              { icon: QrCode, line1: 'รับรูปที่', line2: 'จอหมายเลข 2', english: 'SCAN AT SCREEN 2' },
+            ].map((step, index) => {
+              const GuideIcon = step.icon;
+              return (
+                <div key={step.english} className="relative">
+                  <div className="mb-[.7vw] flex items-center gap-[.6vw]">
+                    <span className="mono text-[clamp(.4rem,.48vw,.58rem)] text-[#CE1126] font-bold">
+                      0{index + 1}
+                    </span>
+                    <span className="h-px flex-1 bg-white/10" />
+                  </div>
+                  <GuideIcon
+                    className="mb-[.7vw] size-[clamp(1.15rem,1.55vw,1.85rem)] text-white"
+                    strokeWidth={1.25}
+                  />
+                  <div className="text-[clamp(.52rem,.65vw,.78rem)] font-semibold leading-[1.5] text-slate-100">
+                    {step.line1}
+                    <br />
+                    {step.line2}
+                  </div>
+                  <div className="mt-1 text-[clamp(.35rem,.4vw,.48rem)] font-bold tracking-[.1em] text-slate-500">
+                    {step.english}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mono text-[clamp(.34rem,.4vw,.48rem)] leading-relaxed text-slate-500">
+            KEY: [P]ALM [F]IST [S]TAFF
+          </div>
+        </aside>
+
+        {/* Live Palm Hold State & Mesh Overlay */}
+        {(isIdle || isDetecting) && (
+          <div className="pointer-events-none absolute left-[56%] top-[26%] z-30 aspect-square w-[18%]">
+            <HandMesh active={holdProgress > 0} landmarks={liveLandmarks} />
+
+            <div className="mono absolute -top-[14%] left-0 w-max bg-cyan-400/90 px-[.55vw] py-[.25vw] text-[clamp(.34rem,.42vw,.5rem)] font-bold text-[#07131A] shadow-sm">
+              PRIMARY HAND · {handAreaRatio > 0 ? `AREA ${(handAreaRatio * 100).toFixed(1)}% ${isForeground ? '≥ 3.5% OK' : '< 3.5% (TOO FAR)'}` : 'AI 21-LANDMARK MODEL'}
+            </div>
+
+            {holdProgress > 0 && (
+              <>
+                <svg
+                  className="absolute inset-[-10%] h-[120%] w-[120%] -rotate-90"
+                  viewBox="0 0 120 120"
+                >
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="54"
+                    fill="none"
+                    stroke="rgba(255,255,255,.16)"
+                    strokeWidth="2.5"
+                  />
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="54"
+                    fill="none"
+                    stroke="#CE1126"
+                    strokeLinecap="round"
+                    strokeWidth="3.5"
+                    strokeDasharray="339.292"
+                    strokeDashoffset={339.292 - (339.292 * holdProgress) / 100}
+                    style={{ transition: 'stroke-dashoffset 80ms linear' }}
+                  />
+                </svg>
+                <div className="absolute left-1/2 top-[108%] w-max -translate-x-1/2 bg-[#090D16]/95 border border-[#CE1126]/40 px-[1.2vw] py-[.65vw] text-center backdrop-blur shadow-2xl">
+                  <div className="text-[clamp(.75rem,1.1vw,1.3rem)] font-bold text-white">
+                    กำลังเริ่มถ่าย... {Math.round(holdProgress)}%
+                  </div>
+                  <div className="mono mt-1 text-[clamp(.4rem,.48vw,.58rem)] tracking-[.14em] text-[#CE1126]">
+                    HOLD PALM · 1.5S
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Countdown Active State (3..2..1) */}
+        {isCountingDown && (
+          <div className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center">
+            <div className="countdown-rings relative flex h-44 w-44 items-center justify-center rounded-full bg-[#06080D]/80 border-2 border-white/20 backdrop-blur-md">
+              <span className="mono text-7xl font-black text-white tabular-nums">
+                {countdown}
+              </span>
+            </div>
+            <div className="mt-6 rounded-full bg-[#06080D]/80 border border-white/10 px-6 py-2 text-sm font-bold text-white backdrop-blur">
+              โพสท่าอิสระได้เลย!
+            </div>
+          </div>
+        )}
+
+        {/* Shutter Flash (150ms) */}
+        {isCapturing && (
+          <div className="kiosk-flash pointer-events-none absolute inset-0 z-50 bg-white" />
+        )}
+
+        {/* Preview State: Review & Retake Controls */}
+        {isPreviewing && (
+          <div className="absolute inset-x-0 bottom-0 z-40 flex flex-col items-center justify-end pb-8">
+            <div className="flex items-center gap-6 rounded-2xl bg-[#090D16]/95 border border-white/10 px-8 py-5 shadow-2xl backdrop-blur-md">
+              {/* Fist: Retake Button */}
+              <button
+                onClick={handleRetake}
+                className="group flex items-center gap-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 px-5 py-3 transition-all"
+              >
+                <span className="text-2xl">✊</span>
+                <div className="text-left">
+                  <div className="text-sm font-bold text-white">กำมือ เพื่อถ่ายใหม่</div>
+                  <div className="mono text-[10px] text-slate-400">
+                    RETAKE ({1 - retakeCount} LEFT)
+                  </div>
+                </div>
+              </button>
+
+              {/* Center Timer */}
+              <div className="flex flex-col items-center px-4">
+                <div className="mono text-2xl font-black text-cyan-400 tabular-nums">
+                  {previewSeconds}s
+                </div>
+                <div className="text-[10px] font-bold text-slate-500 uppercase">AUTO PROCEED</div>
+              </div>
+
+              {/* Palm: Confirm Button */}
+              <button
+                onClick={handleConfirmUpload}
+                className="group flex items-center gap-3 rounded-xl bg-[#CE1126] hover:bg-[#e1132b] px-6 py-3 transition-all shadow-lg"
+              >
+                <span className="text-2xl">✋</span>
+                <div className="text-left">
+                  <div className="text-sm font-bold text-white">แบมือ ยืนยันรูปนี้</div>
+                  <div className="mono text-[10px] text-white/80">PROCEED TO SCREEN 2</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Uploading & Success Notification */}
+        {isSyncing && (
+          <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md">
+            <div className="text-center space-y-4">
+              <CheckCircle2 className="size-20 text-[#10B981] mx-auto animate-bounce" />
+              <h2 className="text-3xl font-black text-white">ส่งรูปเรียบร้อย!</h2>
+              <p className="text-base text-slate-300">
+                เชิญสแกนรับรูปที่ <b>จอหมายเลข 2 (Showcase)</b> รหัสรูป: <span className="mono text-cyan-400 font-bold">{syncedCode}</span>
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Kiosk Paused Overlay */}
+        {isPaused && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md">
+            <div className="text-center space-y-3">
+              <Pause className="size-16 text-amber-400 mx-auto" />
+              <h2 className="text-2xl font-bold text-white">พักบูธชั่วคราว</h2>
+              <p className="text-xs text-slate-400">สตาฟกำลังดูแลความเรียบร้อย หรือจัดคิว</p>
+              <button
+                onClick={() => setIsPaused(false)}
+                className="mt-4 rounded bg-[#CE1126] px-4 py-2 text-xs font-bold text-white"
+              >
+                เปิดใช้งานต่อ
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );

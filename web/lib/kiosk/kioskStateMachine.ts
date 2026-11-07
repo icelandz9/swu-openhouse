@@ -4,6 +4,7 @@ export type KioskEvent =
   | { type: 'HAND_DETECTED' }
   | { type: 'HAND_LOST' }
   | { type: 'TRIGGER_ACTIVATED' }
+  | { type: 'STAFF_TRIGGER' }
   | { type: 'COUNTDOWN_TICK'; remainingSeconds: number }
   | { type: 'COUNTDOWN_COMPLETE' }
   | { type: 'CAPTURE_FLASH_DONE' }
@@ -15,7 +16,8 @@ export type KioskEvent =
   | { type: 'UPLOAD_FAILED_OFFLINE' }
   | { type: 'NETWORK_RESTORED' }
   | { type: 'STAFF_BYPASS_PIN' }
-  | { type: 'COOLDOWN_EXPIRED' };
+  | { type: 'COOLDOWN_EXPIRED' }
+  | { type: 'FORCE_RESET' };
 
 /**
  * Pure Finite State Machine Reducer for Screen 1 (Capture Kiosk)
@@ -23,18 +25,21 @@ export type KioskEvent =
  * Once uploaded, Screen 1 resets immediately so the next visitor can enter.
  */
 export function kioskFSMReducer(state: KioskFSMState, event: KioskEvent): KioskFSMState {
+  if (event.type === 'FORCE_RESET') return 'IDLE';
+
   switch (state) {
     case 'IDLE':
       if (event.type === 'HAND_DETECTED') return 'DETECTING_HAND';
+      if (event.type === 'TRIGGER_ACTIVATED' || event.type === 'STAFF_TRIGGER') return 'COUNTDOWN_ACTIVE';
       return state;
 
     case 'DETECTING_HAND':
       if (event.type === 'HAND_LOST') return 'IDLE';
-      if (event.type === 'TRIGGER_ACTIVATED') return 'COUNTDOWN_ACTIVE';
+      if (event.type === 'TRIGGER_ACTIVATED' || event.type === 'STAFF_TRIGGER') return 'COUNTDOWN_ACTIVE';
       return state;
 
     case 'COUNTDOWN_ACTIVE':
-      if (event.type === 'HAND_LOST') return 'IDLE'; // Cancel if visitor leaves
+      // Do NOT cancel countdown if hand is lowered - attendees are posing freely!
       if (event.type === 'COUNTDOWN_COMPLETE') return 'FLASH_CAPTURE';
       return state;
 
@@ -43,7 +48,7 @@ export function kioskFSMReducer(state: KioskFSMState, event: KioskEvent): KioskF
       return state;
 
     case 'PREVIEW_RETAKE':
-      // Fist gesture triggers retake
+      // Fist gesture triggers retake (returns to countdown)
       if (event.type === 'GESTURE_RETAKE_FIST') return 'COUNTDOWN_ACTIVE';
       // Palm gesture, manual proceed, or 10s timeout triggers upload
       if (
