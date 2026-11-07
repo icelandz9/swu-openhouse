@@ -60,6 +60,14 @@ export type CPEFrameTemplateId =
   | "cpe-tech-circuit"
   | "cpe-photostrip";
 
+export interface StoredPhotoResult {
+  photoId: string;
+  shortCode: string;
+  url: string;
+  storageDriver: "local" | "r2";
+  expiresAt: string;
+}
+
 // 5. Photo Capture Specifications
 export const PHOTO_ASPECT_RATIO = "4:3" as const;
 export const CROP_DIMENSIONS_4_3 = { width: 1440, height: 1080 } as const; // Center-crop from 1920x1080 webcam stream

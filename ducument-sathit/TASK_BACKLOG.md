@@ -143,6 +143,8 @@ flowchart TD
 - **เอกสารส่งมอบ**:
   - `ducument-sathit/task02/task-02-system-architecture-and-technical-design.md` (C4 Architecture, Kiosk FSM State Machine, Camera & Vision Pipeline, Canvas Compositor, Staff Portal, ADRs 01-08)
   - `ducument-sathit/task02/task-02-qa-and-decisions.md` (บันทึกบทสนทนาถาม-ตอบ /grill-me พร้อมตัวเลือกและคำตอบที่เลือก)
+  - `ducument-sathit/task02/team-execution-and-github-plan.md` (แผนการแบ่งงาน 3 คน และกระบวนการทำงานร่วมกันบน GitHub)
+  - `ducument-sathit/task02/project-structure-and-clean-architecture-guide.md` (คู่มือวิเคราะห์โครงสร้างโปรเจกต์ Clean Architecture vs Pragmatic Feature-Driven, ADR-09)
 - **รายละเอียดงานที่เสร็จสิ้น**:
   1. **SAD / HLD**: วาดแผนผังระบบตามมาตรฐาน **C4 Model** (Context, Container, Component)
   2. **LLD / TDD**:
