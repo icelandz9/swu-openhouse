@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { HandLandmarker } from '@mediapipe/tasks-vision';
-import { LandmarkPoint } from './gestureRules';
+import type { LandmarkPoint } from './gestureRules';
 
 // Served from public/mediapipe/ by scripts/setup-assets.mjs (works offline)
 const WASM_PATH = '/mediapipe/wasm';
@@ -10,10 +10,15 @@ const MODEL_PATH = '/mediapipe/hand_landmarker.task';
 
 /**
  * Loads MediaPipe Hand Landmarker (GPU, falls back to CPU) and runs it on every
- * video frame. Returns the 21 landmarks of each detected hand for the latest frame.
+ * video frame. Returns, per detected hand in the latest frame, what classifyGesture
+ * needs: the 21 image landmarks, the 21 world landmarks, and "Left" or "Right".
  */
 export function useMediaPipeHand(video: HTMLVideoElement | null, enabled: boolean) {
-  const [hands, setHands] = useState<LandmarkPoint[][]>([]);
+  const [frame, setFrame] = useState<{
+    hands: LandmarkPoint[][];
+    worldHands: LandmarkPoint[][];
+    handedness: string[];
+  }>({ hands: [], worldHands: [], handedness: [] });
   const [isModelReady, setIsModelReady] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
   const landmarkerRef = useRef<HandLandmarker | null>(null);
@@ -61,7 +66,11 @@ export function useMediaPipeHand(video: HTMLVideoElement | null, enabled: boolea
       if (landmarker && video.readyState >= 2 && video.currentTime !== lastTime) {
         lastTime = video.currentTime;
         const result = landmarker.detectForVideo(video, performance.now());
-        setHands(result.landmarks as LandmarkPoint[][]);
+        setFrame({
+          hands: result.landmarks,
+          worldHands: result.worldLandmarks,
+          handedness: result.handedness.map((categories) => categories[0]?.categoryName ?? ''),
+        });
       }
       frameId = requestAnimationFrame(loop);
     };
@@ -70,5 +79,5 @@ export function useMediaPipeHand(video: HTMLVideoElement | null, enabled: boolea
     return () => cancelAnimationFrame(frameId);
   }, [enabled, isModelReady, video]);
 
-  return { hands, isModelReady, modelError };
+  return { ...frame, isModelReady, modelError };
 }
