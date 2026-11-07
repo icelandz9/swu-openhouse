@@ -252,11 +252,11 @@ export default function ShowcaseDisplayScreen() {
           </div>
 
           {/* White QR Card - Centered, Clean & Minimal */}
-          <div className="qr-card mx-auto mt-[0.8vw] flex flex-col items-center justify-center rounded-[1vw] border-t-[.3vw] border-[#CE1126] bg-white p-[1.1vw] shadow-2xl shrink-0 w-[96%] text-center">
+          <div className="qr-card mx-auto mt-[0.8vw] flex flex-col items-center justify-center rounded-[1vw] border-t-[.3vw] border-[#CE1126] bg-white px-[1.4vw] pb-[1.4vw] pt-[1.1vw] shadow-2xl shrink-0 w-fit text-center">
             <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
               สแกนรับ<span className="text-[#CE1126]">รูป</span>
             </div>
-            <div className="aspect-square w-[75%] max-w-[210px] min-w-[135px] bg-white p-[0.3vw] flex items-center justify-center">
+            <div className="aspect-square w-[clamp(150px,13vw,240px)] bg-white flex items-center justify-center">
               {isMounted ? (
                 <QRCodeSVG
                   value={qrTargetUrl}
