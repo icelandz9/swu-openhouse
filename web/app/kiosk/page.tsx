@@ -729,109 +729,36 @@ export default function KioskCapturePage() {
         </aside>
 
         {/* Right Pillar (12.5%): Gesture Guide & Instructions */}
-        <aside className="kiosk-pillar absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col justify-between border-l border-white/10 bg-[rgba(9,13,22,.92)] p-[1.45%] backdrop-blur-md overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div className="text-[clamp(.43rem,.52vw,.62rem)] font-bold tracking-[.16em] text-slate-400">
-              GESTURE GUIDE
-            </div>
-            {holdProgress > 0 && (
-              <span className="mono text-[clamp(.36rem,.44vw,.52rem)] text-[#CE1126] font-bold animate-pulse">
-                {Math.round(holdProgress)}%
-              </span>
-            )}
+        <aside className="kiosk-pillar absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col justify-between border-l border-white/10 bg-[rgba(9,13,22,.88)] p-[1.45%] backdrop-blur-md">
+          <div className="text-[clamp(.43rem,.52vw,.62rem)] font-bold tracking-[.16em] text-slate-400">
+            GESTURE GUIDE
           </div>
 
-          <div className="relative flex flex-1 flex-col justify-center gap-[1.6vw] my-2">
-            {/* Top-to-bottom SWU Red background wash flowing down as steps advance */}
-            <div
-              className="absolute -inset-x-2 top-0 bg-gradient-to-b from-[#CE1126]/20 via-[#CE1126]/10 to-transparent pointer-events-none rounded-xl transition-all duration-300"
-              style={{
-                height:
-                  isCountingDown || isCapturing
-                    ? '66%'
-                    : isPreviewing || isSyncing || state === 'RESET_COOLDOWN'
-                    ? '100%'
-                    : holdProgress > 0
-                    ? `${(holdProgress / 100) * 33}%`
-                    : '0%',
-              }}
-            />
-
+          <div className="flex flex-1 flex-col justify-center gap-[2.4vw]">
             {[
               { icon: Hand, line1: 'แบมือค้าง', line2: '1.5 วินาที', english: 'HOLD TO START' },
               { icon: Timer, line1: 'โพสอิสระ', line2: 'ช่วง 3..2..1', english: 'POSE FREELY' },
               { icon: QrCode, line1: 'รับรูปที่', line2: 'จอหมายเลข 2', english: 'SCAN AT SCREEN 2' },
             ].map((step, index) => {
               const GuideIcon = step.icon;
-
-              const isCurrent =
-                (index === 0 && (isIdle || isDetecting)) ||
-                (index === 1 && (isCountingDown || isCapturing)) ||
-                (index === 2 && (isPreviewing || isSyncing || state === 'RESET_COOLDOWN'));
-
-              const isCompleted =
-                (index === 0 && (isCountingDown || isCapturing || isPreviewing || isSyncing || state === 'RESET_COOLDOWN')) ||
-                (index === 1 && (isPreviewing || isSyncing || state === 'RESET_COOLDOWN'));
-
               return (
-                <div
-                  key={step.english}
-                  className={`relative p-[0.7vw] rounded-xl transition-all duration-300 overflow-hidden ${
-                    isCurrent
-                      ? 'bg-gradient-to-r from-[#CE1126]/25 via-[#CE1126]/10 to-transparent'
-                      : isCompleted
-                      ? 'bg-[#CE1126]/15 opacity-90'
-                      : 'bg-white/[0.02] opacity-40'
-                  }`}
-                >
-                  {/* Top-to-bottom internal wash for Step 1 during palm hold */}
-                  {index === 0 && isCurrent && holdProgress > 0 && (
-                    <div
-                      className="absolute inset-0 bg-gradient-to-b from-[#CE1126]/40 via-[#CE1126]/20 to-transparent pointer-events-none transition-all duration-75 rounded-xl"
-                      style={{ height: `${holdProgress}%` }}
-                    />
-                  )}
-
-                  <div className="relative z-10 mb-[.6vw] flex items-center justify-between">
-                    <div className="flex items-center gap-[.5vw] flex-1">
-                      <span
-                        className={`mono text-[clamp(.4rem,.48vw,.58rem)] font-bold ${
-                          isCompleted || isCurrent ? 'text-[#CE1126]' : 'text-slate-500'
-                        }`}
-                      >
-                        {isCompleted ? '✓ 0' : '0'}{index + 1}
-                      </span>
-                      <span className="h-px flex-1 bg-white/10" />
-                    </div>
+                <div key={step.english} className="relative">
+                  <div className="mb-[.7vw] flex items-center gap-[.6vw]">
+                    <span className="mono text-[clamp(.4rem,.48vw,.58rem)] text-[#CE1126] font-bold">
+                      0{index + 1}
+                    </span>
+                    <span className="h-px flex-1 bg-white/10" />
                   </div>
-
-                  <div className="relative z-10 flex items-center gap-2">
-                    <GuideIcon
-                      className={`mb-[.5vw] size-[clamp(1.15rem,1.55vw,1.85rem)] transition-colors duration-200 ${
-                        isCompleted || isCurrent
-                          ? 'text-white drop-shadow-[0_0_8px_rgba(206,17,38,0.5)]'
-                          : 'text-white/60'
-                      }`}
-                      strokeWidth={1.25}
-                    />
-                    {index === 1 && isCountingDown && (
-                      <span className="mono text-[clamp(.75rem,1vw,1.2rem)] font-black text-white tabular-nums animate-pulse">
-                        {countdown}s
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="relative z-10 text-[clamp(.52rem,.65vw,.78rem)] font-semibold leading-[1.5] text-slate-100">
+                  <GuideIcon
+                    className="mb-[.7vw] size-[clamp(1.15rem,1.55vw,1.85rem)] text-white"
+                    strokeWidth={1.25}
+                  />
+                  <div className="text-[clamp(.52rem,.65vw,.78rem)] font-semibold leading-[1.5] text-slate-100">
                     {step.line1}
                     <br />
                     {step.line2}
                   </div>
-
-                  <div
-                    className={`relative z-10 mt-1 text-[clamp(.35rem,.4vw,.48rem)] font-bold tracking-[.1em] ${
-                      isCompleted ? 'text-emerald-400' : isCurrent ? 'text-[#CE1126]' : 'text-slate-500'
-                    }`}
-                  >
+                  <div className="mt-1 text-[clamp(.35rem,.4vw,.48rem)] font-bold tracking-[.1em] text-slate-500">
                     {step.english}
                   </div>
                 </div>
