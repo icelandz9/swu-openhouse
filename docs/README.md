@@ -6,6 +6,7 @@
 |---|---|
 | [decisions.md](decisions.md) | มติล่าสุดของระบบ + บันทึกการแก้ไขมติ |
 | [system-overview.md](system-overview.md) | ไดอะแกรมภาพรวมระบบและขั้นตอนการใช้งาน |
+| [google-stitch-ui-mockup-prompts.md](google-stitch-ui-mockup-prompts.md) | คู่มือ Step-by-Step (SBS) และชุด Prompt สำหรับสร้าง Mockup ทั้ง 4 หน้าจอใน Google Stitch |
 | [backlog.md](backlog.md) | แผนงาน Task 00–11 และมาตรฐานเอกสาร |
 
 ## Task 00 — Discovery & Sizing
