@@ -8,21 +8,18 @@ import {
   ShieldCheck,
   Cpu,
 } from 'lucide-react';
+import { CpeLogo } from '@/components/CpeLogo';
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen bg-[#1C1F26] text-[#F8FAFC] flex flex-col justify-between p-6 md:p-12 font-sans select-none overflow-x-hidden">
-      {/* Background Engineering Grid & Ambient Glows */}
-      <div className="pointer-events-none absolute inset-0 engineering-grid opacity-60" />
-      <div className="pointer-events-none absolute -top-40 -left-40 size-[32rem] rounded-full bg-[#CE1126]/10 blur-[130px]" />
-      <div className="pointer-events-none absolute -bottom-40 -right-40 size-[32rem] rounded-full bg-[#06B6D4]/10 blur-[130px]" />
+    <main className="relative min-h-screen bg-black text-[#F8FAFC] flex flex-col justify-between p-6 md:p-12 font-sans select-none overflow-x-hidden">
+      {/* Background Engineering Grid (faint, on pure black) */}
+      <div className="pointer-events-none absolute inset-0 engineering-grid opacity-25" />
 
       {/* Top Brand Banner */}
-      <header className="relative z-10 w-full max-w-6xl mx-auto flex items-center justify-between border-b border-[#373D4B] pb-6">
+      <header className="relative z-10 w-full max-w-6xl mx-auto flex items-center justify-between border-b border-[#1C1C1C] pb-6">
         <div className="flex items-center gap-3.5">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-[#CE1126] font-black text-white text-base shadow-[0_0_20px_rgba(206,17,38,0.4)] border border-white/10">
-            CPE
-          </div>
+          <CpeLogo className="h-11" />
           <div>
             <div className="mono text-[10px] tracking-[.18em] text-[#CE1126] font-bold uppercase">
               SRINAKHARINWIROT UNIVERSITY • FACULTY OF ENGINEERING
@@ -63,7 +60,7 @@ export default function Home() {
           <Link
             href="/kiosk"
             target="_blank"
-            className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#242832]/90 border border-[#373D4B] hover:border-[#CE1126] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(206,17,38,0.2)] backdrop-blur-md"
+            className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] hover:border-[#CE1126] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(206,17,38,0.2)] backdrop-blur-md"
           >
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -89,7 +86,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-[#373D4B]/60 flex items-center justify-between text-xs font-bold text-[#CE1126]">
+            <div className="mt-6 pt-4 border-t border-[#1C1C1C]/60 flex items-center justify-between text-xs font-bold text-[#CE1126]">
               <span>เปิดหน้าตู้ถ่ายรูป</span>
               <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -99,7 +96,7 @@ export default function Home() {
           <Link
             href="/display"
             target="_blank"
-            className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#242832]/90 border border-[#373D4B] hover:border-[#06B6D4] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(6,182,212,0.2)] backdrop-blur-md"
+            className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] hover:border-[#06B6D4] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(6,182,212,0.2)] backdrop-blur-md"
           >
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -125,7 +122,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-[#373D4B]/60 flex items-center justify-between text-xs font-bold text-[#06B6D4]">
+            <div className="mt-6 pt-4 border-t border-[#1C1C1C]/60 flex items-center justify-between text-xs font-bold text-[#06B6D4]">
               <span>เปิดหน้า Showcase</span>
               <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -135,7 +132,7 @@ export default function Home() {
           <Link
             href="/admin"
             target="_blank"
-            className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#242832]/90 border border-[#373D4B] hover:border-[#38BDF8] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(56,189,248,0.2)] backdrop-blur-md"
+            className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] hover:border-[#38BDF8] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(56,189,248,0.2)] backdrop-blur-md"
           >
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -161,7 +158,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-[#373D4B]/60 flex items-center justify-between text-xs font-bold text-[#38BDF8]">
+            <div className="mt-6 pt-4 border-t border-[#1C1C1C]/60 flex items-center justify-between text-xs font-bold text-[#38BDF8]">
               <span>เปิดแดชบอร์ดสตาฟ</span>
               <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -171,7 +168,7 @@ export default function Home() {
           <Link
             href="/p/OPH-SWU1"
             target="_blank"
-            className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#242832]/90 border border-[#373D4B] hover:border-[#F59E0B] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(245,158,11,0.2)] backdrop-blur-md"
+            className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] hover:border-[#F59E0B] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(245,158,11,0.2)] backdrop-blur-md"
           >
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -197,7 +194,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-[#373D4B]/60 flex items-center justify-between text-xs font-bold text-[#F59E0B]">
+            <div className="mt-6 pt-4 border-t border-[#1C1C1C]/60 flex items-center justify-between text-xs font-bold text-[#F59E0B]">
               <span>ทดสอบเว็บบนมือถือ</span>
               <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -206,7 +203,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 w-full max-w-6xl mx-auto border-t border-[#1E2536] pt-6 flex flex-col md:flex-row items-center justify-between text-xs text-slate-400">
+      <footer className="relative z-10 w-full max-w-6xl mx-auto border-t border-[#1C1C1C] pt-6 flex flex-col md:flex-row items-center justify-between text-xs text-slate-400">
         <div className="flex items-center gap-2">
           <ShieldCheck className="size-4 text-emerald-400" />
           <span>ภาควิชาวิศวกรรมคอมพิวเตอร์ คณะวิศวกรรมศาสตร์ มหาวิทยาลัยศรีนครินทรวิโรฒ • Open House 2026</span>

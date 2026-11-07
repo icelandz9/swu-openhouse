@@ -28,6 +28,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { CpeLogo } from '@/components/CpeLogo';
 import { PhotoRecord, ScreenSyncEvent, SCREEN_SYNC_CHANNEL } from '@/lib/contracts';
 
 const DEFAULT_SAMPLE_PHOTOS: PhotoRecord[] = [
@@ -331,7 +332,7 @@ export default function StaffAdminPortal() {
 
   if (!isAuthenticated) {
     return (
-      <main className="min-h-screen bg-[#1C1F26] grid place-items-center p-6 text-white select-none">
+      <main className="min-h-screen bg-black grid place-items-center p-6 text-white select-none">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -341,7 +342,7 @@ export default function StaffAdminPortal() {
               alert('PIN ไม่ถูกต้อง (PIN เริ่มต้น: 1234)');
             }
           }}
-          className="w-full max-w-sm rounded-2xl bg-[#0D111A] border border-[#1E2536] p-8 space-y-6 text-center shadow-2xl"
+          className="w-full max-w-sm rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] p-8 space-y-6 text-center shadow-2xl"
         >
           <div className="size-16 rounded-2xl bg-[#CE1126]/20 border border-[#CE1126]/40 flex items-center justify-center mx-auto text-[#CE1126]">
             <Lock className="size-8" />
@@ -356,7 +357,7 @@ export default function StaffAdminPortal() {
             value={pinInput}
             onChange={(e) => setPinInput(e.target.value)}
             placeholder="••••"
-            className="w-full h-12 text-center text-2xl font-mono tracking-[0.4em] rounded-xl bg-[#242832] border border-white/10 text-white outline-none focus:border-[#CE1126]"
+            className="w-full h-12 text-center text-2xl font-mono tracking-[0.4em] rounded-xl bg-[#0A0A0A] border border-white/10 text-white outline-none focus:border-[#CE1126]"
             autoFocus
           />
           <button
@@ -371,13 +372,11 @@ export default function StaffAdminPortal() {
   }
 
   return (
-    <main className="min-h-dvh bg-[#1C1F26] text-slate-200 select-none">
+    <main className="min-h-dvh bg-black text-slate-200 select-none">
       {/* Top Header */}
-      <header className="flex min-h-20 items-center justify-between border-b border-[#1E2536] bg-[#0D111A] px-8">
+      <header className="flex min-h-20 items-center justify-between border-b border-[#1C1C1C] bg-[#0A0A0A] px-8">
         <div className="flex items-center gap-4">
-          <div className="grid size-10 place-items-center bg-[#CE1126] text-xs font-extrabold tracking-[-.06em] text-white">
-            CPE
-          </div>
+          <CpeLogo className="h-10" />
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-sm font-bold text-white">Staff Master Dashboard</h1>
@@ -393,7 +392,7 @@ export default function StaffAdminPortal() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="mono hidden border-l border-[#1E2536] px-4 py-1 text-[10px] text-slate-400 xl:block">
+          <div className="mono hidden border-l border-[#1C1C1C] px-4 py-1 text-[10px] text-slate-400 xl:block">
             Event: <span className="text-[#2DD4BF]">SWU Open House 2026</span>
             <span className="mx-2 text-slate-700">|</span>
             Bus: <span className="text-emerald-400">swu_photobooth_bus</span>
@@ -409,13 +408,13 @@ export default function StaffAdminPortal() {
 
       <div className="mx-auto max-w-[1800px] px-8 py-5 space-y-5">
         {/* 4 Telemetry Metrics Grid */}
-        <section className="grid grid-cols-2 border border-[#1E2536] bg-[#0D111A] xl:grid-cols-4 rounded-xl overflow-hidden">
+        <section className="grid grid-cols-2 border border-[#1C1C1C] bg-[#0A0A0A] xl:grid-cols-4 rounded-xl overflow-hidden">
           {metrics.map((metric) => {
             const Icon = metric.icon;
             return (
               <article
                 key={metric.title}
-                className="border-b border-r border-[#1E2536] p-5 last:border-r-0 xl:border-b-0"
+                className="border-b border-r border-[#1C1C1C] p-5 last:border-r-0 xl:border-b-0"
               >
                 <div className="flex items-start justify-between">
                   <Icon className="size-5 text-slate-400" strokeWidth={1.5} />
@@ -433,7 +432,7 @@ export default function StaffAdminPortal() {
         </section>
 
         {/* Onsite Accident Recovery Center */}
-        <section className="rounded-xl border border-red-500/30 bg-[#0D111A] p-5 space-y-4 shadow-lg">
+        <section className="rounded-xl border border-red-500/30 bg-[#0A0A0A] p-5 space-y-4 shadow-lg">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-3">
             <div className="flex items-center gap-3">
               <div className="size-9 rounded-lg bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400">
@@ -497,7 +496,7 @@ export default function StaffAdminPortal() {
             {/* 4. Skip Preview */}
             <button
               onClick={() => sendCommand('SKIP_PREVIEW', 'ส่งคำสั่งข้าม Preview ส่งรูปไปจอ 2 ทันที')}
-              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-white/10 bg-[#242832] hover:bg-white/10 text-slate-200 transition-all group text-center cursor-pointer"
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-white/10 bg-[#0A0A0A] hover:bg-white/10 text-slate-200 transition-all group text-center cursor-pointer"
             >
               <SkipForward className="size-5 text-cyan-400 group-hover:translate-x-0.5 transition-transform" />
               <span className="text-xs font-bold">ข้าม Preview</span>
@@ -510,7 +509,7 @@ export default function StaffAdminPortal() {
                 setKioskState('standby');
                 sendCommand('RESET_STANDBY', 'ส่งคำสั่งรีเซ็ตจอ 1 เป็น Standby แล้ว');
               }}
-              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-white/10 bg-[#242832] hover:bg-white/10 text-slate-200 transition-all group text-center cursor-pointer"
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-white/10 bg-[#0A0A0A] hover:bg-white/10 text-slate-200 transition-all group text-center cursor-pointer"
             >
               <RefreshCcw className="size-5 text-slate-400 group-hover:rotate-180 transition-transform duration-500" />
               <span className="text-xs font-bold">รีเซ็ตตู้ (Standby)</span>
@@ -553,7 +552,7 @@ export default function StaffAdminPortal() {
           {/* Secondary Controls: Sensitivity Slider & Public Domain Configuration */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
             {/* Detection Area Sensitivity */}
-            <div className="p-3.5 rounded-lg bg-[#242832] border border-white/10 space-y-2">
+            <div className="p-3.5 rounded-lg bg-[#0A0A0A] border border-white/10 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 font-bold text-white">
                   <Sliders className="size-4 text-cyan-400" />
@@ -578,7 +577,7 @@ export default function StaffAdminPortal() {
             </div>
 
             {/* Public Domain for 4G/5G QR Access */}
-            <div className="p-3.5 rounded-lg bg-[#242832] border border-white/10 space-y-2">
+            <div className="p-3.5 rounded-lg bg-[#0A0A0A] border border-white/10 space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-white">
                 <div className="flex items-center gap-2">
                   <Globe className="size-4 text-[#10B981]" />
@@ -592,7 +591,7 @@ export default function StaffAdminPortal() {
                   placeholder="https://photobooth.cpe-swu.com หรือ trycloudflare.com"
                   value={publicDomain}
                   onChange={(e) => setPublicDomain(e.target.value)}
-                  className="flex-1 rounded border border-white/10 bg-[#0D111A] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 outline-none focus:border-[#10B981]"
+                  className="flex-1 rounded border border-white/10 bg-[#0A0A0A] px-3 py-1.5 text-xs text-white placeholder:text-slate-600 outline-none focus:border-[#10B981]"
                 />
                 <button
                   onClick={handleSavePublicDomain}
@@ -609,13 +608,13 @@ export default function StaffAdminPortal() {
         </section>
 
         {commandNotice && (
-          <div className="fixed right-8 top-24 z-50 rounded-lg border border-[#2DD4BF]/50 bg-[#0D111A] px-5 py-3 text-xs text-[#2DD4BF] shadow-2xl animate-in fade-in">
+          <div className="fixed right-8 top-24 z-50 rounded-lg border border-[#2DD4BF]/50 bg-[#0A0A0A] px-5 py-3 text-xs text-[#2DD4BF] shadow-2xl animate-in fade-in">
             {commandNotice}
           </div>
         )}
 
         {/* Photo Gallery & Re-issue QR Code Station */}
-        <section className="rounded-xl border border-[#1E2536] bg-[#0D111A] overflow-hidden">
+        <section className="rounded-xl border border-[#1C1C1C] bg-[#0A0A0A] overflow-hidden">
           <div className="flex flex-col gap-4 border-b border-white/10 p-6 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <h2 className="text-lg font-bold tracking-tight text-white">
@@ -627,7 +626,7 @@ export default function StaffAdminPortal() {
             </div>
 
             <div className="flex flex-1 items-center gap-3 xl:max-w-xl">
-              <label className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-lg border border-white/10 bg-[#242832] px-4 focus-within:border-cyan-400/60">
+              <label className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-lg border border-white/10 bg-[#0A0A0A] px-4 focus-within:border-cyan-400/60">
                 <Search className="size-4 text-slate-500" />
                 <input
                   value={searchQuery}
@@ -657,7 +656,7 @@ export default function StaffAdminPortal() {
             {filteredPhotos.map((photo, index) => (
               <article
                 key={`${photo.code}-${index}`}
-                className="overflow-hidden rounded-xl border border-[#373D4B] bg-[#242832] hover:border-slate-600 transition-all shadow-md"
+                className="overflow-hidden rounded-xl border border-[#1C1C1C] bg-[#0A0A0A] hover:border-slate-600 transition-all shadow-md"
               >
                 <div className="relative aspect-[4/3] bg-slate-900">
                   <img
@@ -726,7 +725,7 @@ export default function StaffAdminPortal() {
       {/* Re-issue QR Code Modal */}
       {selectedPhoto && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-6 backdrop-blur-md">
-          <div className="w-full max-w-md rounded-2xl border border-white/15 bg-[#0D111A] p-7 text-center shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-md rounded-2xl border border-white/15 bg-[#0A0A0A] p-7 text-center shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="text-left">
                 <h3 className="text-base font-bold text-white">Re-issue QR Code</h3>
@@ -752,7 +751,7 @@ export default function StaffAdminPortal() {
                 }
                 level="H"
                 bgColor="#FFFFFF"
-                fgColor="#1C1F26"
+                fgColor="#000000"
                 className="h-full w-full"
               />
             </div>

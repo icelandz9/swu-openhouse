@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL } from '@/lib/contracts';
+import { CpeLogo } from '@/components/CpeLogo';
 
 interface GalleryItem {
   code: string;
@@ -205,14 +206,14 @@ export default function ShowcaseDisplayScreen() {
     : latest.qrUrl || `/p/${latest.code}`;
 
   return (
-    <main className="display-shell grid h-dvh w-screen place-items-center overflow-hidden bg-[#16181E] select-none">
-      <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-[#20242D]">
+    <main className="display-shell grid h-dvh w-screen place-items-center overflow-hidden bg-black select-none">
+      <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-black">
         {/* Left Section (30%): Live Polaroid Showcase & White QR Pill Station */}
-        <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col border-r border-[#1E293B] px-[1.2%] py-[1.25%] justify-between">
+        <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col border-r border-[#1C1C1C] px-[1.2%] py-[1.25%] justify-between">
           <div>
             {/* Live Indicator Banner */}
             <div className="mono flex items-center justify-between text-[clamp(.48rem,.62vw,.74rem)]">
-              <span className="flex items-center gap-2 tracking-[.16em] text-[#2DD4BF] font-bold">
+              <span className="flex items-center gap-2 tracking-[.16em] text-[#CE1126] font-bold">
                 <span className="size-2 rounded-full bg-[#10B981] animate-pulse shadow-[0_0_12px_#10B981]" />
                 LATEST SHOT
               </span>
@@ -231,9 +232,9 @@ export default function ShowcaseDisplayScreen() {
                   alt={`รูปล่าสุด ${latest.code}`}
                   className="h-full w-full object-cover"
                 />
-                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-[#1E222B]/90 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/85 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
                   <span className="text-[clamp(.42rem,.52vw,.62rem)] font-bold">
-                    <span className="text-[#EF4444]">CPE</span> OPEN HOUSE
+                    <span className="text-[#CE1126]">CPE</span> OPEN HOUSE
                   </span>
                   <span className="text-[clamp(.34rem,.42vw,.5rem)] text-slate-300">
                     วิศวกรรมคอมพิวเตอร์ • 7 พ.ย. 2026
@@ -252,17 +253,17 @@ export default function ShowcaseDisplayScreen() {
           </div>
 
           {/* White QR Card - Centered, Clean & Minimal */}
-          <div className="qr-card mx-auto mt-[0.8vw] flex flex-col items-center justify-center rounded-[1vw] bg-white p-[1.1vw] shadow-2xl shrink-0 w-[96%] text-center">
+          <div className="qr-card mx-auto mt-[0.8vw] flex flex-col items-center justify-center rounded-[1vw] border-t-[.3vw] border-[#CE1126] bg-white px-[1.4vw] pb-[1.4vw] pt-[1.1vw] shadow-2xl shrink-0 w-fit text-center">
             <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
-              สแกนรับ<span className="text-[#06B6D4]">รูป</span>
+              สแกนรับ<span className="text-[#CE1126]">รูป</span>
             </div>
-            <div className="aspect-square w-[75%] max-w-[210px] min-w-[135px] bg-white p-[0.3vw] flex items-center justify-center">
+            <div className="aspect-square w-[clamp(150px,13vw,240px)] bg-white flex items-center justify-center">
               {isMounted ? (
                 <QRCodeSVG
                   value={qrTargetUrl}
                   level="H"
                   bgColor="#FFFFFF"
-                  fgColor="#1C1F26"
+                  fgColor="#000000"
                   className="h-full w-full"
                   title={`รับรูป ${latest.code}`}
                 />
@@ -276,10 +277,10 @@ export default function ShowcaseDisplayScreen() {
         </section>
 
         {/* Right Section (70%): Live Photo Wall / Gallery */}
-        <section className="absolute inset-y-0 right-0 flex w-[70%] flex-col bg-[#1E222B] px-[2.45vw] py-[.75vw]">
+        <section className="absolute inset-y-0 right-0 flex w-[70%] flex-col bg-black px-[2.45vw] py-[.75vw]">
           <header className="flex items-center justify-between border-b border-white/10 pb-3">
-            <h2 className="text-[clamp(1.55rem,2.5vw,3rem)] font-extrabold tracking-[-.05em]">
-              <span className="text-[#2DD4BF]">CPE</span>{' '}
+            <h2 className="flex items-center gap-[.3em] text-[clamp(1.55rem,2.5vw,3rem)] font-extrabold tracking-[-.05em]">
+              <CpeLogo className="h-[1em]" />
               <span className="text-white">OPEN HOUSE</span>
             </h2>
             <div className="text-[clamp(.5rem,.68vw,.82rem)] font-medium text-slate-400">
@@ -288,7 +289,7 @@ export default function ShowcaseDisplayScreen() {
           </header>
 
           <div className="mt-[1.8vw] flex min-h-0 flex-1 flex-col">
-            <div className="text-[clamp(.45rem,.58vw,.7rem)] font-bold tracking-[.18em] text-[#2DD4BF] uppercase">
+            <div className="text-[clamp(.45rem,.58vw,.7rem)] font-bold tracking-[.18em] text-[#CE1126] uppercase">
               ประวัติการถ่ายภาพทั้งหมด (Live Photo Wall)
             </div>
 
@@ -299,7 +300,7 @@ export default function ShowcaseDisplayScreen() {
                   return (
                     <figure
                       key={`${photo.code}-${index}`}
-                      className={`group relative aspect-[4/3] overflow-hidden rounded-[.3vw] bg-[#111827] border border-white/5 transition duration-300 hover:border-[#2DD4BF] ${
+                      className={`group relative aspect-[4/3] overflow-hidden rounded-[.3vw] bg-[#0A0A0A] border border-white/5 transition duration-300 hover:border-[#CE1126] ${
                         isNew ? 'photo-wall-enter' : ''
                       }`}
                     >
