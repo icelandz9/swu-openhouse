@@ -7,19 +7,20 @@ export type KioskEvent =
   | { type: 'COUNTDOWN_TICK'; remainingSeconds: number }
   | { type: 'COUNTDOWN_COMPLETE' }
   | { type: 'CAPTURE_FLASH_DONE' }
-  | { type: 'RETAKE_CLICKED' }
+  | { type: 'GESTURE_RETAKE_FIST' }
+  | { type: 'GESTURE_PROCEED_PALM' }
+  | { type: 'TIMEOUT_PROCEED' }
   | { type: 'CONFIRM_UPLOAD' }
   | { type: 'UPLOAD_SUCCESS' }
   | { type: 'UPLOAD_FAILED_OFFLINE' }
   | { type: 'NETWORK_RESTORED' }
   | { type: 'STAFF_BYPASS_PIN' }
-  | { type: 'QR_TIMEOUT' }
-  | { type: 'NEXT_PERSON_CLICKED' }
   | { type: 'COOLDOWN_EXPIRED' };
 
 /**
- * Pure Finite State Machine Reducer for the Photo Booth Kiosk
- * Framework-agnostic, zero React dependency, 100% unit-testable
+ * Pure Finite State Machine Reducer for Screen 1 (Capture Kiosk)
+ * Handles Hand Trigger -> Countdown -> Flash -> 10s Preview (Fist to Retake, Palm to Proceed)
+ * Once uploaded, Screen 1 resets immediately so the next visitor can enter.
  */
 export function kioskFSMReducer(state: KioskFSMState, event: KioskEvent): KioskFSMState {
   switch (state) {
@@ -42,24 +43,28 @@ export function kioskFSMReducer(state: KioskFSMState, event: KioskEvent): KioskF
       return state;
 
     case 'PREVIEW_RETAKE':
-      if (event.type === 'RETAKE_CLICKED') return 'COUNTDOWN_ACTIVE';
-      if (event.type === 'CONFIRM_UPLOAD') return 'UPLOADING';
+      // Fist gesture triggers retake
+      if (event.type === 'GESTURE_RETAKE_FIST') return 'COUNTDOWN_ACTIVE';
+      // Palm gesture, manual proceed, or 10s timeout triggers upload
+      if (
+        event.type === 'GESTURE_PROCEED_PALM' ||
+        event.type === 'CONFIRM_UPLOAD' ||
+        event.type === 'TIMEOUT_PROCEED'
+      ) {
+        return 'UPLOADING';
+      }
       return state;
 
     case 'UPLOADING':
-      if (event.type === 'UPLOAD_SUCCESS') return 'SHOW_QR_CLEAN';
+      // When upload finishes, Screen 1 immediately resets to cooldown/idle for the next person
+      // The QR Code is displayed on Screen 2 (30% split) via BroadcastChannel event
+      if (event.type === 'UPLOAD_SUCCESS') return 'RESET_COOLDOWN';
       if (event.type === 'UPLOAD_FAILED_OFFLINE') return 'WAITING_NETWORK';
       return state;
 
     case 'WAITING_NETWORK':
       if (event.type === 'NETWORK_RESTORED') return 'UPLOADING';
       if (event.type === 'STAFF_BYPASS_PIN') return 'RESET_COOLDOWN';
-      return state;
-
-    case 'SHOW_QR_CLEAN':
-      if (event.type === 'QR_TIMEOUT' || event.type === 'NEXT_PERSON_CLICKED') {
-        return 'RESET_COOLDOWN';
-      }
       return state;
 
     case 'RESET_COOLDOWN':
