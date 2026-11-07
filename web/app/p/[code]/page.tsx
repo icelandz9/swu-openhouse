@@ -396,6 +396,25 @@ export default function MobilePhotoEditorPage({
           <Download className="size-4" /> บันทึกรูปลงอุปกรณ์ ({outWidth}×{outHeight})
         </button>
 
+        {/* Follow the department on Instagram */}
+        <a
+          href="https://www.instagram.com/cpe_swu/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-white/10 bg-[#141A26] text-sm font-bold text-white transition-colors hover:bg-[#1B2232] active:scale-[.99]"
+        >
+          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="5" />
+            <circle cx="12" cy="12" r="4" />
+            <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+          </svg>
+          ติดตาม IG @cpe_swu
+        </a>
+
+        <p className="text-center text-xs text-slate-400">
+          ขอบคุณที่แวะมาบูธวิศวะคอมนะ #{normalizedCode.replace('OPH-', '')}
+        </p>
+
         <div className="flex items-center justify-center gap-2 text-[10px] text-slate-500 text-center">
           <ShieldCheck className="size-3.5 text-emerald-400 shrink-0" />
           <span>เก็บรักษาภาพ 7 วันตามนโยบาย PDPA • วิศวกรรมคอมพิวเตอร์ มศว</span>
