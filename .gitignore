@@ -3,6 +3,22 @@
 # dependencies (root tooling: mermaid validator)
 /node_modules
 
+# Python virtual environments
+venv/
+.venv/
+env/
+
+# Python cache & compiled bytecode
+__pycache__/
+*.pyc
+
+# Camera capture outputs & local images
+*.jpg
+*.jpeg
+*.png
+fivepalm_capture_*.jpg
+!web/public/frames/*.png
+
 # misc
 .DS_Store
 *.pem
@@ -15,3 +31,9 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+
+# MediaPipe model downloaded by scripts/model-training
+hand_landmarker.task
+
+# Trained model (the web kiosk loads the exported gesture_weights.json instead)
+gesture_classifier.joblib
