@@ -357,7 +357,7 @@ export default function MobilePhotoEditorPage({
                 <div className="mt-1 text-[10px] text-slate-500">Coming soon</div>
               </div>
             ) : (
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid max-h-72 grid-cols-4 gap-2 overflow-y-auto overscroll-contain pr-1">
                 {stickerCatalog.map((s) => (
                   <button
                     key={s.src}
