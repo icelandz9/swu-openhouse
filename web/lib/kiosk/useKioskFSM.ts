@@ -21,7 +21,6 @@ export function useKioskFSM(initialState: KioskFSMState = 'IDLE') {
     isPreviewing: state === 'PREVIEW_RETAKE',
     isUploading: state === 'UPLOADING',
     isWaitingNetwork: state === 'WAITING_NETWORK',
-    isShowingQR: state === 'SHOW_QR_CLEAN',
     isCoolingDown: state === 'RESET_COOLDOWN',
   };
 }

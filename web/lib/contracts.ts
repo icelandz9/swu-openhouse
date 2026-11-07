@@ -1,9 +1,9 @@
 // Shared TypeScript Contracts for the 3-Person Development Team
 // Dev 1: AI & Computer Vision (web/lib/ai-vision/)
-// Dev 2: Kiosk Frontend & FSM (web/app/kiosk/, web/lib/kiosk/)
+// Dev 2: Kiosk Frontend & FSM (web/app/kiosk/, web/app/display/, web/lib/kiosk/)
 // Dev 3: Mobile Editor, Storage & Staff Admin (web/app/p/, web/app/admin/, web/app/api/, web/lib/mobile/, web/lib/storage/)
 
-export type GestureType = "OPEN_PALM" | "PEACE_SIGN" | "MINI_HEART" | "NONE";
+export type GestureType = "OPEN_PALM" | "FIST" | "PEACE_SIGN" | "MINI_HEART" | "NONE";
 
 export type KioskFSMState =
   | "IDLE"
@@ -13,8 +13,20 @@ export type KioskFSMState =
   | "PREVIEW_RETAKE"
   | "UPLOADING"
   | "WAITING_NETWORK"
-  | "SHOW_QR_CLEAN"
   | "RESET_COOLDOWN";
+
+// Inter-Screen Event Bus Contract (BroadcastChannel: 'swu_photobooth_bus')
+export type ScreenSyncEvent =
+  | {
+      type: "PHOTO_READY_FOR_DISPLAY";
+      code: string;
+      qrUrl: string;
+      photoUrl: string;
+      createdAt: string;
+    }
+  | {
+      type: "SCREEN1_RESET";
+    };
 
 // 1. Output from Dev 1 (AI Vision Hook) -> Input to Dev 2 (Kiosk UI)
 export interface HandDetectionState {
@@ -25,10 +37,10 @@ export interface HandDetectionState {
   confidence: number;
   holdDurationMs: number; // 0 to 1500 ms
   holdProgress: number; // 0 to 100%
-  isTriggerReady: boolean; // true when Open Palm held continuously for 1.5s
+  isTriggerReady: boolean; // true when gesture held continuously for required duration
 }
 
-// 2. Output from Dev 3 (POST /api/photos) -> Input to Dev 2 (Clean QR Screen)
+// 2. Output from Dev 3 (POST /api/photos) -> Input to Dev 2 (Sent to Screen 2)
 export interface UploadPhotoResponse {
   code: string; // e.g., "OPH-AB29"
   qrUrl: string; // e.g., "http://192.168.1.10:3000/p/OPH-AB29"
@@ -71,4 +83,3 @@ export interface StoredPhotoResult {
 // 5. Photo Capture Specifications
 export const PHOTO_ASPECT_RATIO = "4:3" as const;
 export const CROP_DIMENSIONS_4_3 = { width: 1440, height: 1080 } as const; // Center-crop from 1920x1080 webcam stream
-
