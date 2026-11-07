@@ -57,14 +57,14 @@ flowchart TD
 *(อ้างอิงมาตรฐาน: **IEEE 1016 Software Design Descriptions**, **C4 Model** และ **OpenAPI Specification**)*
 * **SAD (System Architecture Document) / HLD:** แผนผังโครงสร้าง C4 Model (Context, Container, Component) เชื่อมโยง Kiosk Browser, MediaPipe, Canvas Engine, Cloudflare R2 และ Mobile Web
 * **LLD (Low-Level Design) / TDD:** Sequence Diagrams ลำดับการนับถอยหลัง-บันทึกภาพ-สร้าง QR, State Machine การเปลี่ยนสถานะตู้ (`Idle` -> `Detecting` -> `Counting` -> `Captured` -> `Rendering` -> `QR_Ready`)
-* **ADR (Architecture Decision Records):** บันทึกมติเลือก Next.js Monorepo แทน Go, การใช้ MediaPipe ใน WebGL, และการใช้ Short Code 6 หลัก
+* **ADR (Architecture Decision Records):** บันทึกมติเลือก Next.js Monorepo แทน Go, การใช้ MediaPipe ใน WebGL, และการใช้ Short Code `OPH-XXXX`
 * **Data Dictionary & Storage Schema:** โครงสร้าง Object Storage Bucket, Naming Convention (`/photos/{short_code}.webp`), Metadata Schema
 * **API Specification / Contract:** เอกสารมาตรฐาน OpenAPI 3.0 สำหรับ Endpoint อัปโหลดและค้นหารูปภาพ
 
 ### กลุ่มที่ 3: เอกสารการออกแบบประสบการณ์ผู้ใช้ (UX/UI & Design System)
 *(อ้างอิงแนวปฏิบัติ: **Nielsen Norman Group - NN/g** และ **Atomic Design by Brad Frost**)*
 * **Information Architecture (IA) & Sitemap:** โครงสร้างหน้าเว็บหน้าตู้ (`/booth`), หน้าโหลดรูปมือถือ (`/p/[code]`), และหน้าค้นหา (`/find`)
-* **User Flow / Task Flow Diagram:** แผนผังเส้นทางการใช้งาน Happy Path (ท่ามือ 1.5 วิ -> ถ่าย 3..2..1.. -> สแกน QR -> แต่งต่อบนมือถือ) และ Unhappy Path (แสงสะท้อน, เน็ตหลุด, สแกนไม่ทัน)
+* **User Flow / Task Flow Diagram:** แผนผังเส้นทางการใช้งาน Happy Path (ท่ามือ 1.5 วิ -> ถ่าย 5..4..3..2..1.. -> สแกน QR -> แต่งต่อบนมือถือ) และ Unhappy Path (แสงสะท้อน, เน็ตหลุด, สแกนไม่ทัน)
 * **Wireframes & Interactive Prototype:** โครงร่าง UI หน้าตู้แบบ Touchless Kiosk และ UI มือถือสำหรับเลือกสลับฟิลเตอร์/กรอบ
 * **UI Style Guide / Design System (Atomic Design):** การกำหนด Design Tokens โทนสีอัตลักษณ์ มศว (SWU Red `#E31B23`, Dark Red `#B3141A`, Gray `#F4F4F6`), Typography, และ Frame Templates
 
@@ -73,7 +73,7 @@ flowchart TD
 * **WBS (Work Breakdown Structure):** การแบ่งงานเป็นชิ้นงานย่อยระดับโมดูลพร้อมประเมินเวลา
 * **Project Schedule / Gantt Chart & Milestone Plan:** ตารางเวลาการพัฒนาและการทดสอบก่อนวันงานเปิดบ้านจริง
 * **RAID Log:** ตารางบริหารจัดการ Risks, Assumptions, Issues, Dependencies (เช่น ความเสถียรของสัญญาณ Wi-Fi ในหอประชุม, แสงไฟในบูท)
-* **Master Test Plan & UAT Test Cases:** แผนการทดสอบตามรูปแบบ Given-When-Then ครอบคลุม AC-01 ถึง AC-08
+* **Master Test Plan & UAT Test Cases:** แผนการทดสอบตามรูปแบบ Given-When-Then ครอบคลุม AC-01 ถึง AC-10
 
 ### กลุ่มที่ 5: เอกสารกฎหมาย ความปลอดภัย และข้อมูล (Legal, Security & Compliance)
 *(อ้างอิงกฎหมาย: **พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 - PDPA** และ **OWASP ASVS**)*
@@ -102,7 +102,7 @@ flowchart TD
      - ระบบตรวจสอบอายุภาพถ่ายตามหลัก PDPA 7-day TTL
   3. เคาะสถาปัตยกรรมระบบ (เปรียบเทียบ Next.js vs Go) และประเมินงบประมาณ (BOM Hardware + BOQ Cloud 0 บาท)
 - **สิ่งที่ต้องส่งมอบ (Deliverables)**:
-  - Requirements Specification (FR-01 ถึง FR-07, NFR-01 ถึง NFR-04)
+  - Requirements Specification (FR-01 ถึง FR-11, NFR-01 ถึง NFR-06)
   - รายงานผลและชุดโค้ดทดสอบ PoC อัตโนมัติ (`poc/test_poc.mjs`)
   - ตารางประมาณการงบประมาณ (BOM / BOQ Cost Sheet)
   - บันทึกการสัมภาษณ์สถาปัตยกรรม (ADR via `/grill-me`)
@@ -124,13 +124,13 @@ flowchart TD
   2. **PRD**: กำหนด User Personas (น้องมัธยม, ผู้ปกครอง, สตาฟประจำบูท), User Stories, Use Cases และตารางสิทธิ์การเข้าถึง (RBAC Matrix)
   3. **SRS / FRS**: บันทึกความต้องการเชิงฟังก์ชันตามมาตรฐาน **IEEE 830**:
      - ท่าทางสั่งถ่ายหลัก: แบมือ 5 นิ้ว (Open Palm) ค้าง 1.5 วิ + สถาปัตยกรรมขยายเพิ่มอีก 1-2 ท่า
-     - หน้าจอแสดงพรีวิวและปุ่มถ่ายใหม่ (Retake) แบบจำกัดเวลา 5–8 วินาที
-     - การเลือกฟิลเตอร์/แต่งสี 6 พรีเซ็ต + สไลเดอร์ความสว่าง และการเลือก 1 ใน 3 กรอบรูป มศว ทำบนมือถือ 100% หลังสแกน QR Code
+     - หน้าจอแสดงพรีวิวและปุ่มถ่ายใหม่ (Retake) แบบจำกัดเวลา 8 วินาที
+     - การเลือกฟิลเตอร์/แต่งสี 6 พรีเซ็ต + สไลเดอร์ความสว่าง และการเลือก 1 ใน 3 กรอบรูป CPE SWU ทำบนมือถือ 100% หลังสแกน QR Code
   4. **NFR Document**: กำหนดมาตรฐานคุณภาพตาม **ISO/IEC 25010** (Frame Rate >= 30–60 FPS, Latency < 1s, Uptime 99.5%, PDPA 7-day Auto-Purge)
   5. **RTM**: จัดทำ Requirements Traceability Matrix เชื่อมโยง Requirement ID (FR-01 ถึง FR-11, NFR) สู่ Component และ Test Case ID
 - **สิ่งที่ต้องส่งมอบ (Deliverables)**:
-  - เอกสารข้อกำหนดความต้องการฉบับสมบูรณ์ (`document/task-01-requirements-specification.md`)
-  - บันทึกการสัมภาษณ์ความต้องการ (`document/task-01-qa-and-decisions.md`)
+  - เอกสารข้อกำหนดความต้องการฉบับสมบูรณ์ ([task01-requirements/requirements-specification.md](task01-requirements/requirements-specification.md))
+  - บันทึกการสัมภาษณ์ความต้องการ ([task01-requirements/qa-decisions.md](task01-requirements/qa-decisions.md))
 - **เกณฑ์การตรวจรับ (Acceptance Criteria)**:
   - ผ่านการสัมภาษณ์เจาะลึก `/grill-me` ครบทุกมิติ
   - ตาราง RTM ครอบคลุมฟังก์ชันตั้งแต่กล้องจนถึงการดาวน์โหลดภาพและการควบคุมของสตาฟ
@@ -141,13 +141,13 @@ flowchart TD
 - **สถานะ**: ✅ เสร็จสมบูรณ์ (Approved & Locked via /grill-me)
 - **เป้าหมาย**: กำหนดโครงสร้างระบบซอฟต์แวร์ ลำดับการทำงานของคอมโพเนนต์ และบันทึกการตัดสินใจทางสถาปัตยกรรม
 - **เอกสารส่งมอบ**:
-  - `ducument-sathit/task02/task-02-system-architecture-and-technical-design.md` (C4 Architecture, Kiosk FSM State Machine, Camera & Vision Pipeline, Canvas Compositor, Staff Portal, ADRs 01-08)
-  - `ducument-sathit/task02/task-02-qa-and-decisions.md` (บันทึกบทสนทนาถาม-ตอบ /grill-me พร้อมตัวเลือกและคำตอบที่เลือก)
+  - [task02-architecture/system-architecture-and-technical-design.md](task02-architecture/system-architecture-and-technical-design.md) (C4 Architecture, Kiosk FSM State Machine, Camera & Vision Pipeline, Canvas Compositor, Staff Portal, ADRs 01-08)
+  - [task02-architecture/qa-decisions.md](task02-architecture/qa-decisions.md) (บันทึกบทสนทนาถาม-ตอบ /grill-me พร้อมตัวเลือกและคำตอบที่เลือก)
 - **รายละเอียดงานที่เสร็จสิ้น**:
   1. **SAD / HLD**: วาดแผนผังระบบตามมาตรฐาน **C4 Model** (Context, Container, Component)
   2. **LLD / TDD**:
-     - Kiosk Finite State Machine (FSM): กำหนด State Transitions ครบถ้วน (`IDLE` -> `DETECTING_HAND` -> `COUNTDOWN_ACTIVE` 3..2..1.. -> `FLASH_CAPTURE` 150ms -> `PREVIEW_RETAKE` 10s -> `NETWORK_CHECK_UPLOAD` Blocking Mode -> `SHOW_QR_CLEAN` -> `RESET_COOLDOWN`)
-     - กลไก Blocking Network: รอจนกว่าเน็ตจะกลับมาแล้วอัปโหลดต่ออัตโนมัติ พร้อมปุ่มให้สตาฟกรอก PIN ปลดล็อก
+     - Kiosk Finite State Machine (FSM): กำหนด State Transitions ครบถ้วน (`IDLE` -> `DETECTING_HAND` -> `COUNTDOWN_ACTIVE` 5..4..3..2..1.. -> `FLASH_CAPTURE` 100ms -> `PREVIEW_RETAKE` 8s -> `SAVE_LOCAL` -> `SHOW_QR_CLEAN` -> `RESET_COOLDOWN`)
+     - กลไก Non-Blocking Background Sync: บันทึกลงเครื่องตู้แล้วขึ้น QR ทันที อัปโหลดเบื้องหลังพร้อม Retry อัตโนมัติ
      - สถาปัตยกรรมเทมเพลต CPE SWU 3 แบบ (Official Classic, Youthful Tech Graphic, Photostrip Minimalist)
      - สถาปัตยกรรมหลังบ้านสตาฟ `/admin` พร้อมโหมดดูรูปทั้งหมด (View All Photos) และ Re-issue QR Code ย้อนหลัง
   3. **ADR (Architecture Decision Records)**: บันทึกมติ ADR-01 ถึง ADR-08 ครบถ้วน
@@ -186,14 +186,14 @@ flowchart TD
      - แผนผังโครงสร้างหน้าจอ Kiosk (`/booth`)
      - แผนผังหน้าเว็บบนมือถือ (`/p/[code]` และ `/find`)
   2. **User Flow & Task Flow Diagram**:
-     - Happy Path: ท่ามือชูสองนิ้ว 1.5 วิ -> นับถอยหลัง 3..2..1.. -> แชะ -> แสดงพรีวิว & แตะพรีเซ็ตด่วน -> โชว์ QR -> สแกนเข้ามือถือ
+     - Happy Path: แบมือ 1.5 วิ -> นับถอยหลัง 5..4..3..2..1.. (เปลี่ยนท่าโพสได้) -> แชะ -> พรีวิว 8 วิ -> โชว์ QR -> สแกนเข้ามือถือ
      - Unhappy / Edge Paths: คนเดินผ่านกล้อง (ไม่ครบ 1.5 วิ), แสงในห้องมืด, สแกน QR ไม่ทัน (จดรหัสไปเข้า `/find`)
   3. **Wireframes & Interactive Prototype**:
      - Wireframe หน้าจอ Kiosk (Camera Viewfinder, Hand Tracking Indicator, Countdown Overlay, QR Modal)
      - Mobile Wireframe (Photo Preview, Filter Carousel, Template Selector, Download Button)
   4. **UI Style Guide & Design System (Atomic Design)**:
      - Design Tokens: ชุดสี มศว (SWU Red `#E31B23`, Dark Red `#B3141A`, Gray `#F4F4F6`), Typography
-     - กราฟิกเทมเพลตกรอบรูปอัตลักษณ์ มศว Open House (ขนาด 9:16 และ Photostrip)
+     - กราฟิกเทมเพลตกรอบรูป CPE SWU 3 แบบ (ขนาด 9:16)
 - **สิ่งที่ต้องส่งมอบ (Deliverables)**:
   - Information Architecture & User Flow Diagrams
   - UI Wireframes & Layout Specification
@@ -213,7 +213,7 @@ flowchart TD
      - ฐานทางกฎหมาย (Consent / Legitimate Interest สำหรับกิจกรรมเปิดบ้าน)
   2. ออกแบบระบบ **Consent Management & Data Minimization**:
      - ป้ายประกาศ Privacy Notice สั้นๆ บริเวณตู้ถ่ายภาพ
-     - กลไกจำกัดการเข้าถึงภาพ (ค้นหาได้เฉพาะผู้ที่มี Short Code 6 หลัก)
+     - กลไกจำกัดการเข้าถึงภาพ (ค้นหาได้เฉพาะผู้ที่มี Short Code `OPH-XXXX`)
   3. ออกแบบวงจรชีวิตข้อมูลและการลบทำลาย (**Data Retention & Auto-Purge Policy**):
      - กำหนดอายุไฟล์ภาพ 7 วันนับจากวันที่ถ่าย (TTL 7 Days)
      - ฟังก์ชัน Background Cleaner ลบไฟล์และ Metadata หลังหมดอายุ
@@ -242,7 +242,7 @@ flowchart TD
   2. จัดทำ **Project Schedule / Gantt Chart & Milestone Plan**
   3. จัดทำ **RAID Log** ติดตามความเสี่ยงและสมมติฐานทางเทคนิค
   4. จัดทำ **Master Test Plan & UAT Test Cases (IEEE 829)**:
-     - กำหนด Test Cases ในรูปแบบ **Given-When-Then** ครอบคลุม AC-01 ถึง AC-08
+     - กำหนด Test Cases ในรูปแบบ **Given-When-Then** ครอบคลุม AC-01 ถึง AC-10
 - **สิ่งที่ต้องส่งมอบ (Deliverables)**:
   - Work Breakdown Structure (WBS) และตาราง Milestone Schedule
   - RAID Log
@@ -258,11 +258,11 @@ flowchart TD
 - **เป้าหมาย**: พัฒนาระบบจับภาพกล้อง, AI Hand Gesture, การนับถอยหลัง และการเรนเดอร์ภาพ
 - **รายละเอียดงาน**:
   1. พัฒนาระบบ Camera Stream (`getUserMedia`) รองรับความละเอียด 1080p
-  2. เชื่อมต่อ Google MediaPipe Hand Landmarker ใน WebGL ตรวจจับท่าทางมือ (Peace Sign, Open Palm, Mini Heart) พร้อม Debounce 1.5 วินาที
-  3. พัฒนาระบบ Visual Countdown Overlay 3.. 2.. 1.. และ White Flash Effect
+  2. เชื่อมต่อ Google MediaPipe Hand Landmarker ใน WebGL ตรวจจับท่าแบมือ (Open Palm) ค้าง 1.5 วินาที (ออกแบบให้เพิ่มท่าอื่นได้ภายหลัง)
+  3. พัฒนาระบบ Visual Countdown Overlay 5.. 4.. 3.. 2.. 1.. และ White Flash Effect
   4. พัฒนา HTML5 Canvas Compositing Engine สำหรับผสานเลเยอร์ภาพถ่าย + ฟิลเตอร์สี + กรอบกราฟิก PNG
 - **สิ่งที่ต้องส่งมอบ (Deliverables)**:
-  - Kiosk Web Application Source Code (`/src/app/booth`)
+  - Kiosk Web Application Source Code (`web/app/booth`)
   - Gesture Detection Module & Canvas Compositor
 - **เกณฑ์การตรวจรับ (Acceptance Criteria)**:
   - ทำงานลื่นไหลที่ >= 30–60 FPS
@@ -285,11 +285,11 @@ flowchart TD
   5. พัฒนาระบบแดชบอร์ดสตาฟ `/admin` Recent Captures Timeline สำหรับออก QR ย้อนหลัง
   6. พัฒนาระบบ Background Sync อัปโหลดภาพขึ้น Cloudflare R2 / Supabase Storage
 - **สิ่งที่ต้องส่งมอบ (Deliverables)**:
-  - Mobile Portal Source Code (`/src/app/p/[code]` และ `/src/app/find`)
+  - Mobile Portal Source Code (`web/app/p/[code]` และ `web/app/find`)
   - Storage Sync Worker & QR Generator Module
 - **เกณฑ์การตรวจรับ (Acceptance Criteria)**:
   - ใช้งานได้ราบรื่นบนทั้ง iOS Safari และ Android Chrome
-  - ผู้ใช้สามารถสแกน QR หรือกรอกรหัส 6 หลักเพื่อดึงรูปได้ถูกต้อง
+  - ผู้ใช้สามารถสแกน QR หรือกรอกรหัส `OPH-XXXX`เพื่อดึงรูปได้ถูกต้อง
 
 ---
 
@@ -350,3 +350,10 @@ flowchart TD
 - **เกณฑ์การตรวจรับ (Acceptance Criteria)**:
   - สตาฟสามารถดูแลตู้และแก้ไขปัญหาเบื้องต้นได้โดยไม่ต้องพึ่งพานักพัฒนา
   - ระบบลบไฟล์อัตโนมัติเมื่อครบ 7 วันตามเกณฑ์ PDPA อย่างถูกต้องครบถ้วน
+
+---
+
+## 🔭 งานในอนาคต (Future Scope)
+
+- **Photostrip หลายช็อต (3–4 ช็อตต่อเนื่อง)**: ย้ายออกจากรอบแรกตามมติวันที่ 7 พ.ย. 2026 — รอบแรกถ่าย Single Shot 9:16 อย่างเดียว ส่วนกรอบแบบที่ 3 ยังคงเป็นสไตล์ Photostrip Minimalist (ดู [decisions.md](decisions.md))
+- **ท่ามือเพิ่มเติม 1–2 ท่า**: ระบบ Gesture ออกแบบให้ขยายได้ แต่รอบแรกใช้แบมือ (Open Palm) ท่าเดียว
