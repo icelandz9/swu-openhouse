@@ -313,14 +313,25 @@ export default function KioskCapturePage() {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('WebRTC not supported');
       }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          facingMode: 'user',
-        },
-        audio: false,
-      });
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            facingMode: 'user',
+          },
+          audio: false,
+        });
+      } catch (firstErr) {
+        console.warn('1080p camera constraint failed, attempting basic video constraint:', firstErr);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
+
       currentStreamRef.current = stream;
 
       if (videoRef.current) {
@@ -342,8 +353,12 @@ export default function KioskCapturePage() {
     }
   }, []);
 
+  // Keep callback refs continuously synced
+  initCameraRef.current = initCamera;
+  handleConfirmUploadRef.current = handleConfirmUpload;
+
   useEffect(() => {
-    initCameraRef.current();
+    initCamera();
     return () => {
       if (currentStreamRef.current) {
         currentStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -602,12 +617,33 @@ export default function KioskCapturePage() {
 
         {/* Fallback Simulation View if camera not open */}
         {!cameraActive && showLiveFeed && (
-          <div className="absolute inset-0 h-full w-full bg-[#06080D] flex items-center justify-center">
+          <div className="absolute inset-0 h-full w-full bg-[#06080D] flex items-center justify-center z-10">
             <div className="engineering-grid absolute inset-0 opacity-40" />
-            <div className="text-center space-y-3 z-10">
-              <Camera className="size-16 text-[#CE1126] mx-auto animate-pulse" />
-              <h3 className="text-xl font-bold text-white">STUDIO CAMERA SIMULATION</h3>
-              <p className="text-xs text-slate-400">กดปุ่ม <b>P</b> เพื่อจำลองแบมือ หรือ <b>S</b> เพื่อเริ่มถ่าย</p>
+            <div className="text-center space-y-4 z-10 max-w-md px-6">
+              <div className="size-16 rounded-2xl bg-[#CE1126]/10 border border-[#CE1126]/30 flex items-center justify-center mx-auto text-[#CE1126]">
+                <Camera className="size-8" strokeWidth={1.8} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight">
+                  ระบบกล้องกำลังเชื่อมต่อ (Camera Standby)
+                </h3>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  กรุณาอนุญาตการเข้าถึงกล้องบนเบราว์เซอร์ หรือกดปุ่มด้านล่างเพื่อเชื่อมต่อกล้อง
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => initCamera()}
+                  className="rounded-xl bg-[#CE1126] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#8F0B20] transition-colors shadow-lg flex items-center gap-2 cursor-pointer"
+                >
+                  <Camera className="size-4" />
+                  <span>เชื่อมต่อกล้องทันที</span>
+                </button>
+              </div>
+              <div className="mono text-[11px] text-slate-500 pt-2">
+                โหมดทดสอบ: กดปุ่ม P เพื่อจำลองแบมือ หรือ S เพื่อถ่ายภาพ
+              </div>
             </div>
           </div>
         )}

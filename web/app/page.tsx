@@ -5,10 +5,8 @@ import {
   Sliders,
   Smartphone,
   ArrowRight,
-  Activity,
   ShieldCheck,
   Cpu,
-  Layers,
 } from 'lucide-react';
 
 export default function Home() {
@@ -44,7 +42,7 @@ export default function Home() {
       </header>
 
       {/* Main Hub Presentation */}
-      <section className="relative z-10 w-full max-w-6xl mx-auto my-auto py-10 space-y-10">
+      <section className="relative z-10 w-full max-w-6xl mx-auto my-auto py-12 space-y-12">
         {/* Hero Title */}
         <div className="text-center space-y-3 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-1 text-[11px] font-bold tracking-wider text-cyan-300 uppercase mono">
@@ -204,53 +202,6 @@ export default function Home() {
               <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
             </div>
           </Link>
-        </div>
-
-        {/* Multi-Display Setup Guide Bar */}
-        <div className="rounded-2xl bg-[#090D16]/70 border border-[#1E2536] p-5 backdrop-blur-md">
-          <div className="flex items-center gap-2 mb-3">
-            <Layers className="size-4 text-cyan-400" />
-            <h3 className="text-xs font-bold tracking-wider uppercase text-slate-300 mono">
-              คู่มือการตั้งค่าหน้าจอหน้างาน (Windows Multi-Display Setup)
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
-              <span className="flex size-5 items-center justify-center rounded-full bg-[#CE1126] text-[10px] font-black text-white shrink-0">
-                1
-              </span>
-              <div>
-                <div className="font-bold text-white">กดปุ่ม Win + P</div>
-                <div className="text-slate-400 text-[11px] mt-0.5">
-                  เลือกโหมด "Extend" เพื่อให้ Windows ขยาย 3 จอแยกกันอิสระ
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
-              <span className="flex size-5 items-center justify-center rounded-full bg-[#06B6D4] text-[10px] font-black text-slate-900 shrink-0">
-                2
-              </span>
-              <div>
-                <div className="font-bold text-white">ลากหน้าต่างออกไปยัง 2 จอ</div>
-                <div className="text-slate-400 text-[11px] mt-0.5">
-                  ลาก /kiosk ไปจอ 1 และ /display ไปจอ 2 แล้วกด F11 เต็มจอ
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
-              <span className="flex size-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-slate-900 shrink-0">
-                3
-              </span>
-              <div>
-                <div className="font-bold text-white">คุมระบบผ่านจอ Laptop</div>
-                <div className="text-slate-400 text-[11px] mt-0.5">
-                  เปิดหน้าต่าง /admin ไว้นั่งมอนิเตอร์และบริการ Re-issue QR
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
