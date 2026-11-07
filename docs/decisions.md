@@ -12,7 +12,7 @@
 | นับถอยหลัง | **5 วินาที** (5..4..3..2..1) ระหว่างนับเปลี่ยนท่าโพสได้อิสระ ไม่ยกเลิกเมื่อชักมือกลับ |
 | ถ่ายสำรอง | ปุ่มแตะหน้าจอ (Touch Fallback) |
 | แฟลช | จอขาว **100ms** |
-| ภาพที่ได้ | Single Shot แนวตั้ง **9:16** (Center Crop จากกล้องแนวนอน 1080p) |
+| ภาพที่ได้ | Single Shot สัดส่วน **4:3** ขนาด 1440x1080 (Center Crop จากกล้องแนวนอน 1080p) |
 | พรีวิว | **8 วินาที**, ถ่ายใหม่ได้ 1 ครั้ง |
 | เน็ตหลุด | **ไม่บล็อกตู้** — บันทึกลงเครื่องตู้ แสดง QR ทันที อัปโหลดขึ้น R2 เบื้องหลังพร้อม Retry |
 | หน้าจอ QR | แสดงเฉพาะ QR 15–20 วินาที + ปุ่ม "คนถัดไป" (ไม่แสดงรหัสบนจอตู้) |
@@ -27,12 +27,12 @@
 
 | ประเภท | Path | หน้าที่ |
 |---|---|---|
-| หน้าเว็บ | `/booth` | หน้าตู้ถ่ายรูป |
+| หน้าเว็บ | `/kiosk` | หน้าตู้ถ่ายรูป |
 | หน้าเว็บ | `/p/[code]` | หน้าแต่งรูปบนมือถือ |
 | หน้าเว็บ | `/find` | ค้นรูปย้อนหลังด้วยรหัส |
 | หน้าเว็บ | `/admin` | แดชบอร์ดสตาฟ + ออก QR ย้อนหลัง |
-| API | `POST /api/upload` | รับรูปจากตู้ ออกรหัส |
-| API | `GET /api/photo/[code]` | ดึงรูปตามรหัส |
+| API | `POST /api/photos` | รับรูปจากตู้ ออกรหัส |
+| API | `GET /api/photos/[code]` | ดึงรูปตามรหัส |
 | API | `GET /api/admin/photos` | รายการรูปสำหรับสตาฟ |
 | API | `GET /api/health` | ตรวจสถานะระบบ |
 
@@ -59,6 +59,9 @@
 | 2026-11-07 | เวลาพรีวิว | 10 วินาที | 8 วินาที | [Task 02 Q1](task02-architecture/qa-decisions.md) |
 | 2026-11-07 | แฟลช | 150ms | 100ms | [Task 02 Q9](task02-architecture/qa-decisions.md) |
 | 2026-11-07 | เน็ตหลุด | Blocking Mode (ตู้รอจนเน็ตกลับ) | Non-Blocking Background Sync | [Task 02 Q3, Q8](task02-architecture/qa-decisions.md) |
-| 2026-11-07 | โหมดภาพ | Dual-Mode (Single + Photostrip) | Single Shot 9:16 อย่างเดียว | [Task 00 Q7](task00-discovery/qa-decisions.md) |
+| 2026-11-07 | โหมดภาพ | Dual-Mode (Single + Photostrip) | Single Shot อย่างเดียว | [Task 00 Q7](task00-discovery/qa-decisions.md) |
+| 2026-11-07 | สัดส่วนภาพ | แนวตั้ง 9:16 (608x1080) | 4:3 (1440x1080) — คมกว่า ถ่ายหลายคนได้ | [ADR-07](task02-architecture/system-architecture-and-technical-design.md), PR #5 |
+| 2026-11-07 | Route หน้าตู้ / API | `/booth`, `POST /api/upload`, `GET /api/photo/[code]` | `/kiosk`, `POST /api/photos`, `GET /api/photos/[code]` (ตามโครงโค้ดใน PR #5) | PR #5 |
+| 2026-11-07 | ท่ามือ (วิธีตรวจ) | เทรนโมเดลจำแนกท่ามือเอง | ใช้กฎคณิตศาสตร์จากจุด 21 จุดของ MediaPipe (`gestureRules.ts`) ไม่ต้องเทรน | [Task 00 Q1](task00-discovery/qa-decisions.md) |
 | 2026-11-07 | ธีมกรอบ | "กรอบ มศว" (Task 00/01) | CPE SWU (ตาม Task 02 Q7) | [Task 02 Q7](task02-architecture/qa-decisions.md) |
 | 2026-11-07 | ท่ามือ | บางเอกสารเขียน Peace / Heart / ชูสองนิ้ว | แบมือท่าเดียว | [Task 01 Q3](task01-requirements/qa-decisions.md) |

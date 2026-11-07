@@ -3,18 +3,31 @@
 // Dev 2: Kiosk Frontend & FSM (web/app/kiosk/, web/lib/kiosk/)
 // Dev 3: Mobile Editor, Storage & Staff Admin (web/app/p/, web/app/admin/, web/app/api/, web/lib/mobile/, web/lib/storage/)
 
-export type GestureType = "OPEN_PALM" | "PEACE_SIGN" | "MINI_HEART" | "NONE";
+// All values below follow docs/decisions.md — change them there first.
 
+// Open Palm only for the first release. Extra gestures are future scope.
+export type GestureType = "OPEN_PALM" | "NONE";
+
+// Non-blocking flow: the kiosk saves locally (SAVE_LOCAL), shows the QR right away,
+// and the server syncs to Cloudflare R2 in the background with retry.
 export type KioskFSMState =
   | "IDLE"
   | "DETECTING_HAND"
   | "COUNTDOWN_ACTIVE"
   | "FLASH_CAPTURE"
   | "PREVIEW_RETAKE"
-  | "UPLOADING"
-  | "WAITING_NETWORK"
+  | "SAVE_LOCAL"
   | "SHOW_QR_CLEAN"
   | "RESET_COOLDOWN";
+
+export const KIOSK_TIMING = {
+  holdToTriggerMs: 1500, // open palm held this long starts the countdown
+  countdownSeconds: 5, // free pose; withdrawing the hand does NOT cancel
+  flashMs: 100,
+  previewSeconds: 8,
+  maxRetakes: 1,
+  qrScreenSeconds: 20,
+} as const;
 
 // 1. Output from Dev 1 (AI Vision Hook) -> Input to Dev 2 (Kiosk UI)
 export interface HandDetectionState {

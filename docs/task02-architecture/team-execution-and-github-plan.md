@@ -2,7 +2,9 @@
 ## โครงการ: SWU Open House - AI Photo Booth (CPE Major)
 **เอกสาร**: Team Execution Plan, Task Breakdown & GitHub Collaboration Workflow  
 **สำหรับ**: ทีมพัฒนา 3 คน (AI/Vision 1 คน, Kiosk Frontend 1 คน, Mobile/Cloud/Back-Office 1 คน)  
-**อ้างอิงสถานะ Git ล่าสุด**: Commit `b710d2f` (หลัง Merge PR #1 `feature/photo-booth-mvp` เข้าสู่ `main`)  
+**อ้างอิงสถานะ Git**: เขียนครั้งแรกที่ Commit `b710d2f` ปรับให้ตรงกับ [decisions.md](../decisions.md) ตอนรวม PR #5  
+
+> ค่าเวลา สัดส่วนภาพ และ flow ทั้งหมดให้ยึด [decisions.md](../decisions.md) — ถ้าหน้านี้เขียนไม่ตรง ให้ยึดหน้านั้น
 **วันที่จัดทำ**: 7 พฤศจิกายน 2026  
 
 ---
@@ -12,11 +14,11 @@
 จากการตรวจสอบ Git Repository (`https://github.com/icelandz9/swu-openhouse.git`) ล่าสุด พบว่ามีการ Merge Pull Request #1 (`feature/photo-booth-mvp`) เข้ามาใน `main` แล้ว โดยมีสถานะของไฟล์ในโปรเจกต์ดังนี้:
 
 ### 1.1 สิ่งที่มีอยู่แล้วใน Git ตอนนี้ (เสร็จแล้ว)
-1. **เอกสารวิศวกรรม (`ducument-sathit/`)**:
-   * `task00/`: เอกสาร Discovery, Sizing, ต้นทุน 0 บาท และบันทึก Q&A
-   * `task01/`: เอกสาร BRD, PRD, SRS (IEEE 830), NFR, RTM, C4 Architecture, Sequence Diagrams และบันทึก Q&A
-   * `task02/`: เอกสาร SAD, LLD, Finite State Machine (FSM), ADRs 01-08 และบันทึก Q&A
-   * `TASK_BACKLOG.md`: แผนงานภาพรวมของทั้งโปรเจกต์
+1. **เอกสารวิศวกรรม (`docs/`)**:
+   * `task00-discovery/`: เอกสาร Discovery, Sizing, ต้นทุน 0 บาท และบันทึก Q&A
+   * `task01-requirements/`: เอกสาร BRD, PRD, SRS (IEEE 830), NFR, RTM, C4 Architecture, Sequence Diagrams และบันทึก Q&A
+   * `task02-architecture/`: เอกสาร SAD, LLD, Finite State Machine (FSM), ADRs 01-08 และบันทึก Q&A
+   * `backlog.md`: แผนงานภาพรวมของทั้งโปรเจกต์ · `decisions.md`: มติล่าสุด
 2. **สคริปต์ตรวจสอบและ PoC (`poc/`)**:
    * `poc/test_poc.mjs`: ชุดทดสอบตรรกะท่ามือ, Debounce 1.5s, รหัส `OPH-XXXX` และอายุไฟล์ 7 วัน
    * `poc/validate_mermaid.mjs`: สคริปต์ตรวจสอบไวยากรณ์ Mermaid Diagram อัตโนมัติ
@@ -27,17 +29,17 @@
    * `web/README.md`: คู่มือการรันโปรเจกต์เบื้องต้นในโฟลเดอร์ `web/`
 
 ### 1.2 สิ่งที่ยังไม่มีใน `web/` (ต้องเริ่มเขียนโค้ดต่อจากนี้)
-* ยังไม่มีโฟลเดอร์ `web/lib/` (ตรรกะจับท่ามือ, โมเดลที่เทรนเพิ่ม, ฟิลเตอร์สี, กรอบรูป CPE, ระบบจัดเก็บไฟล์)
+* ยังไม่มีโฟลเดอร์ `web/lib/` (ตรรกะจับท่ามือ, ฟิลเตอร์สี, กรอบรูป CPE, ระบบจัดเก็บไฟล์)
 * ยังไม่มีหน้าตู้ `web/app/kiosk/page.tsx`
 * ยังไม่มีหน้ามือถือ `web/app/p/[code]/page.tsx`
 * ยังไม่มีหน้าค้นหารูปย้อนหลัง `web/app/find/page.tsx`
 * ยังไม่มีหน้าสตาฟ `web/app/admin/page.tsx`
 * ยังไม่มี API Routes ใน `web/app/api/` (`/api/photos`, `/api/config`, `/api/admin`)
 
-### 1.3 จุดใน `web/README.md` ที่ต้องปรับให้ตรงกับสเปก Task 02 ล่าสุด
-* เวลาพรีวิวหน้าตู้: ใน `web/README.md` เดิมเขียนไว้ 8 วินาที -> ต้องใช้ **10 วินาที** ตามที่เคาะใน Task 02
-* กรอบรูป 3 แบบ: เปลี่ยนเป็นธีม **CPE (วิศวกรรมคอมพิวเตอร์ มศว)** ทั้ง 3 แบบ
-* กรณีเน็ตหลุด: ใช้ **Blocking Mode** (ขึ้นหน้าจอรอสัญญาณเน็ต + ปุ่ม Staff PIN ปลดล็อก)
+### 1.3 ค่าหลักที่ใช้ (สรุปจาก [decisions.md](../decisions.md))
+* ภาพ Single Shot **4:3** (1440x1080) · นับถอยหลัง **5 วินาที** (เปลี่ยนท่าได้ ไม่ยกเลิก) · แฟลช **100ms** · พรีวิว **8 วินาที** ถ่ายใหม่ได้ 1 ครั้ง
+* กรอบรูป 3 แบบธีม **CPE SWU**
+* เน็ตหลุด: **ไม่บล็อกตู้** — บันทึกในเครื่องตู้ แสดง QR ทันที อัปโหลดขึ้น R2 เบื้องหลังพร้อม Retry
 
 ---
 
@@ -47,9 +49,9 @@
 
 | สมาชิกทีม | บทบาทหน้าที่หลัก | ขอบเขตงานที่รับผิดชอบ | โฟลเดอร์ใน `web/` ที่เป็นเจ้าของ (ห้ามคนอื่นแก้ทับ) |
 | :--- | :--- | :--- | :--- |
-| **คนที่ 1 (Dev 1)** | **AI & Computer Vision Engineer** | เก็บ Dataset, เทรนโมเดลจำแนกท่ามือ, เปิดกล้อง WebRTC 1080p, กรองคนเดินผ่านข้างหลัง (Depth & Area Filter), จับเวลาค้างท่ามือ 1.5 วินาที | `web/lib/ai-vision/`<br>`web/public/models/`<br>`scripts/model-training/` |
-| **คนที่ 2 (Dev 2)** | **Kiosk Frontend & State Machine Engineer** | พัฒนาหน้าตู้ `/kiosk` แนวนอน 16:9, กรอบไกด์ Center Crop 4:3, ระบบควบคุมสถานะ FSM 8 สถานะ, นับถอยหลัง 3-2-1, แฟลชจอขาว 150ms, พรีวิว 10 วิ, หน้าจอรอเน็ต (Blocking Mode + Staff PIN), หน้าจอแสดงเฉพาะ QR Code | `web/app/kiosk/`<br>`web/lib/kiosk/` |
-| **คนที่ 3 (Dev 3)** | **Full-Stack Mobile, Canvas & Cloud/Admin Engineer** | พัฒนา API อัปโหลด/ดึงรูป (รองรับทั้งเก็บลงเครื่อง `web/data/` ในช่วง MVP และเชื่อม Cloudflare R2), ลบไฟล์อัตโนมัติ 7 วัน, หน้ามือถือ `/p/[code]` โชว์รหัส `OPH-XXXX`, เอนจิน Canvas แต่งสี 6 โทน + กรอบ CPE 3 แบบ, หน้า `/find`, และหน้าสตาฟ `/admin` ดูรูปทั้งหมด + ยิง QR ย้อนหลัง | `web/app/p/`<br>`web/app/find/`<br>`web/app/admin/`<br>`web/app/api/`<br>`web/lib/mobile/`<br>`web/lib/storage/` |
+| **คนที่ 1 (Dev 1)** | **AI & Computer Vision Engineer** | เปิดกล้อง WebRTC 1080p, ตรวจท่าแบมือด้วยกฎจากจุด 21 จุดของ MediaPipe (ไม่ต้องเทรนโมเดล), กรองคนเดินผ่านข้างหลัง (Depth & Area Filter), จับเวลาค้างท่ามือ 1.5 วินาที, ออกแบบไฟล์กรอบ CPE 3 แบบ | `web/lib/ai-vision/`<br>`web/public/templates/` |
+| **คนที่ 2 (Dev 2)** | **Kiosk Frontend & State Machine Engineer** | พัฒนาหน้าตู้ `/kiosk` แนวนอน 16:9, กรอบไกด์ Center Crop 4:3, ระบบควบคุมสถานะ FSM 8 สถานะ, นับถอยหลัง 5 วิ, แฟลชจอขาว 100ms, พรีวิว 8 วิ, บันทึกรูปแล้วแสดงเฉพาะ QR Code ทันที (ไม่บล็อกตู้) | `web/app/kiosk/`<br>`web/lib/kiosk/` |
+| **คนที่ 3 (Dev 3)** | **Full-Stack Mobile, Canvas & Cloud/Admin Engineer** | พัฒนา API อัปโหลด/ดึงรูป (เก็บลงเครื่อง `web/data/` แล้ว Sync ขึ้น Cloudflare R2 เบื้องหลังพร้อม Retry), ลบไฟล์อัตโนมัติ 7 วัน, หน้ามือถือ `/p/[code]` โชว์รหัส `OPH-XXXX`, เอนจิน Canvas แต่งสี 6 โทน + กรอบ CPE 3 แบบ, หน้า `/find`, และหน้าสตาฟ `/admin` ดูรูปทั้งหมด + ยิง QR ย้อนหลัง | `web/app/p/`<br>`web/app/find/`<br>`web/app/admin/`<br>`web/app/api/`<br>`web/lib/mobile/`<br>`web/lib/storage/` |
 
 ---
 
@@ -57,9 +59,7 @@
 
 ```text
 PhotoBooth-OpenHouseSWU/
-├── ducument-sathit/                      # เอกสารวิศวกรรม (Task 00, Task 01, Task 02)
-├── scripts/
-│   └── model-training/                   # [คนที่ 1] สคริปต์ Python/Notebook เก็บข้อมูลและเทรนโมเดล
+├── docs/                                 # เอกสารวิศวกรรม (Task 00, Task 01, Task 02 + decisions.md)
 └── web/                                  # โปรเจกต์ Next.js 15 (มีโครงเริ่มต้นแล้วใน main)
     ├── app/
     │   ├── page.tsx                      # (มีแล้ว) หน้าแรก
@@ -86,16 +86,15 @@ PhotoBooth-OpenHouseSWU/
     │   ├── contracts.ts                  # [ส่วนกลาง] Interface ตกลงร่วมกันระหว่าง 3 คน
     │   ├── ai-vision/                    # [คนที่ 1 เป็นเจ้าของ 100%]
     │   │   ├── useWebcamStream.ts        # เปิดกล้อง 1080p แนวนอน
-    │   │   ├── handClassifier.ts         # รัน MediaPipe 21 จุด + โมเดลจำแนกท่ามือที่เทรนมา
+    │   │   ├── gestureRules.ts           # กฎตรวจท่าแบมือจากจุด 21 จุดของ MediaPipe
     │   │   ├── depthAreaFilter.ts        # คัดเฉพาะมือที่ใหญ่และอยู่ใกล้กล้องที่สุด
     │   │   └── useGestureTrigger.ts      # Hook จับเวลาแบมือค้าง 1.5 วินาที
     │   ├── kiosk/                        # [คนที่ 2 เป็นเจ้าของ 100%]
     │   │   ├── useKioskFSM.ts            # State Machine 8 สถานะของตู้
     │   │   ├── ViewfinderFrame.tsx       # กรอบกล้อง 16:9 พร้อมเส้นไกด์ 4:3
-    │   │   ├── CountdownOverlay.tsx      # ตัวเลขนับถอยหลัง 3.. 2.. 1..
-    │   │   ├── WhiteFlashEffect.tsx      # แอนิเมชันจอสว่างวาบสีขาว 150ms
-    │   │   ├── PreviewRetake.tsx         # พรีวิว 10 วินาที + ปุ่มถ่ายใหม่ 1 ครั้ง
-    │   │   ├── NetworkWaitScreen.tsx     # หน้าจอรอเน็ต (Blocking Mode) + ปุ่ม Staff PIN
+    │   │   ├── CountdownOverlay.tsx      # ตัวเลขนับถอยหลัง 5.. 4.. 3.. 2.. 1..
+    │   │   ├── WhiteFlashEffect.tsx      # แอนิเมชันจอสว่างวาบสีขาว 100ms
+    │   │   ├── PreviewRetake.tsx         # พรีวิว 8 วินาที + ปุ่มถ่ายใหม่ 1 ครั้ง
     │   │   ├── CleanQRDisplay.tsx        # แสดงเฉพาะ QR Code ใหญ่ + นับถอยหลัง 20 วิ + ปุ่มคนถัดไป
     │   │   └── centerCropper.ts          # ตัดภาพตรงกลางเป็นสัดส่วน 4:3 (1440x1080)
     │   ├── mobile/                       # [คนที่ 3 เป็นเจ้าของ 100%]
@@ -106,11 +105,11 @@ PhotoBooth-OpenHouseSWU/
     │   └── storage/                      # [คนที่ 3 เป็นเจ้าของ 100%]
     │       ├── shortCodeGen.ts           # สุ่มรหัส OPH-XXXX ไม่ซ้ำ
     │       ├── storageAdapter.ts         # บันทึกไฟล์ลง web/data/ หรือ Cloudflare R2
+    │       ├── syncQueue.ts              # คิวอัปโหลดขึ้น R2 เบื้องหลัง + Retry (ไม่บล็อกตู้)
     │       └── ttlCleanup.ts             # ลบไฟล์ที่เกิน 7 วันอัตโนมัติตาม PDPA
     ├── public/
     │   ├── mediapipe/                    # (สร้างอัตโนมัติโดย setup-assets.mjs)
-    │   ├── models/                       # [คนที่ 1] วางไฟล์โมเดลจำแนกท่ามือที่เทรนเสร็จแล้ว
-    │   └── templates/                    # [คนที่ 3] วางไฟล์กรอบรูป PNG 3 แบบของ CPE
+    │   └── templates/                    # [คนที่ 1] วางไฟล์กรอบรูป PNG 4:3 ของ CPE 3 แบบ
     └── scripts/
         └── setup-assets.mjs              # (มีแล้ว) สคริปต์เตรียมไฟล์ MediaPipe
 ```
@@ -124,7 +123,7 @@ PhotoBooth-OpenHouseSWU/
 ```typescript
 // web/lib/contracts.ts
 
-export type GestureType = 'OPEN_PALM' | 'PEACE_SIGN' | 'MINI_HEART' | 'NONE';
+export type GestureType = 'OPEN_PALM' | 'NONE'; // ท่าเพิ่มเติมเป็นงานอนาคต
 
 // 1. ข้อมูลที่ คนที่ 1 (AI Vision) ส่งให้ คนที่ 2 (Kiosk UI)
 export interface HandDetectionState {
@@ -166,20 +165,20 @@ export interface PhotoRecord {
 ```mermaid
 flowchart LR
     subgraph Main["Branch หลักบน GitHub"]
-        M_Now["main ปัจจุบัน (Commit b710d2f)<br>มีโครง web/ + เอกสารครบ"]
-        M_Contract["main (เพิ่มไฟล์ contracts.ts)"]
+        M_Now["main ปัจจุบัน<br>มีโครง web/ + contracts.ts + เอกสารครบ"]
+        M_Contract["ทุกคนแตก branch จาก main"]
         M_Sprint1["main (รวมโค้ดรอบที่ 1)"]
         M_Final["main (พร้อมใช้งานวันจริง)"]
     end
 
     subgraph Dev1["คนที่ 1 (AI & Model)"]
-        B1_1["feat/dev1-train-classifier"]
+        B1_1["feat/dev1-gesture-rules"]
         B1_2["feat/dev1-hand-trigger-hook"]
     end
 
     subgraph Dev2["คนที่ 2 (Kiosk & FSM)"]
         B2_1["feat/dev2-kiosk-fsm-ui"]
-        B2_2["feat/dev2-network-wait-qr"]
+        B2_2["feat/dev2-preview-qr"]
     end
 
     subgraph Dev3["คนที่ 3 (API, Mobile & Admin)"]
@@ -207,7 +206,7 @@ flowchart LR
 
 ### 5.2 ขั้นตอนเริ่มต้นทำต่อทันที (ให้ทั้ง 3 คนทำตามลำดับนี้)
 
-**ขั้นที่ 1: ดึงโค้ดล่าสุด (`b710d2f`) ลงเครื่องและติดตั้ง Library ในโฟลเดอร์ `web/`**
+**ขั้นที่ 1: ดึงโค้ดล่าสุดลงเครื่องและติดตั้ง Library ในโฟลเดอร์ `web/`**
 ```powershell
 git checkout main
 git pull origin main
@@ -227,7 +226,7 @@ npm run dev
 cd web
 npm run typecheck
 git add .
-git commit -m "feat(kiosk): add 10s preview retake and 150ms white flash"
+git commit -m "feat(kiosk): add 8s preview retake and 100ms white flash"
 ```
 
 **ขั้นที่ 4: ดึงโค้ดล่าสุดจาก `main` มารวม แล้วส่งขึ้น GitHub เพื่อเปิด Pull Request**
@@ -242,14 +241,14 @@ git push -u origin <ชื่อ-branch-ของตัวเอง>
 
 ## 6. รายการ Task ทั้งหมดที่ต้องทำต่อจากนี้ (แบ่งรายบุคคลอย่างละเอียด)
 
-### สายงานคนที่ 1: AI & Computer Vision Engineer (เน้น Train Model + ระบบตรวจจับมือ)
+### สายงานคนที่ 1: AI & Computer Vision Engineer (ระบบตรวจจับมือ + กรอบรูป)
 
-#### Task AI-01: เก็บข้อมูลและเทรนโมเดลจำแนกท่ามือ (Gesture Classifier Training)
+#### Task AI-01: ปรับกฎตรวจท่าแบมือให้แม่น (`web/lib/ai-vision/gestureRules.ts`)
 * **สิ่งที่ต้องทำ**:
-  1. สร้างโฟลเดอร์ `scripts/model-training/`
-  2. เขียนสคริปต์ดึงค่าพิกัดมือ 21 จุด (63 ค่า `x, y, z` ที่ทำ Normalization เทียบกับข้อมือจุดที่ 0) สำหรับท่าแบมือ 5 นิ้ว (`OPEN_PALM`), ท่าเสริม 1–2 ท่า (เช่น ชู 2 นิ้ว `PEACE_SIGN`, มินิฮาร์ท `MINI_HEART`), และท่าอื่นๆ ที่ไม่ใช่ท่าสั่งถ่าย (`NONE`)
-  3. เทรนโมเดล Classifier (เช่น MLP / Neural Network ขนาดเล็ก หรือ Random Forest / TFLite) แล้วส่งออกไฟล์โมเดล/Weights ไปไว้ที่ `web/public/models/gesture_weights.json`
-* **เกณฑ์ตรวจสอบ**: โมเดลมีความแม่นยำในการแยกท่าแบมือ >= 95% และไม่ลั่นเมื่อทำท่ามือทั่วไป
+  1. ใช้จุด 21 จุดจาก MediaPipe ตรวจว่านิ้วทั้ง 5 เหยียด (มีโครงใน `gestureRules.ts` แล้ว — ไม่ต้องเก็บ Dataset หรือเทรนโมเดล เพราะ MediaPipe แม่นพออยู่แล้ว ตาม [Task 00 Q1](../task00-discovery/qa-decisions.md))
+  2. เพิ่มการเช็กนิ้วโป้ง และให้ทำงานได้ทั้งมือซ้าย/ขวา และเมื่อมือเอียงเล็กน้อย
+  3. ทดสอบกับคนจริงหลายคน แล้วปรับค่าเกณฑ์
+* **เกณฑ์ตรวจสอบ**: แยกท่าแบมือได้ >= 95% และไม่ลั่นเมื่อทำท่ามือทั่วไป (กำมือ, ชูนิ้ว, โบกมือผ่าน)
 
 #### Task AI-02: พัฒนาตัวกรองมือคนที่อยู่ใกล้กล้องที่สุด (`web/lib/ai-vision/depthAreaFilter.ts`)
 * **สิ่งที่ต้องทำ**:
@@ -262,7 +261,7 @@ git push -u origin <ชื่อ-branch-ของตัวเอง>
 * **สิ่งที่ต้องทำ**:
   1. โหลดไฟล์ `hand_landmarker.task` จาก `/mediapipe/hand_landmarker.task` (ที่ `setup-assets.mjs` เตรียมไว้ให้แล้ว)
   2. ประมวลผลเฟรมวิดีโอแบบ `VIDEO` mode บน GPU (WebGL) ที่ 60 FPS
-  3. นำพิกัด 21 จุดของมือที่ผ่านตัวกรองแล้ว เข้าโมเดลจำแนกท่ามือจาก Task AI-01
+  3. นำพิกัด 21 จุดของมือที่ผ่านตัวกรองแล้ว เข้ากฎตรวจท่ามือจาก Task AI-01
   4. หากเป็นท่า `OPEN_PALM` ต่อเนื่องกันครบ **1.5 วินาที (1,500 ms)** ให้ส่งค่า `isTriggerReady: true` และคำนวณ `holdProgress` (0–100%) ส่งออกให้คนที่ 2
 * **เกณฑ์ตรวจสอบ**: แบมือค้างครบ 1.5 วิแล้ว `isTriggerReady` เปลี่ยนเป็น `true` หากลดมือลงก่อนครบ 1.5 วิ เวลาต้องรีเซ็ตเป็น 0 ทันที
 
@@ -270,11 +269,12 @@ git push -u origin <ชื่อ-branch-ของตัวเอง>
 
 ### สายงานคนที่ 2: Kiosk Frontend & State Machine Engineer (เน้นหน้าตู้ `/kiosk`)
 
-#### Task KIOSK-01: พัฒนา State Machine ควบคุมลำดับหน้าตู้ (`web/lib/kiosk/useKioskFSM.ts`)
+#### Task KIOSK-01: พัฒนา State Machine ควบคุมลำดับหน้าตู้ (`web/lib/kiosk/kioskStateMachine.ts`)
 * **สิ่งที่ต้องทำ**:
-  1. สร้าง State Machine ควบคุมสถานะ: `IDLE` -> `COUNTDOWN_ACTIVE` (3..2..1..) -> `FLASH_CAPTURE` -> `PREVIEW_RETAKE` (**10 วินาที**) -> `UPLOADING` / `WAITING_NETWORK` -> `SHOW_QR_CLEAN` (**20 วินาที**) -> `IDLE`
-  2. รองรับเงื่อนไข **Auto-Cancel**: หากระหว่างนับถอยหลัง 3..2..1.. ผู้ใช้ชักมือกลับ (`isHandPresent === false`) ให้ยกเลิกและกลับสู่ `IDLE` ทันที
-* **เกณฑ์ตรวจสอบ**: สถานะเปลี่ยนครบทุกขั้น และยกเลิกอัตโนมัติเมื่อชักมือกลับระหว่างนับถอยหลัง
+  1. State Machine (มีโครงแล้ว): `IDLE` -> `DETECTING_HAND` -> `COUNTDOWN_ACTIVE` (**5 วินาที**) -> `FLASH_CAPTURE` -> `PREVIEW_RETAKE` (**8 วินาที**) -> `SAVE_LOCAL` -> `SHOW_QR_CLEAN` (**20 วินาที**) -> `RESET_COOLDOWN` -> `IDLE`
+  2. ระหว่างนับถอยหลัง ผู้ใช้เปลี่ยนท่าโพสได้อิสระ **ไม่ยกเลิก**เมื่อชักมือกลับ
+  3. ใช้ค่าเวลาจาก `KIOSK_TIMING` ใน `contracts.ts` ห้ามเขียนตัวเลขเอง
+* **เกณฑ์ตรวจสอบ**: สถานะเปลี่ยนครบทุกขั้น และการนับถอยหลังไม่หยุดเมื่อลดมือลง
 
 #### Task KIOSK-02: พัฒนาหน้าจอกล้อง 16:9, กรอบไกด์ 4:3 และระบบตัดภาพ (`web/lib/kiosk/centerCropper.ts`)
 * **สิ่งที่ต้องทำ**:
@@ -283,19 +283,19 @@ git push -u origin <ชื่อ-branch-ของตัวเอง>
   3. เขียนฟังก์ชัน `centerCropper.ts` สำหรับตัดเฟรมวิดีโอ 1920x1080 เฉพาะส่วนกลางสัดส่วน 4:3 (`1440x1080` พิกเซล) ออกมาเป็น Blob ภาพความละเอียดสูง
 * **เกณฑ์ตรวจสอบ**: ภาพที่ตัดออกมามีสัดส่วน 4:3 ตรงกับกรอบไกด์บนหน้าจอพอดี
 
-#### Task KIOSK-03: พัฒนาตัวเลขนับถอยหลัง 3-2-1, แฟลชขาว 150ms และหน้าพรีวิว 10 วินาที
+#### Task KIOSK-03: พัฒนาตัวเลขนับถอยหลัง 5 วินาที, แฟลชขาว 100ms และหน้าพรีวิว 8 วินาที
 * **สิ่งที่ต้องทำ**:
-  1. แสดงตัวเลขนับถอยหลังขนาดใหญ่ **3 -> 2 -> 1** พร้อมเสียงบี๊บ (Web Audio API)
-  2. เมื่อนับถึง 0 ให้แสดงเลเยอร์สีขาวสว่างวาบเต็มหน้าจอ (`WhiteFlashEffect.tsx`) นาน **150ms**
-  3. แสดงภาพพรีวิวพร้อมนับถอยหลัง **10 วินาที** มีปุ่ม **"ถ่ายใหม่"** (กดได้ 1 ครั้งต่อรอบ) หากไม่กดภายใน 10 วินาที ให้ส่งอัปโหลดอัตโนมัติ
-* **เกณฑ์ตรวจสอบ**: เอฟเฟกต์แฟลชขาวทำงานตรงจังหวะชัตเตอร์ และหน้าพรีวิวนับถอยหลัง 10 วินาทีถูกต้อง
+  1. แสดงตัวเลขนับถอยหลังขนาดใหญ่ **5 -> 4 -> 3 -> 2 -> 1** พร้อมเสียงบี๊บ (Web Audio API)
+  2. เมื่อนับถึง 0 ให้แสดงเลเยอร์สีขาวสว่างวาบเต็มหน้าจอ (`WhiteFlashEffect.tsx`) นาน **100ms**
+  3. แสดงภาพพรีวิวพร้อมนับถอยหลัง **8 วินาที** มีปุ่ม **"ถ่ายใหม่"** (กดได้ 1 ครั้งต่อรอบ) หากไม่กดภายใน 8 วินาที ให้บันทึกรูปอัตโนมัติ
+* **เกณฑ์ตรวจสอบ**: เอฟเฟกต์แฟลชขาวทำงานตรงจังหวะชัตเตอร์ และหน้าพรีวิวนับถอยหลัง 8 วินาทีถูกต้อง
 
-#### Task KIOSK-04: พัฒนาหน้าจอรอเน็ต (Blocking Mode + Staff PIN) และหน้าจอแสดงเฉพาะ QR Code
+#### Task KIOSK-04: บันทึกรูปและหน้าจอแสดงเฉพาะ QR Code (ไม่บล็อกตู้)
 * **สิ่งที่ต้องทำ**:
-  1. ส่งไฟล์ภาพไปที่ `POST /api/photos`
-  2. หากเน็ตหลุดหรือส่งไม่ผ่าน ให้แสดงหน้าจอ `NetworkWaitScreen.tsx` ขึ้นข้อความ **"กำลังรอสัญญาณอินเทอร์เน็ต..."** หมุนรอและลองส่งใหม่อัตโนมัติเมื่อสัญญาณกลับมา พร้อมปุ่มให้สตาฟกดกรอก **Staff PIN** เพื่อปลดล็อกหรือรีเซ็ตตู้
-  3. เมื่ออัปโหลดสำเร็จ ให้แสดง `CleanQRDisplay.tsx` โชว์ **เฉพาะ QR Code ขนาดใหญ่** (ไม่แสดงรหัสตัวอักษร `OPH-XXXX` บนจอตู้) พร้อมนับถอยหลัง 20 วินาที และปุ่มกด **"คนถัดไป"**
-* **เกณฑ์ตรวจสอบ**: หน้าตู้แสดงเฉพาะ QR Code สะอาดตา และเมื่อจำลองตัดเน็ตจะขึ้นหน้ารอสัญญาณเน็ตตามที่กำหนด
+  1. ส่งไฟล์ภาพไปที่ `POST /api/photos` ของเครื่องตู้เอง (บันทึกลงดิสก์ในเครื่อง ไม่ต้องรอเน็ต — การอัปโหลดขึ้น R2 เป็นงานเบื้องหลังของคนที่ 3)
+  2. เมื่อได้รหัสกลับมา ให้แสดง `CleanQRDisplay.tsx` โชว์ **เฉพาะ QR Code ขนาดใหญ่** (ไม่แสดงรหัสตัวอักษร `OPH-XXXX` บนจอตู้) พร้อมนับถอยหลัง 20 วินาที และปุ่มกด **"คนถัดไป"**
+  3. ถ้าบันทึกไม่สำเร็จ (เช่น ดิสก์เต็ม) ให้ขึ้นข้อความแจ้งสตาฟแล้วกลับหน้าเริ่มต้น
+* **เกณฑ์ตรวจสอบ**: ตัดเน็ตแล้วตู้ยังถ่ายและแสดง QR ได้ตามปกติ
 
 ---
 
@@ -305,7 +305,8 @@ git push -u origin <ชื่อ-branch-ของตัวเอง>
 * **สิ่งที่ต้องทำ**:
   1. เขียน `web/lib/storage/shortCodeGen.ts` สุ่มรหัส `OPH-XXXX` (ใช้ `A-Z`, `2-9` ตัด `0, O, 1, I`) โดยตรวจสอบไม่ให้ซ้ำกับที่มีอยู่
   2. เขียน `web/lib/storage/storageAdapter.ts` ให้รองรับการบันทึกไฟล์ลง `web/data/` (สำหรับการรันทดสอบในเครื่องทันที) และรองรับการเชื่อมต่อ Cloudflare R2 ผ่าน Environment Variables
-  3. สร้าง `POST /api/photos` (รับรูปและบันทึก Metadata), `GET /api/photos/[code]` (ดึงรูปและเช็กว่าเกิน 7 วันหรือยัง ถ้าเกินตอบ `410 Gone`), และ `GET /api/config` (คืนค่า LAN IP / Base URL)
+  3. ทำคิว Sync ขึ้น R2 เบื้องหลังพร้อม Retry (สถานะ `PENDING` เมื่อเน็ตหลุด) และให้หน้า `/p/[code]` แสดง "กำลังเตรียมรูป..." ถ้ารูปยังไม่พร้อม
+  4. สร้าง `POST /api/photos` (รับรูปและบันทึก Metadata), `GET /api/photos/[code]` (ดึงรูปและเช็กว่าเกิน 7 วันหรือยัง ถ้าเกินตอบ `410 Gone`), และ `GET /api/config` (คืนค่า LAN IP / Base URL)
 * **เกณฑ์ตรวจสอบ**: ส่งรูปเข้า `POST /api/photos` แล้วได้รหัส `OPH-XXXX` และดึงรูปผ่าน `GET /api/photos/OPH-XXXX` ได้จริง
 
 #### Task CLOUD-02: พัฒนาหน้าเว็บมือถือ (`/p/[code]`) และเอนจินแต่งสี 6 พรีเซ็ต + ความสว่าง

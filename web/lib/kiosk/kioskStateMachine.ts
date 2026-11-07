@@ -8,11 +8,9 @@ export type KioskEvent =
   | { type: 'COUNTDOWN_COMPLETE' }
   | { type: 'CAPTURE_FLASH_DONE' }
   | { type: 'RETAKE_CLICKED' }
-  | { type: 'CONFIRM_UPLOAD' }
-  | { type: 'UPLOAD_SUCCESS' }
-  | { type: 'UPLOAD_FAILED_OFFLINE' }
-  | { type: 'NETWORK_RESTORED' }
-  | { type: 'STAFF_BYPASS_PIN' }
+  | { type: 'CONFIRM_PHOTO' }
+  | { type: 'SAVE_SUCCESS' }
+  | { type: 'SAVE_FAILED' }
   | { type: 'QR_TIMEOUT' }
   | { type: 'NEXT_PERSON_CLICKED' }
   | { type: 'COOLDOWN_EXPIRED' };
@@ -33,7 +31,7 @@ export function kioskFSMReducer(state: KioskFSMState, event: KioskEvent): KioskF
       return state;
 
     case 'COUNTDOWN_ACTIVE':
-      if (event.type === 'HAND_LOST') return 'IDLE'; // Cancel if visitor leaves
+      // Free pose: withdrawing the hand does NOT cancel the countdown (docs/decisions.md)
       if (event.type === 'COUNTDOWN_COMPLETE') return 'FLASH_CAPTURE';
       return state;
 
@@ -43,17 +41,13 @@ export function kioskFSMReducer(state: KioskFSMState, event: KioskEvent): KioskF
 
     case 'PREVIEW_RETAKE':
       if (event.type === 'RETAKE_CLICKED') return 'COUNTDOWN_ACTIVE';
-      if (event.type === 'CONFIRM_UPLOAD') return 'UPLOADING';
+      if (event.type === 'CONFIRM_PHOTO') return 'SAVE_LOCAL';
       return state;
 
-    case 'UPLOADING':
-      if (event.type === 'UPLOAD_SUCCESS') return 'SHOW_QR_CLEAN';
-      if (event.type === 'UPLOAD_FAILED_OFFLINE') return 'WAITING_NETWORK';
-      return state;
-
-    case 'WAITING_NETWORK':
-      if (event.type === 'NETWORK_RESTORED') return 'UPLOADING';
-      if (event.type === 'STAFF_BYPASS_PIN') return 'RESET_COOLDOWN';
+    case 'SAVE_LOCAL':
+      // Saved on the kiosk disk -> show QR right away; R2 sync happens in the background
+      if (event.type === 'SAVE_SUCCESS') return 'SHOW_QR_CLEAN';
+      if (event.type === 'SAVE_FAILED') return 'RESET_COOLDOWN';
       return state;
 
     case 'SHOW_QR_CLEAN':

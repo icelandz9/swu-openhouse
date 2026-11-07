@@ -60,11 +60,11 @@ flowchart TB
 ```mermaid
 flowchart TB
     subgraph ClientLayer["ฝั่งผู้ใช้งาน (Client Side Applications)"]
-        subgraph KioskApp["แอปพลิเคชันหน้าตู้ Kiosk (/booth)"]
+        subgraph KioskApp["แอปพลิเคชันหน้าตู้ Kiosk (/kiosk)"]
             WebcamEngine["กล้อง WebRTC Stream Controller<br>(1080p Standard Landscape)"]
             LandmarkModel["Google MediaPipe Tasks-Vision<br>(21 Hand Landmarks WebGL Engine)"]
             KioskFSM["Kiosk Finite State Machine (FSM)<br>(สถานะและการนับถอยหลัง)"]
-            CanvasCropper["Center Crop 9:16 Processor<br>(ตัดภาพแนวตั้งจาก 1080p)"]
+            CanvasCropper["Center Crop 4:3 Processor<br>(ตัดภาพ 1440x1080 จาก 1080p)"]
             CleanQRRenderer["Clean QR Generator<br>(แสดงเฉพาะ QR Code ขนาดใหญ่)"]
         end
 
@@ -82,7 +82,7 @@ flowchart TB
     end
 
     subgraph BackendLayer["ฝั่งเซิร์ฟเวอร์ (Next.js Server & Cloud Services)"]
-        APIRoutes["Next.js Route Handlers & Server Actions<br>(/api/upload, /api/photo/[code], /api/admin/*)"]
+        APIRoutes["Next.js Route Handlers & Server Actions<br>(/api/photos, /api/photos/[code], /api/admin/*)"]
         R2Bucket["Cloudflare R2 Bucket (oph-photos)<br>(Public Read via Custom Domain, Egress ฟรี)"]
         MetadataKV["Metadata Key-Value Store<br>(เก็บบันทึก shortCode, timestamp, photoUrl)"]
     end
@@ -141,7 +141,7 @@ stateDiagram-v2
 | **`IDLE`** | หน้าจอพร้อมใช้งาน แสดง Live Viewfinder จากกล้องเว็บแคม | ระบบเปิดใช้งาน หรือรีเซ็ตเสร็จสิ้น | `DETECTING_HAND` | รัน MediaPipe บน WebGL ดักจับพิกัด 21 จุด |
 | **`DETECTING_HAND`** | ประเมินท่าทางมือ Open Palm | ตรวจพบมือในเฟรมกล้อง | `COUNTDOWN_ACTIVE` | จับเวลา Hold Timer ครบ 1.5 วินาที |
 | **`COUNTDOWN_ACTIVE`** | แสดงตัวเลขนับถอยหลังขนาดใหญ่ 5.. 4.. 3.. 2.. 1.. บนหน้าจอ | Hold Timer ครบ 1.5 วิ หรือแตะปุ่มจอ | `FLASH_CAPTURE` | นับ 5 วินาที ไม่ยกเลิกเมื่อชักมือกลับ (ให้เปลี่ยนท่าโพสได้) |
-| **`FLASH_CAPTURE`** | หน้าจอสว่างวาบสีขาวเต็มจอ (White Flash 100ms) | ตัวเลขนับถอยหลังถึง 0 | `PREVIEW_RETAKE` | Freeze เฟรม ตัด Center Crop 9:16 บันทึกลง Memory |
+| **`FLASH_CAPTURE`** | หน้าจอสว่างวาบสีขาวเต็มจอ (White Flash 100ms) | ตัวเลขนับถอยหลังถึง 0 | `PREVIEW_RETAKE` | Freeze เฟรม ตัด Center Crop 4:3 บันทึกลง Memory |
 | **`PREVIEW_RETAKE`** | แสดงภาพพรีวิวทันที พร้อมเวลานับถอยหลัง **8 วินาที** | บันทึกภาพสำเร็จ | `SAVE_LOCAL` | มีปุ่ม "ถ่ายใหม่" (1 ครั้ง) หากหมดเวลา 8 วิจะไปต่อเอง |
 | **`SAVE_LOCAL`** | บันทึกภาพ + Metadata ลง Disk เครื่องตู้ และเข้าคิวอัปโหลด | ยืนยันภาพ | `SHOW_QR_CLEAN` | Background Sync อัปโหลดขึ้น R2 เอง ถ้าเน็ตหลุดเก็บเป็น `PENDING` แล้ว Retry |
 | **`SHOW_QR_CLEAN`** | แสดงเฉพาะ QR Code ขนาดใหญ่ นับถอยหลัง 15–20 วิ | บันทึกลงเครื่องสำเร็จ | `RESET_COOLDOWN` | **ไม่แสดงรหัสตัวอักษรบนหน้าตู้** มีปุ่ม "คนถัดไป" |
@@ -169,7 +169,7 @@ flowchart LR
     end
 
     subgraph CaptureEngine["การจับภาพและตัดสัดส่วน"]
-        Crop916["Center Crop 9:16 Processor<br>(ตัดพิกัดตรงกลาง 608x1080 px)"]
+        Crop43["Center Crop 4:3 Processor<br>(ตัดพิกัดตรงกลาง 1440x1080 px)"]
         WhiteFlash["White Flash Animation Overlay<br>(ความสว่างเต็มจอ 100ms)"]
     end
 
@@ -179,7 +179,7 @@ flowchart LR
     BlazePalm --> Landmarker
     Landmarker --> GestureLogic
     GestureLogic -->|"แบมือครบ 1.5 วิ → นับถอยหลัง 5 วิ"| WhiteFlash
-    WhiteFlash --> Crop916
+    WhiteFlash --> Crop43
 ```
 
 ---
@@ -291,10 +291,10 @@ sequenceDiagram
 * **การตัดสินใจ**: ฝังเทมเพลตกรอบรูป CPE ทั้ง 3 แบบไว้ในโฟลเดอร์ `/public/templates/` พร้อมฟังก์ชัน Preload ทันทีที่เปิดหน้าเว็บ
 * **ผลลัพธ์**: สลับกรอบได้ทันที ไม่มีอาการหน่วงหรือรอโหลด
 
-### ADR-07: การติดตั้งกล้องแนวนอนมาตรฐานและตัดภาพ Center Crop 9:16
-* **บริบท**: จอมอนิเตอร์เป็นแนวนอน 16:9 แต่น้องต้องการภาพแนวตั้ง 9:16
-* **การตัดสินใจ**: ติดตั้งกล้องแนวนอนมาตรฐาน 1080p แล้วใช้ซอฟต์แวร์ตัดขอบข้างแบบ Center Crop 9:16
-* **ผลลัพธ์**: ไม่ต้องจัดหาขาจับหมุนกล้องแบบพิเศษ สตาฟติดตั้งหน้างานได้สะดวกรวดเร็ว
+### ADR-07: การติดตั้งกล้องแนวนอนมาตรฐานและตัดภาพ Center Crop 4:3
+* **บริบท**: จอมอนิเตอร์เป็นแนวนอน 16:9 และต้องการภาพสัดส่วนมาตรฐาน 4:3 (แก้จากมติเดิม 9:16 — ดู [บันทึกการแก้ไขมติ](../decisions.md))
+* **การตัดสินใจ**: ติดตั้งกล้องแนวนอนมาตรฐาน 1080p (1920x1080) แล้วใช้ซอฟต์แวร์ตัดขอบซ้าย-ขวาแบบ Center Crop 4:3 ได้ภาพ 1440x1080 พิกเซล
+* **ผลลัพธ์**: ใช้ความสูงเต็มเซนเซอร์ ภาพคมกว่า 9:16 (608x1080) มาก ถ่ายหลายคนในภาพได้ ไม่ต้องมีขาจับหมุนกล้อง สตาฟติดตั้งง่าย
 
 ### ADR-08: นโยบายการเก็บรักษาข้อมูลและทำลายอัตโนมัติ 7 วัน (PDPA Compliance)
 * **บริบท**: ปฏิบัติตาม พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562

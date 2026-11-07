@@ -63,7 +63,7 @@ flowchart TD
 
 ### กลุ่มที่ 3: เอกสารการออกแบบประสบการณ์ผู้ใช้ (UX/UI & Design System)
 *(อ้างอิงแนวปฏิบัติ: **Nielsen Norman Group - NN/g** และ **Atomic Design by Brad Frost**)*
-* **Information Architecture (IA) & Sitemap:** โครงสร้างหน้าเว็บหน้าตู้ (`/booth`), หน้าโหลดรูปมือถือ (`/p/[code]`), และหน้าค้นหา (`/find`)
+* **Information Architecture (IA) & Sitemap:** โครงสร้างหน้าเว็บหน้าตู้ (`/kiosk`), หน้าโหลดรูปมือถือ (`/p/[code]`), และหน้าค้นหา (`/find`)
 * **User Flow / Task Flow Diagram:** แผนผังเส้นทางการใช้งาน Happy Path (ท่ามือ 1.5 วิ -> ถ่าย 5..4..3..2..1.. -> สแกน QR -> แต่งต่อบนมือถือ) และ Unhappy Path (แสงสะท้อน, เน็ตหลุด, สแกนไม่ทัน)
 * **Wireframes & Interactive Prototype:** โครงร่าง UI หน้าตู้แบบ Touchless Kiosk และ UI มือถือสำหรับเลือกสลับฟิลเตอร์/กรอบ
 * **UI Style Guide / Design System (Atomic Design):** การกำหนด Design Tokens โทนสีอัตลักษณ์ มศว (SWU Red `#E31B23`, Dark Red `#B3141A`, Gray `#F4F4F6`), Typography, และ Frame Templates
@@ -167,8 +167,8 @@ flowchart TD
      - โครงสร้างไดเรกทอรี `/photos/original/{id}.jpg` และ `/photos/composite/{short_code}.webp`
      - สิทธิ์การเข้าถึง (Public Read CDN vs Private Signed URL)
   3. เขียนข้อกำหนด API Specification ตามมาตรฐาน **OpenAPI 3.0 (Swagger)**:
-     - `POST /api/upload`: อัปโหลดภาพคอมโพสิตจากตู้พร้อมรับ Short Code
-     - `GET /api/photo/{short_code}`: ดึงข้อมูลภาพและลิงก์ดาวน์โหลด
+     - `POST /api/photos`: อัปโหลดภาพคอมโพสิตจากตู้พร้อมรับ Short Code
+     - `GET /api/photos/{short_code}`: ดึงข้อมูลภาพและลิงก์ดาวน์โหลด
      - `GET /api/health`: Health-check endpoint สำหรับตรวจสอบความพร้อมของระบบ
 - **สิ่งที่ต้องส่งมอบ (Deliverables)**:
   - Data Dictionary & Storage Architecture Document
@@ -183,7 +183,7 @@ flowchart TD
 - **เป้าหมาย**: อินเทอร์เฟซตู้ถ่ายรูปและหน้าเว็บบนมือถือที่ใช้งานง่าย ดึงดูดสายตา และสะท้อนอัตลักษณ์ของ มศว
 - **รายละเอียดงาน**:
   1. **Information Architecture (IA) & Sitemap**:
-     - แผนผังโครงสร้างหน้าจอ Kiosk (`/booth`)
+     - แผนผังโครงสร้างหน้าจอ Kiosk (`/kiosk`)
      - แผนผังหน้าเว็บบนมือถือ (`/p/[code]` และ `/find`)
   2. **User Flow & Task Flow Diagram**:
      - Happy Path: แบมือ 1.5 วิ -> นับถอยหลัง 5..4..3..2..1.. (เปลี่ยนท่าโพสได้) -> แชะ -> พรีวิว 8 วิ -> โชว์ QR -> สแกนเข้ามือถือ
@@ -193,7 +193,7 @@ flowchart TD
      - Mobile Wireframe (Photo Preview, Filter Carousel, Template Selector, Download Button)
   4. **UI Style Guide & Design System (Atomic Design)**:
      - Design Tokens: ชุดสี มศว (SWU Red `#E31B23`, Dark Red `#B3141A`, Gray `#F4F4F6`), Typography
-     - กราฟิกเทมเพลตกรอบรูป CPE SWU 3 แบบ (ขนาด 9:16)
+     - กราฟิกเทมเพลตกรอบรูป CPE SWU 3 แบบ (ขนาด 4:3)
 - **สิ่งที่ต้องส่งมอบ (Deliverables)**:
   - Information Architecture & User Flow Diagrams
   - UI Wireframes & Layout Specification
@@ -262,7 +262,7 @@ flowchart TD
   3. พัฒนาระบบ Visual Countdown Overlay 5.. 4.. 3.. 2.. 1.. และ White Flash Effect
   4. พัฒนา HTML5 Canvas Compositing Engine สำหรับผสานเลเยอร์ภาพถ่าย + ฟิลเตอร์สี + กรอบกราฟิก PNG
 - **สิ่งที่ต้องส่งมอบ (Deliverables)**:
-  - Kiosk Web Application Source Code (`web/app/booth`)
+  - Kiosk Web Application Source Code (`web/app/kiosk`)
   - Gesture Detection Module & Canvas Compositor
 - **เกณฑ์การตรวจรับ (Acceptance Criteria)**:
   - ทำงานลื่นไหลที่ >= 30–60 FPS
@@ -355,5 +355,5 @@ flowchart TD
 
 ## 🔭 งานในอนาคต (Future Scope)
 
-- **Photostrip หลายช็อต (3–4 ช็อตต่อเนื่อง)**: ย้ายออกจากรอบแรกตามมติวันที่ 7 พ.ย. 2026 — รอบแรกถ่าย Single Shot 9:16 อย่างเดียว ส่วนกรอบแบบที่ 3 ยังคงเป็นสไตล์ Photostrip Minimalist (ดู [decisions.md](decisions.md))
+- **Photostrip หลายช็อต (3–4 ช็อตต่อเนื่อง)**: ย้ายออกจากรอบแรกตามมติวันที่ 7 พ.ย. 2026 — รอบแรกถ่าย Single Shot 4:3 อย่างเดียว ส่วนกรอบแบบที่ 3 ยังคงเป็นสไตล์ Photostrip Minimalist (ดู [decisions.md](decisions.md))
 - **ท่ามือเพิ่มเติม 1–2 ท่า**: ระบบ Gesture ออกแบบให้ขยายได้ แต่รอบแรกใช้แบมือ (Open Palm) ท่าเดียว

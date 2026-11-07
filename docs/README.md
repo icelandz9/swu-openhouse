@@ -29,6 +29,8 @@
 |---|---|
 | [system-architecture-and-technical-design.md](task02-architecture/system-architecture-and-technical-design.md) | C4, Kiosk FSM, Vision Pipeline, Canvas Compositor, Staff Portal, ADR-01 ถึง 08 |
 | [qa-decisions.md](task02-architecture/qa-decisions.md) | บันทึกถาม-ตอบ 9 ข้อ |
+| [team-execution-and-github-plan.md](task02-architecture/team-execution-and-github-plan.md) | แบ่งงาน 3 คน, Task รายคน, วิธีใช้ GitHub ร่วมกัน |
+| [project-structure-and-clean-architecture-guide.md](task02-architecture/project-structure-and-clean-architecture-guide.md) | โครงสร้างโค้ด `web/` และ ADR-09 (Pragmatic Feature-Driven) |
 
 ## หมายเหตุ
 

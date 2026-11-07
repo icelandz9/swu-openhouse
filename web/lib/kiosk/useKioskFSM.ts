@@ -19,8 +19,7 @@ export function useKioskFSM(initialState: KioskFSMState = 'IDLE') {
     isCountingDown: state === 'COUNTDOWN_ACTIVE',
     isCapturing: state === 'FLASH_CAPTURE',
     isPreviewing: state === 'PREVIEW_RETAKE',
-    isUploading: state === 'UPLOADING',
-    isWaitingNetwork: state === 'WAITING_NETWORK',
+    isSaving: state === 'SAVE_LOCAL',
     isShowingQR: state === 'SHOW_QR_CLEAN',
     isCoolingDown: state === 'RESET_COOLDOWN',
   };

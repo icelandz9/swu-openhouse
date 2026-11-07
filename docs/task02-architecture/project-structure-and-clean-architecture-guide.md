@@ -135,24 +135,19 @@ flowchart TD
 
 ```text
 PhotoBooth-OpenHouseSWU/
-├── ducument-sathit/                               # เอกสารวิศวกรรมระบบ (IEEE 830, SAD, ADRs)
-│   ├── task00/                                   # Task 00: Discovery, PoC, BOM/BOQ
-│   ├── task01/                                   # Task 01: SRS, BRD, PRD, RTM
-│   └── task02/                                   # Task 02: SAD, FSM, ADRs, Project Structure
-│       ├── task-02-system-architecture-and-technical-design.md
-│       ├── task-02-qa-and-decisions.md
+├── docs/                                         # เอกสารวิศวกรรมระบบ (IEEE 830, SAD, ADRs)
+│   ├── decisions.md                              # มติล่าสุด (ยึดไฟล์นี้)
+│   ├── task00-discovery/                         # Task 00: Discovery, PoC, BOM/BOQ
+│   ├── task01-requirements/                      # Task 01: SRS, BRD, PRD, RTM
+│   └── task02-architecture/                      # Task 02: SAD, FSM, ADRs, Project Structure
+│       ├── system-architecture-and-technical-design.md
+│       ├── qa-decisions.md
 │       ├── team-execution-and-github-plan.md
 │       └── project-structure-and-clean-architecture-guide.md  # [เอกสารฉบับนี้]
 │
 ├── poc/                                          # สคริปต์ทดสอบและ Proof of Concepts
 │   ├── test_poc.mjs                              # PoC ชุดทดสอบ 4 ด้าน
 │   └── validate_mermaid.mjs                      # สคริปต์ตรวจไวยากรณ์ Diagram
-│
-├── scripts/
-│   └── model-training/                           # [Dev 1: AI Engineer]
-│       ├── dataset_collector.py                  # สคริปต์บันทึกพิกัด 21 จุดมือลง CSV
-│       ├── train_gesture_classifier.py           # สคริปต์เทรนโมเดล (MLP / Heuristic Weights)
-│       └── export_model_weights.py               # แปลงโมเดลเป็น JSON / TFLite Web Format
 │
 └── web/                                          # Next.js 15 App (React 19, TypeScript)
     ├── package.json
@@ -164,10 +159,10 @@ PhotoBooth-OpenHouseSWU/
     │   │   ├── template-1-classic.png            # แบบที่ 1: Official Classic (ตรา มศว แดง-เทา)
     │   │   ├── template-2-cpe-tech.png           # แบบที่ 2: Youthful Tech Graphic (ธีม CPE คอมพิวเตอร์)
     │   │   └── template-3-photostrip.png         # แบบที่ 3: Photostrip Minimalist
-    │   └── models/                               # โมเดลและ WASM Assets สำหรับ MediaPipe
+    │   └── mediapipe/                            # WASM + โมเดล MediaPipe (สร้างอัตโนมัติโดย setup-assets.mjs)
     │
     ├── app/                                      # [Presentation Layer: Next.js App Router]
-    │   ├── layout.tsx                            # Root Layout (ธีม SWU Red #C8102E)
+    │   ├── layout.tsx                            # Root Layout (ธีม SWU Red #E31B23)
     │   ├── globals.css                           # Tailwind CSS / สไตล์กลาง
     │   ├── page.tsx                              # หน้า Landing Page ต้อนรับ
     │   │
@@ -211,10 +206,9 @@ PhotoBooth-OpenHouseSWU/
     │   │   ├── useKioskFSM.ts                    # (App Hook) เชื่อมต่อ State Machine กับ UI
     │   │   ├── components/                       # UI Sub-components ของตู้
     │   │   │   ├── ViewfinderFrame.tsx           # กรอบกล้อง 16:9 พร้อมแถบดำไกด์ 4:3
-    │   │   │   ├── CountdownOverlay.tsx          # แอนิเมชันนับถอยหลัง 3.. 2.. 1..
-    │   │   │   ├── WhiteFlashEffect.tsx          # แฟลชจอขาว 150ms
-    │   │   │   ├── PreviewRetake.tsx             # หน้าพรีวิว 10 วินาที + ปุ่มถ่ายใหม่
-    │   │   │   ├── NetworkWaitScreen.tsx         # หน้าจอรอเน็ต Blocking Mode + ปุ่มกรอก PIN
+    │   │   │   ├── CountdownOverlay.tsx          # แอนิเมชันนับถอยหลัง 5.. 4.. 3.. 2.. 1..
+    │   │   │   ├── WhiteFlashEffect.tsx          # แฟลชจอขาว 100ms
+    │   │   │   ├── PreviewRetake.tsx             # หน้าพรีวิว 8 วินาที + ปุ่มถ่ายใหม่
     │   │   │   └── CleanQRDisplay.tsx            # หน้าแสดงเฉพาะ QR Code ขนาดใหญ่
     │   │
     │   ├── mobile/                               # [Dev 3: Domain & Application - Mobile & Canvas]

@@ -38,10 +38,10 @@ flowchart TD
 
     subgraph PhotoBoothSystem["ระบบ SWU AI Photo Booth System (Next.js Monorepo)"]
         AI_Model["โมเดล AI Keypoint Detection<br>(Google MediaPipe 21 Hand Landmarks Model)<br>[AI Vision Engine]"]
-        Kiosk["หน้าจอถ่ายภาพตู้ Kiosk<br>(/booth - Viewfinder & FSM)<br>[Next.js Client]"]
+        Kiosk["หน้าจอถ่ายภาพตู้ Kiosk<br>(/kiosk - Viewfinder & FSM)<br>[Next.js Client]"]
         Mobile["เว็บแอปแต่งภาพบนมือถือ<br>(/p/[code], /find)<br>[Next.js Client]"]
         AdminPortal["แดชบอร์ดสตาฟบนมือถือ<br>(/admin - PIN Protected & QR Re-issue)<br>[Next.js Client]"]
-        API["Serverless API Routes<br>(/api/upload, /api/photo, /api/admin)<br>[Next.js Backend]"]
+        API["Serverless API Routes<br>(/api/photos, /api/photos, /api/admin)<br>[Next.js Backend]"]
     end
 
     subgraph CloudLayer["ระบบคลาวด์และพื้นที่จัดเก็บ (Cloud Infrastructure)"]
@@ -67,7 +67,7 @@ flowchart TD
     A -->|"ตรวจสอบความปลอดภัย และ PDPA"| R2
     A -->|"Audit Log"| KV
 
-    Kiosk -->|"อัปโหลดรูปภาพ POST /api/upload"| API
+    Kiosk -->|"อัปโหลดรูปภาพ POST /api/photos"| API
     API -->|"บันทึกไฟล์ภาพต้นฉบับ"| R2
     API -->|"แมป Short Code OPH-XXXX"| KV
     VercelEdge -->|"เสิร์ฟ Static Assets และ Web App"| Kiosk
@@ -79,7 +79,7 @@ flowchart TD
 ```mermaid
 flowchart LR
     subgraph ClientContainers["ฝั่งผู้ใช้งาน (Client Applications)"]
-        subgraph KioskApp["Kiosk Web Application (/booth)"]
+        subgraph KioskApp["Kiosk Web Application (/kiosk)"]
             K_UI["React Viewfinder UI<br>[React 19 + CSS]"]
             
             subgraph AIPipeline["ระบบประมวลผล AI Keypoint Vision"]
@@ -106,8 +106,8 @@ flowchart LR
 
     subgraph ServerContainers["ฝั่งเซิร์ฟเวอร์ (Serverless Architecture)"]
         subgraph NextServer["Next.js Route Handlers"]
-            UploadHandler["/api/upload<br>[Multipart Form Streamer]"]
-            PhotoHandler["/api/photo/[code]<br>[Metadata Resolver]"]
+            UploadHandler["/api/photos<br>[Multipart Form Streamer]"]
+            PhotoHandler["/api/photos/[code]<br>[Metadata Resolver]"]
             AdminHandler["/api/admin/*<br>[Recent Gallery & PIN Auth]"]
         end
     end
@@ -391,7 +391,7 @@ sequenceDiagram
 
     Note over LocalDB,CloudAPI: การอัปโหลดทำงานเบื้องหลัง ไม่บล็อกหน้าจอ
     SyncWorker->>LocalDB: ดึงภาพค้างส่งจากคิว
-    SyncWorker->>CloudAPI: เรียก POST /api/upload (Multipart Form)
+    SyncWorker->>CloudAPI: เรียก POST /api/photos (Multipart Form)
 
     alt อินเทอร์เน็ตปกติ (200 OK)
         CloudAPI-->>SyncWorker: อัปโหลดเสร็จสมบูรณ์
@@ -478,11 +478,11 @@ sequenceDiagram
     autonumber
     actor Visitor as ผู้ร่วมงาน (Visitor)
     participant Web as Web Browser (/find)
-    participant API as /api/photo/[code]
+    participant API as /api/photos/[code]
     participant KV as Short Code Metadata Store
 
     Visitor->>Web: เข้าเว็บ https://booth.swu.ac.th/find และพิมพ์รหัส "OPH-8K2P"
-    Web->>API: ส่งคำขอ GET /api/photo/OPH-8K2P
+    Web->>API: ส่งคำขอ GET /api/photos/OPH-8K2P
     API->>KV: ค้นหารหัส OPH-8K2P
 
     alt รหัสถูกต้องและอายุภาพยังไม่เกิน 7 วัน

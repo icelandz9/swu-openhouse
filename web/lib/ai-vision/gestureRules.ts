@@ -31,10 +31,6 @@ export function classifyGesture(landmarks: LandmarkPoint[]): GestureType {
     return 'OPEN_PALM';
   }
 
-  // Peace sign: Index and Middle extended, Ring and Pinky folded
-  if (isIndexExtended && isMiddleExtended && !isRingExtended && !isPinkyExtended) {
-    return 'PEACE_SIGN';
-  }
-
+  // Extra gestures (Peace, Mini Heart) are future scope — see docs/decisions.md
   return 'NONE';
 }
