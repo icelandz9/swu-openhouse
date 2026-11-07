@@ -337,64 +337,104 @@ KEY VISUAL ELEMENTS:
 > - **Device Mode**: `Desktop / Web (16:9 Widescreen 1920x1080)`  
 > - **Theme**: `Dark Mode`
 
-### รายละเอียดครบทุกจุดที่อยู่ใน Prompt หน้าที่ 2 (ห้ามตกหล่น):
-1. แบ่งพื้นที่หน้าจอ 16:9 แนวนอนออกเป็นอัตราส่วน **ฝั่งซ้าย 30% (QR Code Station)** และ **ฝั่งขวา 70% (Live Photo Wall)** อย่างชัดเจน
-2. **ฝั่งซ้าย 30%**:
-   * แสดง **QR Code ขนาดใหญ่ชัดเจน** (ชี้ไปที่ `/p/OPH-XXXX`) สำหรับน้องคนที่เพิ่งถ่ายเสร็จจากจอที่ 1
-   * แสดงรหัสรับรูป **`OPH-XXXX`** (เช่น `OPH-AB29`) ตัวอักษร Monospace ขนาดใหญ่สีแดง มศว (`#CE1126`) เผื่อนำไปค้นหาย้อนหลังที่หน้า `/find`
-   * แสดงภาพ Thumbnail เล็กๆ ของรูปตัวเองคู่กับ QR Code เพื่อความมั่นใจว่าเป็นรูปของตัวเองจริง
-   * มีข้อความแนะนำการจัดคิว: **"กรุณาสแกน QR Code ให้เรียบร้อยก่อนปล่อยคิวถัดไป (พี่สตาฟช่วยดูแลคิว)"** และแจ้งเตือน **"ภาพจะถูกลบอัตโนมัติภายใน 7 วันตามกฎหมาย PDPA"**
-3. **ฝั่งขวา 70%**:
-   * **Live Photo Wall (Showcase)** แสดงแกลเลอรีภาพถ่ายรวมของน้องๆ ที่มาถ่ายทั้งหมดในงาน
-   * ทุกภาพต้องเป็น **ภาพดิบสัดส่วน 4:3 เพียวๆ (Pure 4:3 Raw Photos — ไม่มีกรอบรูป ไม่ใส่เทมเพลตทับ)**
-   * อัปเดตแบบ Real-time ทันทีที่ถ่ายเสร็จจากจอที่ 1 หมุนเวียนแสดงภาพล่าสุด **30–50 รูป** (แสดงป้ายสถานะ `LIVE PHOTO SHOWCASE • แสดง 42 รูปล่าสุด (สูงสุด 50 รูป)` และจุดไฟสีเขียวกระพริบ)
+### รายละเอียดครบทุกจุดที่อยู่ใน Prompt หน้าที่ 2 (โครงสร้างใหม่ล่าสุดตามดีไซน์จริง):
+1. **แบ่งพื้นที่หน้าจอ 16:9 แนวนอน (1920x1080px)**: ฝั่งซ้าย (~35%) สำหรับ "รูปล่าสุด & QR สแกนรับรูป" และฝั่งขวา (~65%) สำหรับ "แกลเลอรีภาพก่อนหน้า & แบรนด์ CPE OPEN HOUSE"
+2. **ฝั่งซ้าย (~35% — คอลัมน์รูปล่าสุดและการรับรูป)**:
+   - **แถบบนสุด (Mini Status Bar)**: ด้านซ้ายมีป้าย `LATEST SHOT` (ตัวอักษรสีเขียวมิ้นต์/Cyan Monospace) และด้านขวามีเวลานาฬิกา เช่น `17:40`
+   - **หัวข้อหลัก**: `รูปล่าสุด` (ตัวอักษรภาษาไทยสีขาว Bold ตัวใหญ่ ชัดเจน)
+   - **การ์ดรูปภาพสไตล์โพลารอยด์ (Polaroid Card)**:
+     - กรอบการ์ดสีขาวสว่างสไตล์รูปถ่ายโพลารอยด์ มีขอบขาวรอบภาพ และขอบขาวด้านล่างกว้างกว่า
+     - ด้านในคือภาพถ่าย 4:3 ล่าสุดของผู้ใช้งาน มีแถบสีเข้มคาดล่างเขียนว่า `CPE OPEN HOUSE` และข้อความย่อย `วิศวกรรมคอมพิวเตอร์ • 7 พ.ย. 2026`
+     - บนกระดาษโพลารอยด์ใต้รูปถ่าย มีตัวหนังสือพิมพ์กลาง: `CPE OPEN HOUSE` และบรรทัดถัดมา `07.11.2026`
+   - **การ์ด QR Code สีขาวทรงรีมน (High-Contrast White Pill/Card)**:
+     - การ์ดสีขาวล้วนขอบมนขนาดใหญ่ (`rounded-3xl` หรือ `rounded-2xl`) วางอยู่ใต้รูปโพลารอยด์
+     - แบ่งเป็น 2 คอลัมน์ในแนวนอน:
+       - **ฝั่งซ้ายของการ์ด**: แสดง QR Code สีขาว-ดำ ขนาดใหญ่ คมชัด สแกนติดง่าย
+       - **ฝั่งขวาของการ์ด**:
+         - หัวข้อเด่นพร้อมลูกศร: `← สแกนรับรูป` (ตัวอักษรสีดำเข้ม Bold ขนาดใหญ่)
+         - คำแนะนำการสแกน: `เปิดกล้องมือถือแล้วสแกน` (สีเทาเข้ม)
+         - คำแนะนำ Wi-Fi บูธ: `ต้องต่อ WiFi เดียวกับบูธ` (สีเทากลาง)
+         - รหัสรูปภาพ: `#8884` หรือ `OPH-XXXX` (ฟอนต์ Monospace สีเทาอ่อน)
+3. **ฝั่งขวา (~65% — คอลัมน์ CPE OPEN HOUSE & ภาพก่อนหน้า)**:
+   - **แถบหัวข้อด้านบน (Top Brand Header)**:
+     - ด้านซ้าย: ข้อความแบรนด์ขนาดใหญ่ `CPE OPEN HOUSE` โดยคำว่า `CPE` เป็นสีเขียวมิ้นต์สะท้อนแสง (`#2DD4BF` หรือ `#10B981`) และ `OPEN HOUSE` เป็นสีขาวล้วน Bold
+     - ด้านขวา: สถิติจำนวนรูปที่ถ่าย เช่น `ถ่ายไปแล้ว 4 รูป` (ตัวหนังสือสีเทาสะอาดตา)
+   - **หัวข้อย่อย**: `ภาพก่อนหน้า` (ตัวอักษรสีเขียวมิ้นต์/Cyan ขนาดเล็ก)
+   - **แถวแกลเลอรีภาพก่อนหน้า (Horizontal Previous Photos Strip)**:
+     - แถวภาพถ่ายแนวนอน 3+ รูป แสดงภาพของน้องๆ คิวก่อนหน้า ขอบมนโค้ง กรอบมืดกลมกลืน
+     - มีลายน้ำขนาดเล็กมุมล่างซ้ายของแต่ละรูป: `CPE OPEN HOUSE`
+   - **พื้นที่ว่างโทน Dark Minimalist**: พื้นที่ด้านล่างคงความโปร่ง สะอาด โทนสี Obsidian Black (`#06080D`) เรียบหรู ไร้สิ่งรบกวนสายตา
 
 ---
 
-### Prompt 2A: หน้าแสดง QR Code ฝั่งซ้าย 30% และ Live Photo Wall รูปเพียว 4:3 ฝั่งขวา 70% (Recommended — English Version)
+### Prompt 2A: หน้าจอ Showcase จอที่ 2 — โครงสร้าง Polaroid ล่าสุด + การ์ด QR สีขาว + ภาพก่อนหน้า (Recommended — English Version)
 *(ก๊อปปี้กล่องด้านล่างนี้ไปวางใน Google Stitch โหมด Desktop)*
 
 ```text
-Design a 16:9 widescreen digital signage showcase display (1920x1080px) for "Screen 2: QR Code Station & Live Photo Wall (/display)" at the SWU Open House Computer Engineering (CPE) AI Photo Booth.
-Use a strict 2-column asymmetric split layout: EXACTLY 30% width on the left and 70% width on the right. Dark theme (#090D16 and #111827) with SWU Crimson Red (#CE1126) and Slate Grey (#1E293B) accents.
+Design a 16:9 widescreen showcase display (1920x1080px) for "Screen 2: Showcase & QR Pick-up Station (/display)" at the SWU Open House Computer Engineering (CPE) Photo Booth.
+Aesthetic: Luxury Dark Studio Mode (#06080D / #0A0D14) with Tech Mint/Cyan (#2DD4BF / #10B981), Pure White (#FFFFFF), and Deep Charcoal Slate (#1E2536).
 
-LEFT COLUMN — EXACTLY 30% WIDTH (QR CODE STATION FOR LATEST VISITOR):
-- Elevated dark card background (#111827) with a subtle SWU Red top border and vertical divider.
-- Top badge: "SWU OPEN HOUSE • CPE PHOTO BOOTH" in a crimson pill.
-- Main Thai Headline: "รับรูปถ่ายของคุณที่นี่!"
-- Subtitle: "สแกน QR Code ด้วยกล้องมือถือ เพื่อเลือกฟิลเตอร์และกรอบรูป CPE SWU"
-- Centerpiece: A large, high-contrast white rounded card (280x280px) containing a crisp scannable QR Code with a small CPE SWU badge in the middle.
-- Below the QR Code: A dark metallic code box displaying the visitor's lookup code in huge monospace font:
-  - Label: "รหัสรูปภาพของคุณ (Photo Code):"
-  - Code: "OPH-AB29" in extra-bold 36px SWU Crimson Red (#CE1126) with a small 4:3 thumbnail preview of the just-captured photo next to it and a "NEW! เพิ่งถ่ายเสร็จเมื่อสักครู่" emerald badge.
-- Queue instruction box (Amber/Slate subtle alert): "📌 คำแนะนำหน้าบูท: กรุณาสแกน QR Code ให้เรียบร้อยก่อนเริ่มคิวถัดไป (หากสแกนไม่ทัน จดรหัส OPH-AB29 แจ้งพี่สตาฟที่จอ Laptop ได้เลย)"
-- Footer text at bottom of left panel: "🔒 ภาพถ่ายจะถูกลบอัตโนมัติภายใน 7 วันตามมาตรฐานกฎหมาย PDPA"
+Strict 2-Column Layout: Left Column (~35% width) and Right Column (~65% width).
 
-RIGHT COLUMN — EXACTLY 70% WIDTH (LIVE PHOTO WALL — PURE 4:3 RAW PHOTOS):
-- Top header bar inside the 70% panel:
-  - Left side: Pulsing Emerald green dot (#10B981) + Title "LIVE PHOTO SHOWCASE — กำแพงภาพถ่ายเรียลไทม์ (42 / 50 รูปล่าสุด)"
-  - Right side: Technical badge "สัดส่วนภาพ 4:3 เพียวๆ (Pure 4:3 Raw Feed • Real-time Sync via BroadcastChannel)"
-- Main content area: A clean, dense 5-column x 4-row responsive masonry/grid of 20 visible photo tiles (representing the rotating pool of 30–50 latest photos).
-- CRITICAL VISUAL RULE FOR PHOTO TILES: Every single photo tile in the 70% right panel MUST be a PURE, UNFRAMED 4:3 landscape photograph of smiling students/visitors at the open house. DO NOT put any branded frame overlays, text banners, or borders inside the photos—just clean 4px rounded corners, subtle shadow, and a glowing red border on the very first top-left photo labeled "LATEST".
+LEFT COLUMN (~35% WIDTH) — "LATEST SHOT" & SCANNABLE QR STATION:
+1. Top Status Row:
+   - Left: Monospace tag "LATEST SHOT" in vibrant neon mint/cyan (#2DD4BF).
+   - Right: Current clock time "17:40" in muted monospace slate (#64748B).
+2. Section Heading:
+   - Big, bold Thai title: "รูปล่าสุด" in crisp white (#FFFFFF, text-3xl font-extrabold).
+3. Polaroid Photo Card (The Newest Visitor's Photo):
+   - A clean white rectangular Polaroid-style card with a subtle drop shadow.
+   - Generous white border margins with a wider chin at the bottom.
+   - Inside photo: A crisp 4:3 photograph of the visitor. Bottom of photo has a subtle dark translucent bar with "CPE OPEN HOUSE" and "วิศวกรรมคอมพิวเตอร์ • 7 พ.ย. 2026".
+   - Below the photo on the white card: Centered bold text "CPE OPEN HOUSE" and small date "07.11.2026".
+4. QR Code Scanner Card (Directly Below Polaroid):
+   - A prominent, pure white card with heavily rounded corners (rounded-3xl) and soft elevation.
+   - Horizontal 2-column internal layout:
+     - Left side: A large, sharp, high-contrast black-and-white QR code (140x140px) ready for smartphone scanning.
+     - Right side (Content & Guide):
+       - Big headline with left-pointing arrow: "← สแกนรับรูป" in bold deep slate (#0F172A, text-xl).
+       - Primary instruction: "เปิดกล้องมือถือแล้วสแกน" in neutral dark slate (#334155, text-sm).
+       - Crucial Wi-Fi reminder: "ต้องต่อ WiFi เดียวกับบูธ" in muted gray (#64748B, text-xs).
+       - Photo Code: "#8884" (or "#OPH-AB29") in light monospace (#94A3B8, text-xs).
+
+RIGHT COLUMN (~65% WIDTH) — BRAND HEADER & PREVIOUS GALLERY:
+1. Top Brand Header Bar:
+   - Left: Grand title "CPE OPEN HOUSE" — "CPE" is highlighted in bright tech mint/cyan (#2DD4BF), and "OPEN HOUSE" in bold white (#FFFFFF).
+   - Right: Real-time counter badge: "ถ่ายไปแล้ว 4 รูป" in sleek muted silver/gray (#94A3B8, text-sm).
+2. Sub-heading:
+   - Section label "ภาพก่อนหน้า" in bright tech mint/cyan (#2DD4BF, text-xs uppercase tracking-widest).
+3. Horizontal Previous Photos Strip:
+   - A horizontal row of 3 visible previous photos with landscape 4:3 aspect ratio and rounded corners (rounded-xl).
+   - Each photo has a tiny subtle watermark badge at the bottom-left: "CPE OPEN HOUSE".
+4. Spacious Clean Dark Space:
+   - Clean, breathable, ultra-minimal obsidian dark background (#06080D) underneath the photo strip, maintaining a premium gallery feel with zero visual clutter.
 ```
 
 ### Prompt 2A (ทางเลือกภาษาไทย — สำหรับใช้ใน Google Stitch):
 ```text
-ออกแบบหน้าจอแสดงผลที่ 2 (Screen 2: QR Station & Live Photo Wall /display) ขนาด 16:9 แนวนอน (1920x1080px) สำหรับงาน SWU Open House สาขาวิศวกรรมคอมพิวเตอร์ (CPE มศว) โทนสีมืด (#090D16) ตัดด้วยสีแดง มศว (#CE1126) และสีเทาเข้ม (#1E293B)
+ออกแบบหน้าจอแสดงผลที่ 2 (Screen 2: Showcase & QR รับรูป /display) ขนาด 16:9 แนวนอน (1920x1080px) สำหรับงาน SWU Open House สาขาวิศวกรรมคอมพิวเตอร์ (CPE มศว) โทนสีดำสนิท Obsidian (#06080D) ตัดด้วยสีเขียวมิ้นต์/ไซแอน (#2DD4BF) และสีขาว (#FFFFFF)
 
-บังคับแบ่งพื้นที่หน้าจอเป็น 2 ฝั่งชัดเจนในอัตราส่วน ฝั่งซ้าย 30% และ ฝั่งขวา 70%:
+โครงสร้างแบ่ง 2 ฝั่งชัดเจน (ฝั่งซ้ายประมาณ 35% / ฝั่งขวาประมาณ 65%):
 
-1. ฝั่งซ้าย 30% (QR Code Station สำหรับน้องที่เพิ่งถ่ายเสร็จจากจอที่ 1):
-- พื้นหลังสีเทาดำเข้ม (#111827) มีป้ายด้านบน "SWU OPEN HOUSE • CPE PHOTO BOOTH"
-- หัวข้อใหญ่: "รับรูปถ่ายของคุณ" พร้อมคำอธิบาย "สแกน QR Code ด้วยมือถือเพื่อแต่งฟิลเตอร์และเลือกกรอบรูป CPE"
-- ตรงกลางแสดงกล่องสีขาวขนาดใหญ่ (280x280px) ข้างในเป็น QR Code คมชัดขนาดใหญ่
-- ใต้ QR Code มีกล่องแสดงรหัสรูปภาพขนาดใหญ่ชัดเจน: "รหัสรูปภาพของคุณ: OPH-AB29" (ตัวอักษร Monospace สีแดงสด #CE1126) พร้อมรูป Thumbnail สัดส่วน 4:3 ขนาดเล็กของรูปที่เพิ่งถ่ายคู่กัน
-- กล่องคำแนะนำการจัดคิว: "กรุณาสแกน QR ให้เรียบร้อยก่อนปล่อยคิวถัดไป (พี่สตาฟช่วยดูแลคิว)"
-- ด้านล่างสุดมีข้อความ: "* ภาพจะถูกลบอัตโนมัติภายใน 7 วันตามกฎหมาย PDPA"
+1. ฝั่งซ้าย (~35% — รูปล่าสุด และ การ์ด QR สแกนรับรูป):
+- แถบสถานะด้านบน: ซ้ายแสดงป้าย "LATEST SHOT" (ฟอนต์ Monospace สีเขียวมิ้นต์) ขวาแสดงเวลา "17:40"
+- หัวข้อหลักตัวใหญ่สีขาว Bold: "รูปล่าสุด"
+- การ์ดรูปภาพสไตล์โพลารอยด์ (Polaroid Card):
+  * กรอบการ์ดสีขาวล้วนขอบมน ด้านในแสดงรูปถ่าย 4:3 ล่าสุดของผู้ใช้งาน มีแถบสีเข้มคาดล่างของรูปเขียนว่า "CPE OPEN HOUSE" และ "วิศวกรรมคอมพิวเตอร์ • 7 พ.ย. 2026"
+  * บนกระดาษการ์ดสีขาวใต้รูป มีข้อความตรงกลาง: "CPE OPEN HOUSE" และบรรทัดถัดไป "07.11.2026"
+- การ์ดสีขาวทรงรีมนสำหรับสแกน QR Code (อยู่ใต้รูปโพลารอยด์):
+  * การ์ดสีขาวล้วนขอบมนขนาดใหญ่ (rounded-3xl) แนวนอน แบ่งเป็น 2 ฝั่ง:
+    - ฝั่งซ้าย: QR Code สีดำคมชัดขนาดใหญ่ สแกนติดง่าย
+    - ฝั่งขวา: มีลูกศรและข้อความใหญ่ "← สแกนรับรูป" สีดำเข้ม, บรรทัดถัดมา "เปิดกล้องมือถือแล้วสแกน", บรรทัดถัดมา "ต้องต่อ WiFi เดียวกับบูธ", และรหัสรูป "#8884" (ฟอนต์ Monospace สีเทา)
 
-2. ฝั่งขวา 70% (Live Photo Wall แสดงรูปย้อนหลังทั้งหมดในงาน):
-- แถบหัวข้อด้านบนมีจุดไฟสีเขียวกระพริบ พร้อมข้อความ "LIVE PHOTO SHOWCASE (หมุนเวียน 30–50 รูปล่าสุดแบบ Real-time)" และป้ายกำกับ "สัดส่วน 4:3 (แสดงรูปภาพดิบเพียวๆ ไม่มีกรอบ)"
-- พื้นที่หลักเป็นตาราง Grid 5 คอลัมน์ แสดงรูปถ่ายของน้องๆ ในงานสัดส่วน 4:3 แนวนอนเพียวๆ (ห้ามใส่กรอบรูปหรือลวดลายทับบนภาพเด็ดขาด) โดยรูปมุมบนซ้ายสุดมีขอบเรืองแสงสีแดงและป้ายเล็กๆ ว่า "เพิ่งถ่ายเสร็จ (LATEST)"
+2. ฝั่งขวา (~65% — แบรนด์ CPE OPEN HOUSE และ ภาพก่อนหน้า):
+- แถบหัวข้อด้านบน:
+  * ด้านซ้าย: ข้อความแบรนด์ "CPE OPEN HOUSE" โดยคำว่า "CPE" เป็นสีเขียวมิ้นต์สดใส (#2DD4BF) และ "OPEN HOUSE" เป็นสีขาว Bold
+  * ด้านขวา: แสดงจำนวนภาพ "ถ่ายไปแล้ว 4 รูป"
+- หัวข้อย่อย: "ภาพก่อนหน้า" ตัวอักษรสีเขียวมิ้นต์ขนาดเล็ก
+- แถวแสดงภาพถ่ายก่อนหน้า (Horizontal Strip):
+  * แสดงภาพถ่ายแนวนอน 3 รูปของคิวก่อนหน้า ขอบมนโค้งมนสวยงาม พร้อมลายน้ำขนาดเล็กมุมล่างซ้าย "CPE OPEN HOUSE"
+- พื้นที่ด้านล่างเป็นพื้นหลังสีดำเข้มสะอาดตา โปร่ง โล่ง สไตล์มินิมอลสตูดิโอ ไร้ขยะสายตา
 ```
 
 ---

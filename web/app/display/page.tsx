@@ -11,29 +11,36 @@ interface ActivePhoto {
 }
 
 const INITIAL_GALLERY = [
-  'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+  'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80',
+  'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=600&q=80',
+  'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
 ];
 
 export default function DisplayShowcasePage() {
   const [activePhoto, setActivePhoto] = useState<ActivePhoto>({
-    code: 'OPH-AB29',
-    qrUrl: 'http://192.168.1.10:3000/p/OPH-AB29',
+    code: '8884',
+    qrUrl: 'http://192.168.1.10:3000/p/8884',
     photoUrl: INITIAL_GALLERY[0],
     createdAt: new Date().toISOString(),
   });
 
-  const [galleryPhotos, setGalleryPhotos] = useState<string[]>(INITIAL_GALLERY);
+  const [galleryPhotos, setGalleryPhotos] = useState<string[]>(INITIAL_GALLERY.slice(1));
+  const [currentTime, setCurrentTime] = useState<string>('17:40');
+
+  useEffect(() => {
+    // Dynamic live time update
+    const updateTime = () => {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      setCurrentTime(`${hours}:${minutes}`);
+    };
+    updateTime();
+    const timer = setInterval(updateTime, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     // Listen for broadcast events from Screen 1 (Kiosk) on the same machine
@@ -42,104 +49,156 @@ export default function DisplayShowcasePage() {
     channel.onmessage = (event: MessageEvent<ScreenSyncEvent>) => {
       const data = event.data;
       if (data.type === 'PHOTO_READY_FOR_DISPLAY') {
+        const cleanCode = data.code.replace('OPH-', '');
         const newPhoto: ActivePhoto = {
-          code: data.code,
+          code: cleanCode,
           qrUrl: data.qrUrl,
           photoUrl: data.photoUrl,
           createdAt: data.createdAt,
         };
         setActivePhoto(newPhoto);
-        setGalleryPhotos((prev) => [data.photoUrl, ...prev.slice(0, 47)]);
+        setGalleryPhotos((prev) => [activePhoto.photoUrl, ...prev.slice(0, 15)]);
       }
     };
 
     return () => {
       channel.close();
     };
-  }, []);
+  }, [activePhoto.photoUrl]);
 
   return (
     <main className="flex h-screen w-screen overflow-hidden bg-[#06080D] text-white select-none">
-      {/* LEFT 30%: QR CODE STATION (Clean & Refined) */}
-      <section className="flex w-[30%] flex-col justify-between border-r border-[#1E2536] bg-[#0D111A] p-8 text-center">
-        <div>
-          <div className="text-xs font-semibold text-[#CE1126] tracking-wider uppercase">
-            SWU OPEN HOUSE
+      {/* ============================================================== */}
+      {/* LEFT COLUMN (~35%): LATEST SHOT & QR CODE STATION              */}
+      {/* ============================================================== */}
+      <section className="flex w-[36%] flex-col justify-between border-r border-[#1E2536]/60 bg-[#080C14] p-7">
+        <div className="flex flex-col">
+          {/* Top Status Row: LATEST SHOT + Clock */}
+          <div className="flex items-center justify-between pb-1">
+            <span className="font-mono text-xs font-semibold tracking-wider text-[#2DD4BF] uppercase">
+              LATEST SHOT
+            </span>
+            <span className="font-mono text-xs font-medium text-slate-500">
+              {currentTime}
+            </span>
           </div>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">
-            รับรูปถ่ายของคุณ
+
+          {/* Heading */}
+          <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-white">
+            รูปล่าสุด
           </h1>
-          <p className="mt-1 text-xs text-[#8492A6]">
-            สแกน QR Code ด้วยมือถือเพื่อเลือกฟิลเตอร์และกรอบรูป
-          </p>
 
-          {/* Crisp High-Contrast Vector QR Card */}
-          <div className="mt-8 flex aspect-square max-w-[240px] items-center justify-center rounded-2xl bg-white p-5 shadow-2xl mx-auto">
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
-                activePhoto.qrUrl
-              )}`}
-              alt="QR Code"
-              className="h-full w-full object-contain"
-            />
+          {/* Polaroid Frame Card */}
+          <div className="mt-4 rounded-xl bg-white p-3.5 shadow-2xl transition-all">
+            {/* The 4:3 Photo */}
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-sm bg-neutral-900">
+              <img
+                src={activePhoto.photoUrl}
+                alt="Latest Shot"
+                className="h-full w-full object-cover"
+              />
+              {/* Bottom Photo Overlay */}
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/60 px-3 py-1.5 backdrop-blur-xs text-[10px] text-white/90">
+                <span className="font-bold tracking-wide">
+                  <span className="text-[#CE1126]">CPE</span> OPEN HOUSE
+                </span>
+                <span className="text-white/70">วิศวกรรมคอมพิวเตอร์ • 7 พ.ย. 2026</span>
+              </div>
+            </div>
+
+            {/* Bottom Polaroid Chin Info */}
+            <div className="pt-2.5 pb-1 text-center">
+              <div className="text-xs font-bold tracking-tight text-slate-800">
+                CPE OPEN HOUSE
+              </div>
+              <div className="text-[10px] font-medium text-slate-400">
+                07.11.2026
+              </div>
+            </div>
           </div>
 
-          {/* Tabular Code Display */}
-          <div className="mt-6">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-[#8492A6]">
-              PHOTO CODE
+          {/* White Rounded Pill/Card: QR Station */}
+          <div className="mt-4 flex items-center gap-4 rounded-2xl bg-white p-4 shadow-2xl">
+            {/* QR Code */}
+            <div className="flex aspect-square w-28 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
+                  activePhoto.qrUrl
+                )}`}
+                alt="QR Code"
+                className="h-full w-full object-contain"
+              />
             </div>
-            <div className="mt-1 font-mono text-3xl font-extrabold tracking-widest text-white">
-              {activePhoto.code}
+
+            {/* Content Beside QR */}
+            <div className="flex flex-col justify-center">
+              <div className="flex items-center gap-1.5 text-lg font-bold tracking-tight text-slate-900">
+                <span>←</span>
+                <span>สแกนรับรูป</span>
+              </div>
+              <p className="mt-0.5 text-xs font-medium text-slate-700">
+                เปิดกล้องมือถือแล้วสแกน
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                ต้องต่อ WiFi เดียวกับบูธ
+              </p>
+              <div className="mt-1 font-mono text-xs font-bold text-slate-400 tracking-wider">
+                #{activePhoto.code}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Minimal Footnote */}
-        <footer className="border-t border-[#1E2536] pt-4 text-[11px] text-[#8492A6]">
-          🔒 รูปภาพจะถูกลบอัตโนมัติภายใน 7 วัน (PDPA)
-        </footer>
+        {/* Minimal PDPA Notice at Bottom */}
+        <div className="text-[10px] text-slate-600">
+          🔒 รูปจะถูกลบใน 7 วันตาม PDPA
+        </div>
       </section>
 
-      {/* RIGHT 70%: LIVE PHOTO WALL (Pure 4:3 Raw Photos, Zero Frame Clutter) */}
-      <section className="flex w-[70%] flex-col justify-between bg-[#06080D] p-6 overflow-hidden">
-        {/* Gallery Header */}
-        <header className="mb-4 flex items-center justify-between border-b border-[#1E2536] pb-3">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#10B981] animate-pulse" />
-            <h2 className="text-sm font-semibold tracking-wide text-white/90">
-              Live Photo Wall • ประมวลภาพถ่ายสดในงาน
-            </h2>
+      {/* ============================================================== */}
+      {/* RIGHT COLUMN (~64%): CPE OPEN HOUSE & PREVIOUS GALLERY         */}
+      {/* ============================================================== */}
+      <section className="flex flex-1 flex-col p-8 bg-[#06080D]">
+        {/* Top Header Bar */}
+        <div className="flex items-center justify-between pb-3 border-b border-[#1E2536]/50">
+          <div className="text-3xl font-extrabold tracking-tight">
+            <span className="text-[#2DD4BF]">CPE</span>{' '}
+            <span className="text-white">OPEN HOUSE</span>
           </div>
-          <div className="text-xs font-mono text-[#8492A6]">
-            {galleryPhotos.length} รูปถ่ายล่าสุด
+          <div className="text-sm font-medium text-slate-400">
+            ถ่ายไปแล้ว {galleryPhotos.length + 1} รูป
           </div>
-        </header>
+        </div>
 
-        {/* Pure 4:3 Raw Photo Grid */}
-        <div className="flex-1 grid grid-cols-4 grid-rows-3 gap-3 overflow-hidden">
-          {galleryPhotos.slice(0, 12).map((photoUrl, idx) => (
+        {/* Previous Photos Subheader */}
+        <div className="mt-6 flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#2DD4BF]">
+            ภาพก่อนหน้า
+          </span>
+        </div>
+
+        {/* Horizontal Row of Previous Photos */}
+        <div className="mt-3 grid grid-cols-3 gap-3.5">
+          {galleryPhotos.slice(0, 3).map((photoUrl, idx) => (
             <div
               key={idx}
-              className={`relative rounded-xl overflow-hidden shadow-lg transition-transform duration-300 hover:scale-[1.02] ${
-                idx === 0
-                  ? 'border border-[#CE1126] shadow-[#CE1126]/20'
-                  : 'border border-[#1E2536]'
-              }`}
+              className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-white/10 bg-neutral-900 shadow-md transition-all hover:border-[#2DD4BF]/50"
             >
               <img
                 src={photoUrl}
-                alt={`Live capture ${idx + 1}`}
-                className="h-full w-full object-cover"
+                alt={`Previous Shot ${idx + 1}`}
+                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
-              {idx === 0 && (
-                <span className="absolute top-2 left-2 rounded bg-[#CE1126] px-1.5 py-0.5 font-mono text-[9px] font-bold text-white shadow">
-                  LATEST
-                </span>
-              )}
+              {/* Bottom Subtle Watermark */}
+              <div className="absolute bottom-2 left-2 rounded bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white/90 backdrop-blur-xs">
+                CPE OPEN HOUSE
+              </div>
             </div>
           ))}
         </div>
+
+        {/* Spacious Clean Dark Backdrop below maintaining luxury studio aesthetic */}
+        <div className="flex-1" />
       </section>
     </main>
   );
