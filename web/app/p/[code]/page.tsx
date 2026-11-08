@@ -415,8 +415,8 @@ export default function MobilePhotoEditorPage({
         </p>
 
         <div className="flex items-center justify-center gap-2 text-[10px] text-slate-500 text-center">
-          <ShieldCheck className="size-3.5 text-emerald-400 shrink-0" />
-          <span>เก็บรักษาภาพ 7 วันตามนโยบาย PDPA • วิศวกรรมคอมพิวเตอร์ มศว</span>
+          {/* <ShieldCheck className="size-3.5 text-emerald-400 shrink-0" /> */}
+          <span>เก็บรักษาภาพ 7 วัน - วิศวกรรมคอมพิวเตอร์ มศว</span>
         </div>
       </footer>
     </main>
