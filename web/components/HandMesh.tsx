@@ -35,6 +35,30 @@ const BONES: [number, number][] = [
   [0, 17], // palm base
 ];
 
+// MediaPipe's default hand style (drawing_styles.py), the same colors as the Python demo
+// scripts/model-training/fivepalm_shutter.py. MediaPipe lists them as BGR; these are RGB.
+const MP_COLORS = {
+  red: '#FF3030',
+  green: '#30FF30',
+  blue: '#1565C0',
+  yellow: '#FFCC00',
+  gray: '#808080',
+  purple: '#804080',
+  peach: '#FFE5B4',
+  white: '#E0E0E0',
+};
+const PALM_JOINTS = new Set([0, 1, 5, 9, 13, 17]);
+const PALM_BONES = new Set(['0-1', '0-5', '5-9', '9-13', '13-17', '0-17']);
+
+// Thumb 1-4, index 5-8, middle 9-12, ring 13-16, pinky 17-20
+function fingerColor(landmark: number): string {
+  if (landmark <= 4) return MP_COLORS.peach;
+  if (landmark <= 8) return MP_COLORS.purple;
+  if (landmark <= 12) return MP_COLORS.yellow;
+  if (landmark <= 16) return MP_COLORS.green;
+  return MP_COLORS.blue;
+}
+
 export interface HandMeshProps {
   active?: boolean;
   landmarks?: LandmarkPoint[];
@@ -127,20 +151,9 @@ export function HandMesh({
         aria-hidden="true"
       >
         <defs>
-          <filter id="meshGlow" x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow dx="0" dy="0" stdDeviation="0.45" floodColor="#06B6D4" floodOpacity="0.85" />
-          </filter>
           <filter id="laserGlow" x="-30%" y="-30%" width="160%" height="160%">
             <feDropShadow dx="0" dy="0" stdDeviation="0.6" floodColor="#22D3EE" floodOpacity="1" />
           </filter>
-
-          {/* Vertical gradient from fingertips (top) to wrist (bottom) */}
-          <linearGradient id="handGradientVertical" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.95" />
-            <stop offset="35%" stopColor="#38BDF8" stopOpacity="0.9" />
-            <stop offset="70%" stopColor="#FB7185" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#CE1126" stopOpacity="0.95" />
-          </linearGradient>
 
           {/* Horizontal laser scanline beam */}
           <linearGradient id="laserBeamGrad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -198,53 +211,39 @@ export function HandMesh({
           </g>
         )}
 
-        {/* 2. Connecting Bones with Top-to-Bottom Gradient */}
-        <g
-          stroke={isHolding ? 'url(#handGradientVertical)' : mainColor}
-          strokeWidth="0.65"
-          strokeLinecap="round"
-          strokeOpacity={isHolding ? 0.95 : 0.85}
-          filter="url(#meshGlow)"
-        >
-          {BONES.map(([start, end], i) => (
-            <line
-              key={`b-${i}`}
-              x1={points[start]?.[0] ?? 0}
-              y1={points[start]?.[1] ?? 0}
-              x2={points[end]?.[0] ?? 0}
-              y2={points[end]?.[1] ?? 0}
-            />
-          ))}
+        {/* 2. Bones in MediaPipe's default colors: palm gray, each finger its own color */}
+        <g strokeLinecap="round">
+          {BONES.map(([start, end], i) => {
+            const isPalm = PALM_BONES.has(`${start}-${end}`);
+            return (
+              <line
+                key={`b-${i}`}
+                x1={points[start]?.[0] ?? 0}
+                y1={points[start]?.[1] ?? 0}
+                x2={points[end]?.[0] ?? 0}
+                y2={points[end]?.[1] ?? 0}
+                stroke={isPalm ? MP_COLORS.gray : fingerColor(end)}
+                strokeWidth={isPalm ? 4 : 3}
+                vectorEffect="non-scaling-stroke"
+              />
+            );
+          })}
         </g>
 
-        {/* 3. Landmark Joints (Circles) with vertical color harmony */}
-        {points.map(([x, y], i) => {
-          const isFingertip = i === 4 || i === 8 || i === 12 || i === 16 || i === 20;
-          const isWrist = i === 0;
-
-          // Color shifts based on vertical landmark position
-          let jointColor = mainColor;
-          if (isHolding) {
-            if (isWrist) jointColor = '#CE1126';
-            else if (isFingertip) jointColor = '#FFFFFF';
-            else if (y < 40) jointColor = '#22D3EE';
-            else if (y < 65) jointColor = '#38BDF8';
-            else jointColor = '#FB7185';
-          }
-
-          return (
-            <circle
-              key={`c-${i}`}
+        {/* 3. Joints: white ring, filled with the palm (red) or finger color.
+            Ellipses, because the SVG is stretched to 16:9: these come out round on screen. */}
+        {points.map(([x, y], i) => (
+          <g key={`c-${i}`}>
+            <ellipse cx={x} cy={y} rx={0.5} ry={0.5 * (16 / 9)} fill={MP_COLORS.white} />
+            <ellipse
               cx={x}
               cy={y}
-              r={isWrist ? 1.4 : isFingertip ? 1.15 : 0.75}
-              fill={isFingertip ? '#FFFFFF' : jointColor}
-              stroke={jointColor}
-              strokeWidth="0.3"
-              filter="url(#meshGlow)"
+              rx={0.38}
+              ry={0.38 * (16 / 9)}
+              fill={PALM_JOINTS.has(i) ? MP_COLORS.red : fingerColor(i)}
             />
-          );
-        })}
+          </g>
+        ))}
 
         {/* 4. Circular Hold Progress Meter centered on Palm */}
         {isHolding && (
