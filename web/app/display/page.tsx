@@ -219,6 +219,20 @@ export default function ShowcaseDisplayScreen() {
             setHostOrigin(process.env.NEXT_PUBLIC_APP_URL || fallbackOrigin);
           }
         }
+      } else if (
+        data.type === 'SCREEN1_RESET' ||
+        (data.type === 'KIOSK_COMMAND' && (data.command === 'RESET_STANDBY' || data.command === 'FORCE_STANDBY'))
+      ) {
+        if (queueTimerRef.current) {
+          clearTimeout(queueTimerRef.current);
+          queueTimerRef.current = null;
+        }
+        setActivePhoto(null);
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem('swu_latest_photo');
+          } catch {}
+        }
       } else if (data.type === 'PHOTO_DELETED') {
         const deletedCode = data.code;
 
