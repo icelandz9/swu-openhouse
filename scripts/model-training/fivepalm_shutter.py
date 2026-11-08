@@ -398,22 +398,22 @@ def save_capture_frame(clean_frame: np.ndarray, output_dir: str = ".") -> str:
     return filepath
 
 
-def ensure_model(model_path: str = MODEL_PATH) -> bool:
-    """Downloads the HandLandmarker model once. Returns False if it is unavailable."""
+def ensure_model(model_path: str = MODEL_PATH, model_url: str = MODEL_URL) -> bool:
+    """Downloads a MediaPipe model once. Returns False if it is unavailable."""
     if os.path.exists(model_path):
         return True
 
-    logger.info(f"Downloading hand model to: {model_path}")
+    logger.info(f"Downloading model to: {model_path}")
     temp_path = f"{model_path}.download"
     try:
-        urllib.request.urlretrieve(MODEL_URL, temp_path)
+        urllib.request.urlretrieve(model_url, temp_path)
         os.replace(temp_path, model_path)
     except OSError as exc:
         if os.path.exists(temp_path):
             os.remove(temp_path)
         logger.error(
-            f"❌ Failed to download hand model: {exc}. "
-            f"Check your connection, or download {MODEL_URL} to {model_path} manually."
+            f"❌ Failed to download model: {exc}. "
+            f"Check your connection, or download {model_url} to {model_path} manually."
         )
         return False
     return True
