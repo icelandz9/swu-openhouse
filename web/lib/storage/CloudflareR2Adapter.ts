@@ -167,11 +167,11 @@ export class CloudflareR2Adapter implements IPhotoStorage {
   }
 
   async getPhotoUrl(shortCode: string): Promise<string | null> {
+    const res = await this.request('HEAD', `${shortCode}.jpg`);
+    if (!res.ok || !this.isFresh(res.headers.get('last-modified'))) return null;
     if (this.publicDomain) {
       return `${this.publicDomain}/${shortCode}.jpg`;
     }
-    const res = await this.request('HEAD', `${shortCode}.jpg`);
-    if (!res.ok || !this.isFresh(res.headers.get('last-modified'))) return null;
     return `/api/photos/${shortCode}/file`;
   }
 

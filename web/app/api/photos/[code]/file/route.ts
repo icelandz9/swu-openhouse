@@ -37,14 +37,10 @@ export async function GET(
     const cookieName = `booth_claim_${normCode.replace(/[^A-Z0-9]/g, '_')}`;
     const claimCookie = req.cookies.get(cookieName)?.value;
     const isStaff = isStaffRequest(req);
-    const host = req.headers.get('host') || '';
-    const isLocalKiosk = host.startsWith('localhost') || host.startsWith('127.0.0.1');
 
     const isAuthorized =
-      isLocalKiosk ||
-      isStaff ||
-      (token && verifyPhotoToken(normCode, token)) ||
-      (claimCookie && verifyPhotoClaimSecret(normCode, claimCookie));
+      Boolean(token && verifyPhotoToken(normCode, token)) ||
+      Boolean(claimCookie && verifyPhotoClaimSecret(normCode, claimCookie));
 
     if (!isAuthorized) {
       return NextResponse.json(
