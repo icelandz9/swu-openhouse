@@ -1,5 +1,6 @@
 import { IPhotoStorage } from './IPhotoStorage';
 import { StoredPhotoResult, PhotoRecord } from '../contracts';
+import { LocalStorageAdapter } from './LocalStorageAdapter';
 import crypto from 'node:crypto';
 
 /**
@@ -10,6 +11,7 @@ import crypto from 'node:crypto';
  * - the bucket stays private; phones get photos through /api/photos/[code]/file, by code only
  * - photos older than 7 days are treated as gone (PDPA). Also add a lifecycle rule on the bucket
  *   that deletes objects after 7 days, so the files really disappear.
+ * - on local Kiosk machines (non-Vercel), dual-writes to local NVMe disk as an offline safety net.
  */
 
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -47,6 +49,7 @@ export class CloudflareR2Adapter implements IPhotoStorage {
   private secretAccessKey: string;
   private bucketName: string;
   private publicDomain: string;
+  private localBackup: LocalStorageAdapter | null = null;
 
   constructor() {
     if (!isR2Configured()) {
@@ -57,6 +60,15 @@ export class CloudflareR2Adapter implements IPhotoStorage {
     this.secretAccessKey = process.env.R2_SECRET_ACCESS_KEY!;
     this.bucketName = process.env.R2_BUCKET_NAME || 'swu-photobooth';
     this.publicDomain = (process.env.R2_PUBLIC_DOMAIN || '').replace(/\/+$/, '');
+
+    // On local machine (outside Vercel), maintain offline backup
+    if (!process.env.VERCEL) {
+      try {
+        this.localBackup = new LocalStorageAdapter();
+      } catch (e) {
+        console.warn('Could not initialize local NVMe backup cache:', e);
+      }
+    }
   }
 
   private async request(
@@ -111,32 +123,66 @@ export class CloudflareR2Adapter implements IPhotoStorage {
   }
 
   async savePhoto(shortCode: string, imageBuffer: Buffer): Promise<StoredPhotoResult> {
-    const res = await this.request('PUT', `${shortCode}.jpg`, {
-      body: new Uint8Array(imageBuffer),
-      contentType: 'image/jpeg',
-    });
-    if (!res.ok) {
-      throw new Error(`R2 upload failed: HTTP ${res.status} ${await res.text()}`);
+    // 1. Dual-Write Safety Net: Always save locally first on laptop NVMe
+    let savedToLocal = false;
+    if (this.localBackup) {
+      try {
+        await this.localBackup.savePhoto(shortCode, imageBuffer);
+        savedToLocal = true;
+      } catch (err) {
+        console.warn('Local NVMe backup save notice:', err);
+      }
     }
+
+    // 2. Upload to Cloudflare R2 with resilient offline fallback
+    let savedToCloud = false;
+    try {
+      const res = await this.request('PUT', `${shortCode}.jpg`, {
+        body: new Uint8Array(imageBuffer),
+        contentType: 'image/jpeg',
+      });
+      if (res.ok) {
+        savedToCloud = true;
+      } else {
+        console.warn(`R2 upload non-OK status: HTTP ${res.status}`);
+      }
+    } catch (err) {
+      console.warn('R2 network upload offline/interrupted, preserved in local NVMe:', err);
+    }
+
+    // If both failed, then we must report an error
+    if (!savedToCloud && !savedToLocal) {
+      throw new Error('Photo storage failed: both cloud and local NVMe storage were unreachable');
+    }
+
     return {
       photoId: shortCode,
       shortCode,
-      url: this.publicDomain ? `${this.publicDomain}/${shortCode}.jpg` : `/api/photos/${shortCode}/file`,
-      storageDriver: 'r2',
+      url: (savedToCloud && this.publicDomain)
+        ? `${this.publicDomain}/${shortCode}.jpg`
+        : `/api/photos/${shortCode}/file`,
+      storageDriver: savedToCloud ? 'r2' : 'local',
       expiresAt: new Date(Date.now() + RETENTION_MS).toISOString(),
     };
   }
 
   async getPhotoUrl(shortCode: string): Promise<string | null> {
+    const res = await this.request('HEAD', `${shortCode}.jpg`);
+    if (!res.ok || !this.isFresh(res.headers.get('last-modified'))) return null;
     if (this.publicDomain) {
       return `${this.publicDomain}/${shortCode}.jpg`;
     }
-    const res = await this.request('HEAD', `${shortCode}.jpg`);
-    if (!res.ok || !this.isFresh(res.headers.get('last-modified'))) return null;
     return `/api/photos/${shortCode}/file`;
   }
 
   async getPhotoBuffer(shortCode: string): Promise<Buffer | null> {
+    // 1. If available locally on kiosk laptop, serve with zero latency
+    if (this.localBackup) {
+      const localBuf = await this.localBackup.getPhotoBuffer(shortCode).catch(() => null);
+      if (localBuf) return localBuf;
+    }
+
+    // 2. Otherwise fetch from Cloudflare R2
     const res = await this.request('GET', `${shortCode}.jpg`);
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`R2 download failed: HTTP ${res.status}`);
@@ -180,6 +226,9 @@ export class CloudflareR2Adapter implements IPhotoStorage {
   }
 
   async deletePhoto(shortCode: string): Promise<boolean> {
+    if (this.localBackup) {
+      await this.localBackup.deletePhoto(shortCode).catch(() => {});
+    }
     const res = await this.request('DELETE', `${shortCode}.jpg`);
     // R2 answers 204 whether or not the object existed.
     return res.ok;

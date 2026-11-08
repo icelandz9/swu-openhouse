@@ -3,6 +3,10 @@ node_modules/
 next-env.d.ts
 *.tsbuildinfo
 
+# Local environment variables & secrets
+.env*.local
+.env
+
 # Captured photos (personal data, PDPA) — never commit
 data/
 

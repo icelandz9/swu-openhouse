@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { photoStorageService } from '@/lib/storage/storageService';
 import { isValidShortCode } from '@/lib/mobile/shortCodeGenerator';
 import { requireStaff } from '@/lib/auth/requireStaff';
+import { verifyPhotoToken, verifyPhotoClaimSecret } from '@/lib/security/photoToken';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 export async function OPTIONS() {
@@ -17,20 +18,42 @@ export async function OPTIONS() {
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
   try {
-    const { code } = await params;
+    const { code: rawCode } = await params;
+    const code = decodeURIComponent(rawCode).toUpperCase();
+    const normalizedCode = code.startsWith('OPH-') ? code : `OPH-${code}`;
 
-    if (!isValidShortCode(code)) {
+    if (!isValidShortCode(normalizedCode)) {
       return NextResponse.json(
         { error: 'Invalid short code format' },
         { status: 400, headers: CORS_HEADERS }
       );
     }
 
-    const photoUrl = await photoStorageService.getPhotoUrl(code);
+    // High-security authorization check:
+    // Requires valid scan token (?t=...) or 7-day verified device claim cookie.
+    const token = req.nextUrl.searchParams.get('t');
+    const cookieName = `booth_claim_${normalizedCode.replace(/[^A-Z0-9]/g, '_')}`;
+    const claimCookie = req.cookies.get(cookieName)?.value;
+
+    const isAuthorized =
+      Boolean(token && verifyPhotoToken(normalizedCode, token)) ||
+      Boolean(claimCookie && verifyPhotoClaimSecret(normalizedCode, claimCookie));
+
+    if (!isAuthorized) {
+      return NextResponse.json(
+        {
+          error: 'Forbidden: Valid QR scan token or verified device claim required to view this photo',
+          authorized: false,
+        },
+        { status: 403, headers: CORS_HEADERS }
+      );
+    }
+
+    const photoUrl = await photoStorageService.getPhotoUrl(normalizedCode);
     if (!photoUrl) {
       return NextResponse.json(
         { error: 'Photo not found or expired' },
@@ -40,8 +63,9 @@ export async function GET(
 
     return NextResponse.json(
       {
-        code,
+        code: normalizedCode,
         photoUrl,
+        authorized: true,
       },
       { headers: CORS_HEADERS }
     );
@@ -62,18 +86,20 @@ export async function DELETE(
   const denied = requireStaff(req, CORS_HEADERS);
   if (denied) return denied;
   try {
-    const { code } = await params;
+    const { code: rawCode } = await params;
+    const code = decodeURIComponent(rawCode).toUpperCase();
+    const normalizedCode = code.startsWith('OPH-') ? code : `OPH-${code}`;
 
-    if (!isValidShortCode(code)) {
+    if (!isValidShortCode(normalizedCode)) {
       return NextResponse.json(
         { error: 'Invalid short code format' },
         { status: 400, headers: CORS_HEADERS }
       );
     }
 
-    const success = await photoStorageService.deletePhoto(code);
+    const success = await photoStorageService.deletePhoto(normalizedCode);
     return NextResponse.json(
-      { success, code },
+      { success, code: normalizedCode },
       { status: 200, headers: CORS_HEADERS }
     );
   } catch (error: any) {

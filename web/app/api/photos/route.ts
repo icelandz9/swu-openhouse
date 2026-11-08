@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { photoStorageService } from '@/lib/storage/storageService';
 import { generateShortCode, isValidShortCode } from '@/lib/mobile/shortCodeGenerator';
 import { UploadPhotoResponse } from '@/lib/contracts';
+import { generatePhotoToken, isHostAllowed } from '@/lib/security/photoToken';
 import { requireStaff } from '@/lib/auth/requireStaff';
 
 const CORS_HEADERS = {
@@ -80,17 +81,22 @@ export async function POST(req: NextRequest) {
 
     const rawEnvAppUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
     const envAppUrl = rawEnvAppUrl ? rawEnvAppUrl.trim().replace(/\/+$/, '') : '';
-    const cleanCustomHost = typeof customHost === 'string' ? customHost.trim().replace(/\/+$/, '') : '';
+    const isAllowed = typeof customHost === 'string' && isHostAllowed(customHost);
+    const cleanCustomHost = isAllowed ? customHost.trim().replace(/\/+$/, '') : '';
     const baseCustomHost = cleanCustomHost
       ? (/^https?:\/\//i.test(cleanCustomHost) ? cleanCustomHost : `http://${cleanCustomHost}`)
       : '';
     const host = req.headers.get('host') || 'localhost:3000';
     const protocol = req.headers.get('x-forwarded-proto') || 'http';
     const baseHost = baseCustomHost || envAppUrl || `${protocol}://${host}`;
-    const qrUrl = `${baseHost}/p/${shortCode}`;
+
+    // High-security cryptographic signed token for attendee photo access (IDOR defense)
+    const { token } = generatePhotoToken(shortCode);
+    const qrUrl = `${baseHost}/p/${shortCode}?t=${token}`;
 
     const responsePayload: UploadPhotoResponse = {
       code: shortCode,
+      token,
       qrUrl,
       photoUrl: stored.url,
       createdAt: new Date().toISOString(),

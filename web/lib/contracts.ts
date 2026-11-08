@@ -35,6 +35,7 @@ export type ScreenSyncEvent =
       qrUrl: string;
       photoUrl: string;
       createdAt: string;
+      token?: string;
     }
   | {
       type: "PHOTO_DELETED";
@@ -77,6 +78,7 @@ export interface UploadPhotoResponse {
   code: string; // e.g., "OPH-AB29"
   qrUrl: string; // e.g., "http://192.168.1.10:3000/p/OPH-AB29"
   photoUrl: string; // e.g., "/api/photos/OPH-AB29"
+  token?: string;
   createdAt: string; // ISO 8601 timestamp
   expiresAt: string; // ISO 8601 timestamp (+7 days PDPA TTL)
 }
@@ -86,6 +88,7 @@ export interface PhotoRecord {
   code: string;
   photoUrl: string;
   qrUrl: string;
+  token?: string;
   createdAt: string;
   expiresAt: string;
 }

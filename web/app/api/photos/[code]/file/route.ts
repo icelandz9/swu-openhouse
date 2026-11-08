@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { photoStorageService } from '@/lib/storage/storageService';
 import { isValidShortCode } from '@/lib/mobile/shortCodeGenerator';
+import { verifyPhotoToken, verifyPhotoClaimSecret } from '@/lib/security/photoToken';
+import { isStaffRequest } from '@/lib/auth/staffSession';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -16,20 +18,38 @@ export async function OPTIONS() {
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
   try {
     const { code } = await params;
+    const normCode = code.toUpperCase();
 
-    if (!isValidShortCode(code)) {
+    if (!isValidShortCode(normCode)) {
       return NextResponse.json(
         { error: 'Invalid short code format' },
         { status: 400, headers: CORS_HEADERS }
       );
     }
 
-    const buffer = await photoStorageService.getPhotoBuffer(code);
+    // High-security photo file authorization check
+    const token = req.nextUrl.searchParams.get('t');
+    const cookieName = `booth_claim_${normCode.replace(/[^A-Z0-9]/g, '_')}`;
+    const claimCookie = req.cookies.get(cookieName)?.value;
+    const isStaff = isStaffRequest(req);
+
+    const isAuthorized =
+      Boolean(token && verifyPhotoToken(normCode, token)) ||
+      Boolean(claimCookie && verifyPhotoClaimSecret(normCode, claimCookie));
+
+    if (!isAuthorized) {
+      return NextResponse.json(
+        { error: 'Forbidden: Valid scan token or authorized session required' },
+        { status: 403, headers: CORS_HEADERS }
+      );
+    }
+
+    const buffer = await photoStorageService.getPhotoBuffer(normCode);
     if (!buffer) {
       return NextResponse.json(
         { error: 'Photo not found or expired' },
@@ -41,14 +61,14 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'image/jpeg',
-        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+        'Cache-Control': 'private, max-age=86400',
         ...CORS_HEADERS,
       },
     });
   } catch (error: any) {
     console.error('Error serving photo file:', error);
     return NextResponse.json(
-      { error: 'Internal server error while serving photo file' },
+      { error: 'Internal server error while serving photo' },
       { status: 500, headers: CORS_HEADERS }
     );
   }

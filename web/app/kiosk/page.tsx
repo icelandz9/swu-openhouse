@@ -58,6 +58,10 @@ export default function KioskCapturePage() {
   const [isForeground, setIsForeground] = useState<boolean>(true);
   const holdStartTimeRef = useRef<number | null>(null);
   const lastPalmSeenTimeRef = useRef<number>(0);
+  const prevDetectedGestureRef = useRef<string>('NONE');
+  const prevIsForegroundRef = useRef<boolean>(false);
+  const lastLandmarkUpdateRef = useRef<number>(0);
+  const prevHoldProgressIntRef = useRef<number>(0);
   const previewGestureLockRef = useRef<boolean>(false);
   const previewEnterTimeRef = useRef<number>(0);
 
@@ -102,6 +106,12 @@ export default function KioskCapturePage() {
       osc.connect(gain).connect(ctx.destination);
       osc.start(now);
       osc.stop(now + 0.13);
+      osc.onended = () => {
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch {}
+      };
     } catch {}
   }, []);
 
@@ -296,13 +306,17 @@ export default function KioskCapturePage() {
 
       // 4. Save to localStorage for cross-window / tab reliability
       if (typeof window !== 'undefined') {
-        localStorage.setItem('swu_latest_photo', JSON.stringify(syncEvent));
         try {
+          const safePhotoUrl = finalPhotoUrl.startsWith('data:') ? `/api/photos/${code}/file` : finalPhotoUrl;
+          const storageItem = { ...syncEvent, photoUrl: safePhotoUrl };
+          localStorage.setItem('swu_latest_photo', JSON.stringify(storageItem));
           const rawGallery = localStorage.getItem('swu_photo_gallery') || '[]';
           const gallery = JSON.parse(rawGallery);
-          gallery.unshift(syncEvent);
+          gallery.unshift(storageItem);
           localStorage.setItem('swu_photo_gallery', JSON.stringify(gallery.slice(0, 50)));
-        } catch {}
+        } catch (e) {
+          console.warn('LocalStorage save error (quota protected):', e);
+        }
       }
 
       // 5. Success feedback & smooth reset
@@ -479,12 +493,17 @@ export default function KioskCapturePage() {
 
               // Run the updated 5-finger palm facing model
               const detected = classifyGesture(primaryHand, worldHand, handedness, aspect);
-              setLiveLandmarks(primaryHand);
-              setDetectedGestureText(detected);
+              if (prevDetectedGestureRef.current !== detected) {
+                prevDetectedGestureRef.current = detected;
+                setDetectedGestureText(detected);
+              }
 
               // Depth & Area Filter: reject distant background passers-by (>= 3.5% required)
               const inForeground = isHandInForeground(primaryHand, handAreaThreshold);
-              setIsForeground(inForeground);
+              if (prevIsForegroundRef.current !== inForeground) {
+                prevIsForegroundRef.current = inForeground;
+                setIsForeground(inForeground);
+              }
 
               let minX = 1;
               let maxX = 0;
@@ -496,7 +515,14 @@ export default function KioskCapturePage() {
                 if (pt.y < minY) minY = pt.y;
                 if (pt.y > maxY) maxY = pt.y;
               }
-              setHandAreaRatio(Math.max(0, (maxX - minX) * (maxY - minY)));
+
+              // Throttle React state allocations to 30 FPS to prevent heap leaks during 8-hour events
+              const nowLoop = performance.now();
+              if (nowLoop - lastLandmarkUpdateRef.current > 33) {
+                lastLandmarkUpdateRef.current = nowLoop;
+                setLiveLandmarks(primaryHand);
+                setHandAreaRatio(Math.max(0, (maxX - minX) * (maxY - minY)));
+              }
 
               if (isIdle || isDetecting) {
                 if (detected === 'OPEN_PALM' && inForeground) {
@@ -507,7 +533,11 @@ export default function KioskCapturePage() {
                   }
                   const elapsed = performance.now() - holdStartTimeRef.current;
                   const progress = Math.min(100, (elapsed / 1500) * 100);
-                  setHoldProgress(progress);
+                  const pInt = Math.floor(progress);
+                  if (pInt !== prevHoldProgressIntRef.current) {
+                    prevHoldProgressIntRef.current = pInt;
+                    setHoldProgress(progress);
+                  }
 
                   if (elapsed >= 1500) {
                     holdStartTimeRef.current = null;
