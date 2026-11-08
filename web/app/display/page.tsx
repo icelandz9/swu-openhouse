@@ -29,6 +29,9 @@ function formatPhotoDate(iso: string) {
   };
 }
 
+// Wait a moment after a new photo arrives (so the upload has finished) before reloading.
+const RELOAD_AFTER_PHOTO_MS = 1500;
+
 export default function ShowcaseDisplayScreen() {
   const [photos, setPhotos] = useState<GalleryItem[]>(DEFAULT_SEEDS);
   const [isMuted, setIsMuted] = useState<boolean>(false);
@@ -39,6 +42,7 @@ export default function ShowcaseDisplayScreen() {
   const [hostOrigin, setHostOrigin] = useState<string>('');
   const channelRef = useRef<BroadcastChannel | null>(null);
   const queueTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const reloadTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Activates a photo on the left showcase for 30s. If next photo arrives, resets timer immediately.
   const showPhotoInQueue = useCallback((photo: GalleryItem) => {
@@ -155,15 +159,21 @@ export default function ShowcaseDisplayScreen() {
 
         setPhotos((prev) => {
           const filtered = prev.filter((p) => p.code !== data.code);
-          const updated = [newItem, ...filtered].slice(0, 50);
-          if (typeof window !== 'undefined') {
-            try {
-              localStorage.setItem('swu_photo_gallery', JSON.stringify(updated));
-              localStorage.setItem('swu_latest_photo', JSON.stringify(newItem));
-            } catch {}
-          }
-          return updated;
+          return [newItem, ...filtered].slice(0, 50);
         });
+
+        // Save the new photo first, then reload the page so it shows up for sure.
+        // After the reload, the start-up code reads these back and keeps the photo on the
+        // left showcase for the rest of its 30 seconds.
+        try {
+          const rawGallery = localStorage.getItem('swu_photo_gallery') || '[]';
+          const gallery: GalleryItem[] = JSON.parse(rawGallery);
+          const updated = [newItem, ...gallery.filter((p) => p?.code !== data.code)].slice(0, 50);
+          localStorage.setItem('swu_photo_gallery', JSON.stringify(updated));
+          localStorage.setItem('swu_latest_photo', JSON.stringify(newItem));
+        } catch {}
+        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = setTimeout(() => window.location.reload(), RELOAD_AFTER_PHOTO_MS);
       } else if (data.type === 'KIOSK_COMMAND' && data.command === 'SET_PUBLIC_DOMAIN') {
         if (typeof window !== 'undefined') {
           const val = typeof data.value === 'string' ? data.value.trim() : '';
@@ -264,6 +274,9 @@ export default function ShowcaseDisplayScreen() {
       channel.close();
       if (queueTimerRef.current) {
         clearTimeout(queueTimerRef.current);
+      }
+      if (reloadTimerRef.current) {
+        clearTimeout(reloadTimerRef.current);
       }
     };
   }, [showPhotoInQueue]);
