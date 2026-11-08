@@ -180,7 +180,7 @@ export default function MasterHub() {
             icon={<Sliders className="w-5 h-5" />}
             accentColor="blue"
             specs={[
-              'PIN Gate Security (1234)',
+              'Zero-Latency Mission Control',
               'ลบรูปตาม PDPA 1-Click',
               'Kiosk Emergency Reset',
             ]}
