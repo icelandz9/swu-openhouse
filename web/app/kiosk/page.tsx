@@ -15,7 +15,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
-import { ScreenSyncEvent, CROP_DIMENSIONS_4_3, SCREEN_SYNC_CHANNEL } from '@/lib/contracts';
+import { ScreenSyncEvent, CROP_DIMENSIONS_4_3, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
 import { generateShortCode } from '@/lib/mobile/shortCodeGenerator';
 import { classifyGesture, LandmarkPoint } from '@/lib/ai-vision/gestureRules';
 import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
@@ -248,7 +248,10 @@ export default function KioskCapturePage() {
     try {
       let code = generateShortCode();
       setSyncedCode(code);
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+      const rawOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+      const isLocal = rawOrigin.includes('localhost') || rawOrigin.includes('127.0.0.1');
+      const origin = isLocal ? DEFAULT_PRODUCTION_APP_URL : rawOrigin;
+      let serverToken: string | undefined = undefined;
       let qrUrl = `${origin}/p/${code}`;
       let finalPhotoUrl = capturedPhotoUrl;
 
@@ -286,7 +289,12 @@ export default function KioskCapturePage() {
             setSyncedCode(code);
           }
           if (data.photoUrl) finalPhotoUrl = data.photoUrl;
-          if (data.qrUrl && !hasCustomHost) qrUrl = data.qrUrl;
+          if (data.token) serverToken = data.token;
+          if (data.qrUrl && !hasCustomHost) {
+            qrUrl = data.qrUrl;
+          } else if (data.token && !qrUrl.includes('?t=')) {
+            qrUrl = `${qrUrl}?t=${data.token}`;
+          }
         }
       } catch (err) {
         console.warn('Backend storage offline, syncing via local event bus:', err);
@@ -298,6 +306,7 @@ export default function KioskCapturePage() {
         code,
         qrUrl,
         photoUrl: finalPhotoUrl,
+        token: serverToken,
         createdAt: new Date().toISOString(),
       };
 

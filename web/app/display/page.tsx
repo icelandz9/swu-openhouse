@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL } from '@/lib/contracts';
+import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
 import { CpeLogo } from '@/components/CpeLogo';
 
 interface GalleryItem {
@@ -99,7 +99,9 @@ export default function ShowcaseDisplayScreen() {
     if (typeof window !== 'undefined') {
       const customHost = localStorage.getItem('swu_booth_host');
       const envAppUrl = process.env.NEXT_PUBLIC_APP_URL;
-      setHostOrigin(customHost || envAppUrl || window.location.origin);
+      const isLocal = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1');
+      const fallbackOrigin = isLocal ? DEFAULT_PRODUCTION_APP_URL : window.location.origin;
+      setHostOrigin(customHost || envAppUrl || fallbackOrigin);
     }
   }, []);
 
@@ -212,7 +214,9 @@ export default function ShowcaseDisplayScreen() {
             localStorage.setItem('swu_booth_host', val);
           } else {
             localStorage.removeItem('swu_booth_host');
-            setHostOrigin(process.env.NEXT_PUBLIC_APP_URL || window.location.origin);
+            const isLocal = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1');
+            const fallbackOrigin = isLocal ? DEFAULT_PRODUCTION_APP_URL : window.location.origin;
+            setHostOrigin(process.env.NEXT_PUBLIC_APP_URL || fallbackOrigin);
           }
         }
       } else if (data.type === 'PHOTO_DELETED') {

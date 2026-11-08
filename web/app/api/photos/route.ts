@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { photoStorageService } from '@/lib/storage/storageService';
 import { generateShortCode, isValidShortCode } from '@/lib/mobile/shortCodeGenerator';
-import { UploadPhotoResponse } from '@/lib/contracts';
+import { UploadPhotoResponse, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
 import { generatePhotoToken, isHostAllowed } from '@/lib/security/photoToken';
 import { requireStaff } from '@/lib/auth/requireStaff';
 
@@ -88,7 +88,8 @@ export async function POST(req: NextRequest) {
       : '';
     const host = req.headers.get('host') || 'localhost:3000';
     const protocol = req.headers.get('x-forwarded-proto') || 'http';
-    const baseHost = baseCustomHost || envAppUrl || `${protocol}://${host}`;
+    const isLocalHost = host.startsWith('localhost') || host.startsWith('127.0.0.1');
+    const baseHost = baseCustomHost || envAppUrl || (isLocalHost ? DEFAULT_PRODUCTION_APP_URL : `${protocol}://${host}`);
 
     // High-security cryptographic signed token for attendee photo access (IDOR defense)
     const { token } = generatePhotoToken(shortCode);
