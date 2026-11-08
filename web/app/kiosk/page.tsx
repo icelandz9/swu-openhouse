@@ -21,7 +21,57 @@ import { classifyGesture, LandmarkPoint } from '@/lib/ai-vision/gestureRules';
 import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
 import { calculate43Crop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
+import { MemeSticker } from '@/components/MemeSticker';
+import {
+  EyesWideTracker,
+  FACE_MEMORY_MS,
+  FaceInfo,
+  MEME_FILES,
+  MemeName,
+  MemeTracker,
+  Rect,
+  eyesWideScore,
+  isNosePinched,
+  placeBesideFace,
+  readFace,
+} from '@/lib/ai-vision/memeRules';
 import { CpeLogo } from '@/components/CpeLogo';
+
+const CAMERA_STORAGE_KEY = 'kiosk.cameraId';
+// Virtual cameras (OBS and similar) open fine but show nothing unless their app is
+// running, so a real camera goes first unless staff picked one.
+const VIRTUAL_CAMERA_PATTERN = /virtual/i;
+
+function readSavedCameraId(): string | undefined {
+  try {
+    return localStorage.getItem(CAMERA_STORAGE_KEY) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function saveCameraId(deviceId: string) {
+  try {
+    localStorage.setItem(CAMERA_STORAGE_KEY, deviceId);
+  } catch {}
+}
+
+function describeCameraError(err: unknown): string {
+  if (typeof window !== 'undefined' && !window.isSecureContext) {
+    return `เบราว์เซอร์ปิดกล้องเมื่อเปิดผ่าน IP — ให้เปิด http://localhost:${window.location.port || '3000'}/kiosk บนเครื่องที่ต่อกล้อง`;
+  }
+  const name = err instanceof DOMException ? err.name : '';
+  if (name === 'NotAllowedError' || name === 'SecurityError') {
+    return 'ไม่ได้รับสิทธิ์ใช้กล้อง — กดไอคอนกล้องที่แถบ URL แล้วเลือกอนุญาต';
+  }
+  if (name === 'NotReadableError' || name === 'AbortError') {
+    return 'กล้องถูกโปรแกรมอื่นใช้อยู่ (เช่น OBS, Zoom, Teams หรือแท็บ /kiosk อีกแท็บ) — ปิดแล้วกดเชื่อมต่อใหม่';
+  }
+  if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+    return 'ไม่พบกล้อง — ต่อกล้องแล้วกดเชื่อมต่อใหม่';
+  }
+  return `เปิดกล้องไม่สำเร็จ: ${err instanceof Error ? err.message : String(err)}`;
+}
 
 export default function KioskCapturePage() {
   const {
@@ -37,13 +87,17 @@ export default function KioskCapturePage() {
   const channelRef = useRef<BroadcastChannel | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const initCameraRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const initCameraRef = useRef<(deviceId?: string) => Promise<void>>(() => Promise.resolve());
+  const cameraRequestRef = useRef<number>(0);
   const handleConfirmUploadRef = useRef<() => Promise<void>>(() => Promise.resolve());
   // Palm hold, preview timer, keyboard, button and staff command can all confirm; only the first one uploads.
   const uploadInFlightRef = useRef<boolean>(false);
 
   // Camera & Stream state
   const [cameraActive, setCameraActive] = useState<boolean>(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
+  const [activeCameraId, setActiveCameraId] = useState<string | undefined>(undefined);
   const [isAiVisionReady, setIsAiVisionReady] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number }>({ width: 16, height: 9 });
@@ -77,6 +131,20 @@ export default function KioskCapturePage() {
   const landmarkerRef = useRef<any>(null);
   const animFrameRef = useRef<number | null>(null);
   const lastVideoTimeRef = useRef<number>(-1);
+
+  // Meme stickers: a meme gesture pops a GIF up beside the cheek (see lib/ai-vision/memeRules.ts)
+  const faceLandmarkerRef = useRef<any>(null);
+  const faceRef = useRef<FaceInfo | null>(null);
+  const faceSeenAtRef = useRef<number>(-Infinity);
+  const eyesScoreRef = useRef<number | null>(null);
+  const eyesTrackerRef = useRef(new EyesWideTracker());
+  const memeTrackerRef = useRef(new MemeTracker());
+  const memeAspectRef = useRef<Partial<Record<MemeName, number>>>({});
+  const memeStillRef = useRef<Partial<Record<MemeName, CanvasImageSource>>>({});
+  const forceMemeUntilRef = useRef<number>(0);
+  const faceFrameRef = useRef<number>(0);
+  const stickerRef = useRef<{ meme: MemeName; rect: Rect } | null>(null);
+  const [sticker, setSticker] = useState<{ meme: MemeName; rect: Rect } | null>(null);
 
   // Sound synthesizer (reusable singleton context to prevent Chrome audio context limits)
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -192,6 +260,18 @@ export default function KioskCapturePage() {
             canvas.width,
             canvas.height
           );
+
+          // A meme showing right now goes into the photo too, unmirrored
+          const shown = stickerRef.current;
+          const still = shown ? memeStillRef.current[shown.meme] : undefined;
+          if (shown && still) {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            const w = ((shown.rect.w * video.videoWidth) / crop.sWidth) * canvas.width;
+            const h = ((shown.rect.h * video.videoHeight) / crop.sHeight) * canvas.height;
+            const x = canvas.width - ((shown.rect.x * video.videoWidth - crop.sx) / crop.sWidth) * canvas.width - w;
+            const y = ((shown.rect.y * video.videoHeight - crop.sy) / crop.sHeight) * canvas.height;
+            ctx.drawImage(still, x, y, w, h);
+          }
         } else {
           // Studio fallback simulation
           ctx.fillStyle = '#0A0A0A';
@@ -338,55 +418,122 @@ export default function KioskCapturePage() {
     send({ type: 'GESTURE_RETAKE_FIST' });
   }, [send]);
 
-  // Initialize WebRTC Camera
-  const initCamera = useCallback(async () => {
-    try {
-      if (currentStreamRef.current) {
-        currentStreamRef.current.getTracks().forEach((track) => track.stop());
-        currentStreamRef.current = null;
-      }
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('WebRTC not supported');
-      }
+  // Initialize WebRTC Camera. Pass a deviceId when staff pick a camera; it is remembered.
+  const initCamera = useCallback(async (requestedId?: string) => {
+    // React Strict Mode and the reconnect button can start overlapping attempts;
+    // only the newest one may touch the video or the state.
+    const request = ++cameraRequestRef.current;
+    const isStale = () => request !== cameraRequestRef.current;
 
-      let stream: MediaStream;
+    if (currentStreamRef.current) {
+      currentStreamRef.current.getTracks().forEach((track) => track.stop());
+      currentStreamRef.current = null;
+    }
+    setCameraActive(false);
+    setCameraError(null);
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError(describeCameraError(new Error('WebRTC not supported')));
+      return;
+    }
+    if (requestedId) saveCameraId(requestedId);
+
+    const listCameras = async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            facingMode: 'user',
-          },
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        return devices.filter((d) => d.kind === 'videoinput');
+      } catch {
+        return [];
+      }
+    };
+    const open = async (deviceId?: string) => {
+      const device = deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' };
+      try {
+        return await navigator.mediaDevices.getUserMedia({
+          video: { ...device, width: { ideal: 1920 }, height: { ideal: 1080 } },
           audio: false,
         });
-      } catch (firstErr) {
-        console.warn('1080p camera constraint failed, attempting basic video constraint:', firstErr);
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false,
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'OverconstrainedError') {
+          return navigator.mediaDevices.getUserMedia({ video: device, audio: false });
+        }
+        throw err;
+      }
+    };
+
+    // Try the chosen camera first, then real cameras, then virtual ones.
+    // Before permission is granted, ids are hidden, so the browser default is tried instead.
+    const found = await listCameras();
+    const preferred = requestedId ?? readSavedCameraId();
+    const ordered = [
+      ...found.filter((d) => d.deviceId === preferred),
+      ...found.filter((d) => !VIRTUAL_CAMERA_PATTERN.test(d.label)),
+      ...found.filter((d) => VIRTUAL_CAMERA_PATTERN.test(d.label)),
+    ];
+    const candidates: (string | undefined)[] = [...new Set(ordered.map((d) => d.deviceId).filter(Boolean))];
+    if (candidates.length === 0) candidates.push(undefined);
+
+    let stream: MediaStream | null = null;
+    let lastError: unknown = null;
+    const tried = new Set<string | undefined>();
+    for (let i = 0; i < candidates.length && !stream; i++) {
+      tried.add(candidates[i]);
+      try {
+        stream = await open(candidates[i]);
+      } catch (err) {
+        lastError = err;
+        console.warn('Camera failed to open:', candidates[i] ?? 'browser default', err);
+        // The first attempt may have just been granted permission, revealing every camera.
+        if (i === candidates.length - 1) {
+          const revealed = (await listCameras())
+            .sort((x, y) => Number(VIRTUAL_CAMERA_PATTERN.test(x.label)) - Number(VIRTUAL_CAMERA_PATTERN.test(y.label)))
+            .map((d) => d.deviceId)
+            .filter((id) => id && !tried.has(id));
+          candidates.push(...revealed);
+        }
+      }
+      if (isStale()) {
+        stream?.getTracks().forEach((track) => track.stop());
+        return;
+      }
+    }
+
+    setCameras(await listCameras());
+    if (isStale()) {
+      stream?.getTracks().forEach((track) => track.stop());
+      return;
+    }
+    if (!stream) {
+      setCameraError(describeCameraError(lastError));
+      return;
+    }
+
+    currentStreamRef.current = stream;
+    setActiveCameraId(stream.getVideoTracks()[0]?.getSettings().deviceId);
+
+    const video = videoRef.current;
+    if (video) {
+      video.srcObject = stream;
+      video.onloadedmetadata = () => {
+        setVideoDimensions({
+          width: video.videoWidth || 16,
+          height: video.videoHeight || 9,
         });
-      }
-
-      currentStreamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          if (videoRef.current) {
-            setVideoDimensions({
-              width: videoRef.current.videoWidth || 16,
-              height: videoRef.current.videoHeight || 9,
-            });
-          }
-        };
-        await videoRef.current.play().catch(() => {});
-        setCameraActive(true);
-      }
-    } catch (err: any) {
-      console.warn('WebRTC camera unavailable, using simulation mode:', err.message);
-      setCameraActive(false);
+      };
+      await video.play().catch(() => {});
+      if (isStale()) return;
+      setCameraActive(true);
     }
   }, []);
+
+  // Staff shortcut: C switches to the next camera.
+  const switchToNextCamera = useCallback(() => {
+    if (cameras.length < 2) return;
+    const index = cameras.findIndex((d) => d.deviceId === activeCameraId);
+    initCamera(cameras[(index + 1) % cameras.length].deviceId);
+  }, [cameras, activeCameraId, initCamera]);
+  const switchToNextCameraRef = useRef(switchToNextCamera);
+  switchToNextCameraRef.current = switchToNextCamera;
 
   // Keep callback refs continuously synced
   initCameraRef.current = initCamera;
@@ -395,6 +542,7 @@ export default function KioskCapturePage() {
   useEffect(() => {
     initCamera();
     return () => {
+      cameraRequestRef.current++;
       if (currentStreamRef.current) {
         currentStreamRef.current.getTracks().forEach((track) => track.stop());
         currentStreamRef.current = null;
@@ -408,7 +556,7 @@ export default function KioskCapturePage() {
 
     async function initMediaPipe() {
       try {
-        const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision');
+        const { FilesetResolver, HandLandmarker, FaceLandmarker } = await import('@mediapipe/tasks-vision');
         const vision = await FilesetResolver.forVisionTasks('/mediapipe/wasm');
 
         if (!active) return;
@@ -438,6 +586,23 @@ export default function KioskCapturePage() {
           landmarkerRef.current = landmarker;
           setIsAiVisionReady(true);
         }
+
+        // Face model for meme stickers (nose, wide eyes, where to place the GIF).
+        // Optional: the booth works without it.
+        try {
+          const createFace = (delegate: 'GPU' | 'CPU') =>
+            FaceLandmarker.createFromOptions(vision, {
+              baseOptions: { modelAssetPath: '/mediapipe/face_landmarker.task', delegate },
+              runningMode: 'VIDEO',
+              numFaces: 1,
+              outputFaceBlendshapes: true,
+            });
+          const faceLandmarker = await createFace('GPU').catch(() => createFace('CPU'));
+          if (active) faceLandmarkerRef.current = faceLandmarker;
+          else faceLandmarker.close();
+        } catch (err) {
+          console.warn('Face model unavailable, meme stickers are off:', err);
+        }
       } catch (err) {
         console.warn('MediaPipe initialization fallback (mouse/touch active):', err);
       }
@@ -453,12 +618,91 @@ export default function KioskCapturePage() {
         } catch {}
         landmarkerRef.current = null;
       }
+      try {
+        faceLandmarkerRef.current?.close();
+      } catch {}
+      faceLandmarkerRef.current = null;
+    };
+  }, []);
+
+  // Load the meme GIFs: their shape for placing them, and a still frame for the photo
+  useEffect(() => {
+    let cancelled = false;
+    (Object.keys(MEME_FILES) as MemeName[]).forEach(async (meme) => {
+      try {
+        const img = new Image();
+        img.src = MEME_FILES[meme];
+        await img.decode();
+        if (cancelled || !img.naturalHeight) return;
+        memeAspectRef.current[meme] = img.naturalWidth / img.naturalHeight;
+        memeStillRef.current[meme] = img; // Canvas draws only the first frame of an <img> GIF
+
+        // Prefer the middle frame for the photo: first frames are often blank
+        const Decoder = (window as any).ImageDecoder;
+        if (Decoder) {
+          const data = await (await fetch(MEME_FILES[meme])).arrayBuffer();
+          const decoder = new Decoder({ data, type: 'image/gif' });
+          await decoder.tracks.ready;
+          const frameCount = decoder.tracks.selectedTrack?.frameCount ?? 1;
+          const { image } = await decoder.decode({ frameIndex: Math.floor(frameCount / 2) });
+          const bitmap = await createImageBitmap(image);
+          image.close();
+          decoder.close();
+          if (!cancelled) memeStillRef.current[meme] = bitmap;
+        }
+      } catch {
+        console.info(`Meme ${meme} is off: add the GIF at public${MEME_FILES[meme]}`);
+      }
+    });
+    return () => {
+      cancelled = true;
     };
   }, []);
 
   // Real-time Gesture Detection Animation Frame Loop (Using Updated 3D Hand Model)
   useEffect(() => {
     let animId: number;
+
+    // Meme stickers: which meme (if any) shows, and where beside the cheek
+    const updateMemes = (video: HTMLVideoElement, hands: LandmarkPoint[][]) => {
+      const now = performance.now();
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      if (!vw || !vh) return;
+
+      // The face model runs on every other frame; it is the slowest part
+      const faceLandmarker = faceLandmarkerRef.current;
+      if (faceLandmarker && faceFrameRef.current++ % 2 === 0) {
+        const faces = faceLandmarker.detectForVideo(video, now);
+        if (faces?.faceLandmarks?.length) {
+          faceRef.current = readFace(faces.faceLandmarks[0], vw, vh);
+          faceSeenAtRef.current = now;
+        }
+        eyesScoreRef.current = eyesWideScore(faces?.faceBlendshapes?.[0]?.categories);
+      }
+      const face = now - faceSeenAtRef.current <= FACE_MEMORY_MS ? faceRef.current : null;
+
+      const hasGif = (meme: MemeName) => memeAspectRef.current[meme] !== undefined;
+      const eyesWide = eyesTrackerRef.current.update(eyesScoreRef.current, now);
+      let detected: MemeName | null = null;
+      if ((now < forceMemeUntilRef.current || isNosePinched(hands, face, vw, vh)) && hasGif('SCOOBA')) {
+        detected = 'SCOOBA';
+      } else if (eyesWide && hasGif('SCARE')) {
+        detected = 'SCARE';
+      }
+      const meme = memeTrackerRef.current.update(detected, now);
+
+      let next: { meme: MemeName; rect: Rect } | null = null;
+      if (meme) {
+        // Keep the meme inside the 4:3 part of the frame that ends up in the photo
+        const crop = calculate43Crop(vw, vh);
+        const zone = { x0: crop.sx / vw, y0: crop.sy / vh, x1: (crop.sx + crop.sWidth) / vw, y1: (crop.sy + crop.sHeight) / vh };
+        const where = face?.box ?? { x0: 0.4, y0: 0.25, x1: 0.6, y1: 0.6 };
+        next = { meme, rect: placeBesideFace(where, zone, memeAspectRef.current[meme] ?? 1, vw / vh) };
+      }
+      stickerRef.current = next;
+      setSticker((prev) => (prev === null && next === null ? prev : next));
+    };
 
     const detectLoop = () => {
       const video = videoRef.current;
@@ -469,6 +713,7 @@ export default function KioskCapturePage() {
           lastVideoTimeRef.current = video.currentTime;
           try {
             const results = landmarker.detectForVideo(video, performance.now());
+            updateMemes(video, (results?.landmarks ?? []) as LandmarkPoint[][]);
             if (results && results.landmarks && results.landmarks.length > 0) {
               const primaryHand = results.landmarks[0];
               const worldHand = results.worldLandmarks?.[0];
@@ -628,7 +873,7 @@ export default function KioskCapturePage() {
     return () => clearInterval(previewInterval);
   }, [isPreviewing, handleConfirmUpload]);
 
-  // Keyboard shortcut testing (P = Palm, F = Fist, S = Staff Trigger, R = Reset)
+  // Keyboard shortcut testing (P = Palm, F = Fist, M = Meme, C = Camera, S = Staff Trigger, R = Reset)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
@@ -638,6 +883,10 @@ export default function KioskCapturePage() {
         } else if (isPreviewing) {
           handleConfirmUploadRef.current();
         }
+      } else if (key === 'm') {
+        forceMemeUntilRef.current = performance.now() + 300; // Test: as if pinching the nose
+      } else if (key === 'c') {
+        switchToNextCameraRef.current();
       } else if (key === 'f') {
         if (isPreviewing) {
           handleRetake();
@@ -683,8 +932,8 @@ export default function KioskCapturePage() {
                 <h3 className="text-lg font-bold text-white tracking-tight">
                   ระบบกล้องกำลังเชื่อมต่อ (Camera Standby)
                 </h3>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  กรุณาอนุญาตการเข้าถึงกล้องบนเบราว์เซอร์ หรือกดปุ่มด้านล่างเพื่อเชื่อมต่อกล้อง
+                <p className={`text-xs mt-1 leading-relaxed ${cameraError ? 'text-amber-300' : 'text-slate-400'}`}>
+                  {cameraError ?? 'กำลังเปิดกล้อง...'}
                 </p>
               </div>
               <div className="flex items-center justify-center gap-3 pt-2">
@@ -697,8 +946,25 @@ export default function KioskCapturePage() {
                   <span>เชื่อมต่อกล้องทันที</span>
                 </button>
               </div>
+              {cameras.length > 1 && (
+                <label className="flex items-center justify-center gap-2 text-xs text-slate-400">
+                  <span>กล้อง:</span>
+                  <select
+                    value={activeCameraId ?? ''}
+                    onChange={(e) => initCamera(e.target.value)}
+                    className="cursor-pointer rounded-lg border border-white/15 bg-black px-2 py-1.5 text-xs text-white"
+                  >
+                    {!activeCameraId && <option value="">เลือกกล้อง</option>}
+                    {cameras.map((d, i) => (
+                      <option key={d.deviceId || i} value={d.deviceId}>
+                        {d.label || `กล้อง ${i + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <div className="mono text-[11px] text-slate-500 pt-2">
-                โหมดทดสอบ: กดปุ่ม P เพื่อจำลองแบมือ หรือ S เพื่อถ่ายภาพ
+                โหมดทดสอบ: กดปุ่ม P เพื่อจำลองแบมือ, S เพื่อถ่ายภาพ หรือ C เพื่อสลับกล้อง
               </div>
             </div>
           </div>
@@ -807,7 +1073,7 @@ export default function KioskCapturePage() {
           </div>
 
           <div className="mono text-[clamp(.34rem,.4vw,.48rem)] leading-relaxed text-slate-500">
-            KEY: [P]ALM [F]IST [S]TAFF
+            KEY: [P]ALM [F]IST [S]TAFF [M]EME
           </div>
         </aside>
 
@@ -823,6 +1089,11 @@ export default function KioskCapturePage() {
             gestureText={detectedGestureText}
             videoDimensions={videoDimensions}
           />
+        )}
+
+        {/* Meme sticker beside the cheek */}
+        {showLiveFeed && cameraActive && sticker && (
+          <MemeSticker src={MEME_FILES[sticker.meme]} rect={sticker.rect} videoDimensions={videoDimensions} />
         )}
 
         {/* Dynamic Tracking Status Badge - Positioned on the Side (Non-intrusive HUD Telemetry) */}
