@@ -1,16 +1,16 @@
-"""Just-for-fun photo booth: do a meme gesture to see the meme beside you,
-and hold an open palm to take a photo of you with it.
+"""Just-for-fun photo booth: do a meme gesture and the meme pops up beside your cheek,
+live, like an AR sticker. It goes away as soon as the gesture ends.
 
 Put your GIFs in the gifs/ folder next to this script, using these names:
-  gifs/scooba.gif       Scuba Dance: pinch your nose, other hand up near your face
+  gifs/scooba.gif       Scooba: pinch your nose
   gifs/scare.gif        Open your eyes wide
-  gifs/open_palm.gif    open palm
-  gifs/fist.gif         fist
-
+  gifs/fist.gif         Fist
 A missing GIF is replaced by an animated placeholder, so the demo always runs.
+GIFs with a transparent background look best: only the meme itself sits on the picture.
 
-Hold an open palm for a moment to start a 3-second countdown. The photo (you beside
-the meme showing at that moment) is saved to captures/ and never committed.
+Hold an open palm for a moment to start a 3-second countdown and take a photo. A meme
+showing at that moment is in the photo too. Photos are saved to captures/ and never
+committed.
 
 Press 'q' or Esc to quit.
 """
@@ -46,7 +46,6 @@ from fivepalm_shutter import (
     GESTURE_SMOOTHING_FRAMES,
     INDEX_TIP,
     MAX_CONSECUTIVE_READ_FAILURES,
-    MIDDLE_MCP,
     MODEL_PATH,
     THUMB_TIP,
     Gesture,
@@ -90,30 +89,30 @@ GESTURE_COLORS = {**GESTURE_COLORS, SCOOBA: (255, 200, 0), SCARE: (200, 0, 255)}
 GIF_FILES = {
     SCOOBA: "scooba.gif",
     SCARE: "scare.gif",
-    Gesture.OPEN_PALM: "open_palm.gif",
     Gesture.FIST: "fist.gif",
 }
 
-# Scooba thresholds, in face widths (ear to ear). It shows at once, with no wave to wait for.
+# Scooba: thumb and index fingertips pinched together on the nose, in face widths (ear to ear)
 PINCH_MAX_DISTANCE = 0.6        # Thumb tip to index tip
 NOSE_MAX_DISTANCE = 0.8         # Pinch to nose
-OTHER_HAND_MAX_DISTANCE = 3.0   # Other hand to nose
-SCOOBA_HOLD_SECONDS = 0.5       # Stays detected this long, to ride out tracking gaps
+SCOOBA_HOLD_SECONDS = 0.0       # No hold: the meme shows only while the gesture is seen
 
 # Wide-eyes thresholds, on the average of MediaPipe's eyeWideLeft and eyeWideRight (0 to 1)
 EYES_WIDE_ON = 0.02
 EYES_WIDE_OFF = 0.01          # Lower than ON, so a score near the line doesn't flicker
 EYES_WIDE_MIN_SECONDS = 0.2   # Longer than a quick flutter of the eyelids
-EYES_WIDE_HOLD_SECONDS = 0.5  # Stays detected this long, to ride out tracking gaps
+EYES_WIDE_HOLD_SECONDS = 0.0  # No hold: the meme shows only while the gesture is seen
 
-# Keep the GIF up briefly after the gesture ends, so tracking hiccups don't make it blink.
-GIF_LINGER_SECONDS = 1.0
 DEFAULT_FRAME_MS = 100
-# 480p tall fits camera + GIF panel on a 1366px wide laptop screen.
 DISPLAY_HEIGHT = 480
-PANEL_SIZE = DISPLAY_HEIGHT
-PANEL_BACKGROUND = (30, 30, 30)
-WINDOW_NAME = "Gesture GIF Demo"
+GIF_MAX_SIDE = 480              # GIF frames are kept up to this size, then scaled to the face
+MEME_FACE_SCALE = 1.3           # Meme height, relative to the face height
+MEME_GAP_RATIO = 0.08           # Gap between face and meme, relative to the face width
+MEME_MIN_FACE_RATIO = 0.6       # Never narrower than this; overlaps the face when there is no room
+FACE_MEMORY_SECONDS = 1.5       # A hand can hide the face; its last place is used this long
+MEME_LINGER_SECONDS = 0.0       # Gone as soon as the gesture ends
+SAVED_NOTICE_SECONDS = 2.0
+WINDOW_NAME = "Gesture Photo Booth"
 
 
 def _distance(a: Point, b: Point) -> float:
@@ -121,47 +120,37 @@ def _distance(a: Point, b: Point) -> float:
 
 
 class ScoobaDetector:
-    """Detects one hand pinching the nose while the other hand is up near the face."""
+    """Detects a hand pinching the nose with the thumb and index finger."""
 
     def __init__(self) -> None:
         self.last_detected = -math.inf
-        self.nose_plugged = False
-        self.other_hand_up = False
+        self.nose_pinched = False
 
     def update(
         self,
-        hands: Sequence[Sequence[Point]],
+        hands: Sequence[Tuple[Sequence, Sequence, str]],
         nose: Optional[Point],
         face_width: float,
         now: float,
+        frame_size: Tuple[int, int],
     ) -> bool:
-        """Takes each hand's landmarks in pixels. Returns whether the gesture is on."""
-        self.nose_plugged = False
-        self.other_hand_up = False
+        """Takes (world landmarks, image landmarks, handedness) per hand. Returns whether it is on."""
+        width, height = frame_size
+        self.nose_pinched = False
         if nose is not None and face_width > 0:
-            pinching_hand = self._find_pinching_hand(hands, nose, face_width)
-            self.nose_plugged = pinching_hand is not None
-            if self.nose_plugged and len(hands) >= 2:
-                palm = hands[1 - pinching_hand][MIDDLE_MCP]
-                self.other_hand_up = _distance(palm, nose) <= OTHER_HAND_MAX_DISTANCE * face_width
+            for _, image, _ in hands:
+                thumb = (image[THUMB_TIP].x * width, image[THUMB_TIP].y * height)
+                finger = (image[INDEX_TIP].x * width, image[INDEX_TIP].y * height)
+                if _distance(thumb, finger) > PINCH_MAX_DISTANCE * face_width:
+                    continue
+                pinch = ((thumb[0] + finger[0]) / 2, (thumb[1] + finger[1]) / 2)
+                if _distance(pinch, nose) <= NOSE_MAX_DISTANCE * face_width:
+                    self.nose_pinched = True
+                    break
 
-        if self.nose_plugged and self.other_hand_up:
+        if self.nose_pinched:
             self.last_detected = now
         return now - self.last_detected <= SCOOBA_HOLD_SECONDS
-
-    @staticmethod
-    def _find_pinching_hand(hands, nose: Point, face_width: float) -> Optional[int]:
-        closest = None
-        closest_distance = NOSE_MAX_DISTANCE * face_width
-        for index, hand in enumerate(hands):
-            thumb, finger = hand[THUMB_TIP], hand[INDEX_TIP]
-            if _distance(thumb, finger) > PINCH_MAX_DISTANCE * face_width:
-                continue
-            pinch = ((thumb[0] + finger[0]) / 2, (thumb[1] + finger[1]) / 2)
-            distance = _distance(pinch, nose)
-            if distance <= closest_distance:
-                closest, closest_distance = index, distance
-        return closest
 
 
 class EyesWideDetector:
@@ -225,8 +214,8 @@ class PalmShutter:
         return max(0.0, COUNTDOWN_SECONDS - (now - self.since))
 
 
-def draw_shutter(view: np.ndarray, shutter: PalmShutter, now: float, saved_name: str) -> None:
-    """Draws the hold bar, the countdown number and the saved notice."""
+def draw_shutter(view: np.ndarray, shutter: PalmShutter, now: float) -> None:
+    """Draws the hold bar and the countdown number."""
     height, width = view.shape[:2]
     if shutter.state == ShutterState.DEBOUNCING:
         left, top, bar_width = 20, height - 70, width - 40
@@ -241,13 +230,11 @@ def draw_shutter(view: np.ndarray, shutter: PalmShutter, now: float, saved_name:
         (text_width, text_height), _ = cv2.getTextSize(number, cv2.FONT_HERSHEY_SIMPLEX, 2.8, 6)
         cv2.putText(view, number, (center[0] - text_width // 2, center[1] + text_height // 2),
                     cv2.FONT_HERSHEY_SIMPLEX, 2.8, (0, 220, 255), 6, cv2.LINE_AA)
-    elif shutter.state == ShutterState.COOLDOWN and saved_name:
-        cv2.putText(view, f"Saved {saved_name}", (20, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 120), 2, cv2.LINE_AA)
 
 
 @dataclass
 class Gif:
-    frames: List[np.ndarray]
+    frames: List[np.ndarray]  # BGR, or BGRA when the GIF has transparency
     durations_ms: List[int]
 
     def frame_at(self, elapsed_ms: float) -> np.ndarray:
@@ -260,47 +247,80 @@ class Gif:
         return self.frames[-1]
 
 
-def fit_to_panel(image: np.ndarray) -> np.ndarray:
-    """Scales an image to fit a square panel, centered, keeping its proportions."""
-    height, width = image.shape[:2]
-    scale = PANEL_SIZE / max(height, width)
-    resized = cv2.resize(image, (max(1, round(width * scale)), max(1, round(height * scale))))
-    new_height, new_width = resized.shape[:2]
+Box = Tuple[float, float, float, float]  # x0, y0, x1, y1 in pixels
+Rect = Tuple[int, int, int, int]  # x, y, width, height in pixels
 
-    panel = np.full((PANEL_SIZE, PANEL_SIZE, 3), PANEL_BACKGROUND, dtype=np.uint8)
-    top = (PANEL_SIZE - new_height) // 2
-    left = (PANEL_SIZE - new_width) // 2
-    area = panel[top:top + new_height, left:left + new_width]
 
-    if resized.ndim == 2:
-        resized = cv2.cvtColor(resized, cv2.COLOR_GRAY2BGR)
-    if resized.shape[2] == 4:  # Transparent GIF: blend over the panel
-        alpha = resized[:, :, 3:4].astype(np.float32) / 255.0
-        area[:] = (resized[:, :, :3] * alpha + area * (1.0 - alpha)).astype(np.uint8)
+def shrink_to_max_side(image: np.ndarray) -> np.ndarray:
+    if image.ndim == 2:
+        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    scale = GIF_MAX_SIDE / max(image.shape[:2])
+    if scale >= 1:
+        return image
+    return cv2.resize(image, (max(1, round(image.shape[1] * scale)), max(1, round(image.shape[0] * scale))))
+
+
+def place_beside_face(frame_size: Tuple[int, int], face: Box, meme_size: Tuple[int, int]) -> Rect:
+    """Puts the meme next to the cheek, on the side with more room, scaled to the face."""
+    frame_width, frame_height = frame_size
+    x0, y0, x1, y1 = face
+    face_width, face_height = x1 - x0, y1 - y0
+    height = face_height * MEME_FACE_SCALE
+    width = height * meme_size[0] / meme_size[1]
+
+    gap = face_width * MEME_GAP_RATIO
+    room_right, room_left = frame_width - x1 - gap, x0 - gap
+    on_right = room_right >= room_left
+    room = room_right if on_right else room_left
+    if width > room:  # Shrink to the room, but not into a speck
+        scale = max(room, face_width * MEME_MIN_FACE_RATIO) / width
+        width, height = width * scale, height * scale
+    width = max(1, min(int(width), frame_width))
+    height = max(1, min(int(height), frame_height))
+
+    x = x1 + gap if on_right else x0 - gap - width
+    y = (y0 + y1) / 2 - height / 2  # Centered on the cheek
+    x = int(min(max(x, 0), frame_width - width))
+    y = int(min(max(y, 0), frame_height - height))
+    return x, y, width, height
+
+
+def overlay(image: np.ndarray, meme: np.ndarray, rect: Rect) -> None:
+    """Draws the meme into the image in place, honoring its transparency."""
+    x, y, width, height = rect
+    sticker = cv2.resize(meme, (width, height))
+    area = image[y:y + height, x:x + width]
+    if sticker.shape[2] == 4:
+        alpha = sticker[:, :, 3:4].astype(np.float32) / 255.0
+        area[:] = (sticker[:, :, :3] * alpha + area * (1.0 - alpha)).astype(np.uint8)
     else:
-        area[:] = resized
-    return panel
+        area[:] = sticker
+
+
+def face_box_from_landmarks(landmarks, frame_width: int, frame_height: int) -> Box:
+    xs = [p.x * frame_width for p in landmarks]
+    ys = [p.y * frame_height for p in landmarks]
+    return min(xs), min(ys), max(xs), max(ys)
 
 
 def make_placeholder(gesture: str, filename: str) -> Gif:
-    """Draws a pulsing circle telling which file to add."""
+    """Draws a pulsing circle on a transparent background, telling which file to add."""
+    size = 300
     color = GESTURE_COLORS[gesture]
-    center = (PANEL_SIZE // 2, PANEL_SIZE // 2 - 30)
     frames = []
-    for radius in (50, 65, 80, 95, 80, 65):
-        panel = np.full((PANEL_SIZE, PANEL_SIZE, 3), PANEL_BACKGROUND, dtype=np.uint8)
-        cv2.circle(panel, center, radius, color, -1, cv2.LINE_AA)
-        cv2.putText(panel, gesture, (30, 60), cv2.FONT_HERSHEY_SIMPLEX, 1.0, color, 2, cv2.LINE_AA)
-        cv2.putText(
-            panel, f"Add gifs/{filename}", (30, PANEL_SIZE - 40),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 1, cv2.LINE_AA,
-        )
-        frames.append(panel)
+    for radius in (70, 85, 100, 115, 100, 85):
+        frame = np.zeros((size, size, 4), dtype=np.uint8)
+        cv2.circle(frame, (size // 2, size // 2), radius, (*color, 255), -1, cv2.LINE_AA)
+        for text, y, scale in ((gesture, size // 2 + 8, 0.9), (filename, size // 2 + 40, 0.5)):
+            (text_width, _), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, scale, 2)
+            cv2.putText(frame, text, ((size - text_width) // 2, y), cv2.FONT_HERSHEY_SIMPLEX, scale,
+                        (255, 255, 255, 255), 2, cv2.LINE_AA)
+        frames.append(frame)
     return Gif(frames, [DEFAULT_FRAME_MS] * len(frames))
 
 
 def load_gif(path: str) -> Optional[Gif]:
-    """Loads a GIF scaled to the panel. Returns None if it is missing or unreadable."""
+    """Loads a GIF, keeping its transparency. Returns None if it is missing or unreadable."""
     if not os.path.exists(path):
         return None
     ok, animation = cv2.imreadanimation(path)
@@ -309,7 +329,7 @@ def load_gif(path: str) -> Optional[Gif]:
         return None
     # Some GIFs store a 0 delay, which players treat as a default speed.
     durations = [int(d) if int(d) > 0 else DEFAULT_FRAME_MS for d in animation.durations]
-    return Gif([fit_to_panel(frame) for frame in animation.frames], durations)
+    return Gif([shrink_to_max_side(frame) for frame in animation.frames], durations)
 
 
 def load_gifs(gif_dir: str) -> dict:
@@ -323,18 +343,6 @@ def load_gifs(gif_dir: str) -> dict:
             logger.info(f"Loaded gifs/{filename} ({len(gif.frames)} frames) for {gesture}.")
         gifs[gesture] = gif
     return gifs
-
-
-def make_idle_panel() -> np.ndarray:
-    panel = np.full((PANEL_SIZE, PANEL_SIZE, 3), PANEL_BACKGROUND, dtype=np.uint8)
-    lines = ("Pinch nose + other hand up", "Open your eyes wide", "Hold open palm = photo")
-    for y, text in zip((PANEL_SIZE // 2 - 40, PANEL_SIZE // 2, PANEL_SIZE // 2 + 40), lines):
-        (width, _), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
-        cv2.putText(
-            panel, text, ((PANEL_SIZE - width) // 2, y),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (160, 160, 160), 2, cv2.LINE_AA,
-        )
-    return panel
 
 
 def main(camera_index: int = 0, gif_dir: str = GIF_DIR, captures_dir: str = CAPTURES_DIR) -> None:
@@ -354,7 +362,6 @@ def main(camera_index: int = 0, gif_dir: str = GIF_DIR, captures_dir: str = CAPT
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
     gifs = load_gifs(gif_dir)
-    idle_panel = make_idle_panel()
 
     hand_detector = hand_landmarker.HandLandmarker.create_from_options(
         hand_landmarker.HandLandmarkerOptions(
@@ -386,7 +393,7 @@ def main(camera_index: int = 0, gif_dir: str = GIF_DIR, captures_dir: str = CAPT
     scooba = ScoobaDetector()
     shutter = PalmShutter()
     flash_until = 0.0
-    saved_name = ""
+    saved_name, saved_at = "", -math.inf
     eyes_wide = EyesWideDetector()
     eyes_score: Optional[float] = None
     last_timestamp_ms = -1
@@ -394,9 +401,11 @@ def main(camera_index: int = 0, gif_dir: str = GIF_DIR, captures_dir: str = CAPT
     frame_count = 0
     nose: Optional[Point] = None
     face_width = 0.0
-    active_gesture: Optional[str] = None
-    gif_start = 0.0
-    last_seen = 0.0
+    face_box: Optional[Box] = None
+    face_seen_at = -math.inf
+    active_meme: Optional[str] = None
+    meme_start = 0.0
+    meme_seen_at = -math.inf
 
     try:
         while True:
@@ -422,9 +431,11 @@ def main(camera_index: int = 0, gif_dir: str = GIF_DIR, captures_dir: str = CAPT
             results = hand_detector.detect_for_video(mp_image, last_timestamp_ms)
 
             if frame_count % SLOW_MODEL_CYCLE == FACE_TURN:
-                eyes_score = read_eyes_wide_score(
-                    face_detector.detect_for_video(mp_image, last_timestamp_ms)
-                )
+                face_result = face_detector.detect_for_video(mp_image, last_timestamp_ms)
+                eyes_score = read_eyes_wide_score(face_result)
+                if face_result.face_landmarks:
+                    face_box = face_box_from_landmarks(face_result.face_landmarks[0], frame_width, frame_height)
+                    face_seen_at = now
 
             if frame_count % SLOW_MODEL_CYCLE == POSE_TURN:
                 pose = pose_detector.detect_for_video(mp_image, last_timestamp_ms)
@@ -440,14 +451,13 @@ def main(camera_index: int = 0, gif_dir: str = GIF_DIR, captures_dir: str = CAPT
                     nose = None
 
             raw_gesture = Gesture.NONE
-            hands_in_pixels = []
+            hands_seen = []
             for index, landmarks in enumerate(results.hand_landmarks):
-                hands_in_pixels.append([(p.x * frame_width, p.y * frame_height) for p in landmarks])
+                label = results.handedness[index][0].category_name if results.handedness[index] else "Right"
+                world = results.hand_world_landmarks[index]
+                hands_seen.append((world, landmarks, label))
                 if index == 0:
-                    label = results.handedness[0][0].category_name if results.handedness[0] else "Right"
-                    raw_gesture, _ = classify_gesture(
-                        results.hand_world_landmarks[0], landmarks, label, frame_width, frame_height
-                    )
+                    raw_gesture, _ = classify_gesture(world, landmarks, label, frame_width, frame_height)
                 drawing_utils.draw_landmarks(
                     frame,
                     landmarks,
@@ -460,49 +470,64 @@ def main(camera_index: int = 0, gif_dir: str = GIF_DIR, captures_dir: str = CAPT
             gesture = Counter(recent_gestures).most_common(1)[0][0]
             # Face gestures win over a hand that happens to be in view; Scooba is the most specific.
             scare_on = eyes_wide.update(eyes_score, now)
-            if scooba.update(hands_in_pixels, nose, face_width, now):
+            if scooba.update(hands_seen, nose, face_width, now, (frame_width, frame_height)):
                 gesture = SCOOBA
             elif scare_on:
                 gesture = SCARE
 
-            # A new gesture switches GIF at once; no gesture keeps the old one until it lingers out.
+            # The meme pops up at once and stays MEME_LINGER_SECONDS after the gesture was last seen
             if gesture in gifs:
-                if gesture != active_gesture:
-                    active_gesture = gesture
-                    gif_start = now
-                    logger.info(f"Showing GIF for {gesture}")
-                last_seen = now
-            elif active_gesture is not None and now - last_seen > GIF_LINGER_SECONDS:
-                active_gesture = None
+                if gesture != active_meme:
+                    active_meme, meme_start = gesture, now
+                    logger.info(f"Showing {gesture}")
+                meme_seen_at = now
+            elif active_meme is not None and now - meme_seen_at > MEME_LINGER_SECONDS:
+                active_meme = None
 
-            if active_gesture is None:
-                panel = idle_panel
-            else:
-                panel = gifs[active_gesture].frame_at((now - gif_start) * 1000)
+            sticker = None
+            if active_meme is not None:
+                # Where the face is: the face model, else the body model's nose (a hand over
+                # the face hides it from the face model), else the middle of the frame
+                if face_box is not None and now - face_seen_at <= FACE_MEMORY_SECONDS:
+                    where = face_box
+                elif nose is not None and face_width > 0:
+                    where = (nose[0] - face_width / 2, nose[1] - face_width * 0.7,
+                             nose[0] + face_width / 2, nose[1] + face_width * 0.6)
+                else:
+                    where = (frame_width * 0.4, frame_height * 0.25, frame_width * 0.6, frame_height * 0.6)
+                still = gifs[active_meme].frame_at((now - meme_start) * 1000)
+                rect = place_beside_face((frame_width, frame_height), where, (still.shape[1], still.shape[0]))
+                sticker = (still, rect)
+                overlay(frame, still, rect)
 
             if shutter.update(gesture == Gesture.OPEN_PALM, now):
-                # The photo: full-resolution you, beside the meme showing right now
-                meme = cv2.resize(panel, (frame_height, frame_height))
-                saved_path = save_capture_frame(np.hstack((clean_frame, meme)), captures_dir)
-                saved_name = os.path.basename(saved_path)
+                photo = clean_frame.copy()
+                if sticker is not None:
+                    overlay(photo, *sticker)
+                saved_name = os.path.basename(save_capture_frame(photo, captures_dir))
+                saved_at = now
                 flash_until = now + FLASH_DURATION_SECONDS
 
             camera_view = cv2.resize(frame, (camera_width, DISPLAY_HEIGHT))
-            draw_shutter(camera_view, shutter, now, saved_name)
+            draw_shutter(camera_view, shutter, now)
             cv2.putText(
                 camera_view, gesture, (20, 40),
                 cv2.FONT_HERSHEY_SIMPLEX, 1.0, GESTURE_COLORS.get(gesture, (160, 160, 160)), 2, cv2.LINE_AA,
             )
             status = (
-                f"Nose pinch: {'OK' if scooba.nose_plugged else '--'}   "
-                f"Other hand: {'OK' if scooba.other_hand_up else '--'}   "
+                f"Nose pinch: {'OK' if scooba.nose_pinched else '--'}   "
                 f"Eyes: {'--' if eyes_score is None else f'{eyes_score:.2f}'}/{EYES_WIDE_ON:.2f}"
             )
             cv2.putText(
                 camera_view, status, (20, DISPLAY_HEIGHT - 20),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA,
             )
-            display = np.hstack((camera_view, panel))
+            if now - saved_at < SAVED_NOTICE_SECONDS:
+                cv2.putText(
+                    camera_view, f"Saved {saved_name}", (20, 75),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 120), 2, cv2.LINE_AA,
+                )
+            display = camera_view
             if now < flash_until:
                 display = cv2.addWeighted(display, 0.15, np.full_like(display, 255), 0.85, 0)
             cv2.imshow(WINDOW_NAME, display)
