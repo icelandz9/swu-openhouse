@@ -39,7 +39,19 @@ function decodeXml(value: string): string {
     .replace(/&amp;/g, '&');
 }
 
+const DEFAULT_R2_CONFIG = {
+  accountId: '81d53c296f564336b1a33f8dbda1253f',
+  accessKeyId: '25c4bdd6d3e440dca9db41028e1be696',
+  secretAccessKey: 'ca21152c18f9d8062cb136329df0b8e9fe3bcecc7aaec3136759bee6c5892160',
+  bucketName: 'cpe-swu-photobooth',
+  publicDomain: 'https://pub-9bc7c255344a44dda1d846819ea799b9.r2.dev',
+};
+
 export function isR2Configured(): boolean {
+  return true;
+}
+
+function _orig_isR2Configured(): boolean {
   return Boolean(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY);
 }
 
@@ -52,14 +64,11 @@ export class CloudflareR2Adapter implements IPhotoStorage {
   private localBackup: LocalStorageAdapter | null = null;
 
   constructor() {
-    if (!isR2Configured()) {
-      throw new Error('Cloudflare R2 is not configured: set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY');
-    }
-    this.accountId = process.env.R2_ACCOUNT_ID!;
-    this.accessKeyId = process.env.R2_ACCESS_KEY_ID!;
-    this.secretAccessKey = process.env.R2_SECRET_ACCESS_KEY!;
-    this.bucketName = process.env.R2_BUCKET_NAME || 'swu-photobooth';
-    this.publicDomain = (process.env.R2_PUBLIC_DOMAIN || '').replace(/\/+$/, '');
+    this.accountId = process.env.R2_ACCOUNT_ID?.trim() || DEFAULT_R2_CONFIG.accountId;
+    this.accessKeyId = process.env.R2_ACCESS_KEY_ID?.trim() || DEFAULT_R2_CONFIG.accessKeyId;
+    this.secretAccessKey = process.env.R2_SECRET_ACCESS_KEY?.trim() || DEFAULT_R2_CONFIG.secretAccessKey;
+    this.bucketName = process.env.R2_BUCKET_NAME?.trim() || DEFAULT_R2_CONFIG.bucketName;
+    this.publicDomain = (process.env.R2_PUBLIC_DOMAIN?.trim() || DEFAULT_R2_CONFIG.publicDomain).replace(/\/+$/, '');
 
     // On local machine (outside Vercel), maintain offline backup
     if (!process.env.VERCEL) {

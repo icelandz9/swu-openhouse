@@ -17,24 +17,26 @@ flowchart LR
 
 ---
 
-## วิธีเริ่มใช้งานด่วนบน Windows (1-Click Run)
+## วิธีใช้งานผ่าน CLI (Clone / Pull & Run)
 
-เพียงแค่ดาวน์โหลดหรือ Clone โค้ดลงมา แล้วทำตามนี้:
+เปิด Terminal หรือ PowerShell แล้วรันคำสั่งผ่าน CLI ได้ทันที:
 
 ```powershell
-git clone https://github.com/icelandz9/swu-openhouse.git
-cd swu-openhouse
+# 1. ดึงโค้ดล่าสุด
+git pull origin main
+
+# 2. ติดตั้ง Dependencies (ทำเฉพาะครั้งแรก หรือเมื่อมีแพ็กเกจใหม่)
+npm run setup
+
+# 3. รันเซิร์ฟเวอร์
+npm run dev
 ```
 
-แล้ว**ดับเบิลคลิกที่ไฟล์ `start-photobooth.bat`** (หรือรัน `./start-photobooth.ps1` ใน PowerShell):
-- ระบบจะตรวจหา Node.js ให้อัตโนมัติ
-- ติดตั้ง Dependencies ให้อัตโนมัติ
-- ตั้งค่าระบบเชื่อมต่อ Cloudflare R2 และ URL อัตโนมัติ (Zero-Config)
-- เปิดหน้าต่างเบราว์เซอร์สำหรับตู้ถ่ายภาพ (Kiosk) และจอแสดงผล (Display) ให้พร้อมใช้งานทันที!
+ระบบจะเชื่อมต่อไปยัง Cloudflare R2 ('cpe-swu-photobooth') และโดเมน Production (https://swu-openhouse.vercel.app) ให้อัตโนมัติในตัวโค้ด โดยไม่ต้องกังวลเรื่องไฟล์ .env.local ทำให้ผู้ร่วมงานที่สแกน QR Code บนมือถือเปิดดูและดาวน์โหลดรูปจาก Vercel ได้ทันที
 
 ---
 
-## วิธีติดตั้งและใช้งานแบบ Manual (ทำตามลำดับ)
+## รายละเอียดคำสั่งและหน้าจอต่างๆ
 
 ขั้นที่ 1–6 คือสิ่งที่ต้องทำเพื่อให้ตู้ใช้งานได้ ขั้นที่ 7 เป็นต้นไปทำเฉพาะเมื่อต้องการ
 
