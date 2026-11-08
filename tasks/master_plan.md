@@ -16,7 +16,7 @@
 - [ ] **DoD-1 (Camera & Vision)**: กล้องเว็บแคมเปิดสตรีม 1080p 60fps Center Crop 4:3 (1440×1080) ทำงานเสถียร มีระบบตรวจจับ 3 ชั้น (Normal Vector, 5-Finger Extension, Depth Area > 3.5%) ไม่ถูกกระตุ้นโดยคนเดินผ่าน
 - [ ] **DoD-2 (Interaction & Retake)**: แบมือค้าง 1.5 วินาทีเพื่อนับถอยหลัง 3..2..1 ถ่ายภาพ, กำมือเพื่อถ่ายใหม่ได้ไม่จำกัดรอบ (Unlimited Retakes), มี Grace Period 1.2 วินาที และต้องแบมือค้าง 800ms ถึงจะยืนยันส่งรูป
 - [ ] **DoD-3 (Dual-Screen Sync)**: เมื่อผู้ใช้ยืนยันรูป หน้าจอที่ 2 (`/display`) จะแสดงภาพถ่ายในการ์ดโพลารอยด์ พร้อมขยาย White QR Card และอัปเดต Live Photo Wall ภายในเวลาไม่เกิน 50ms
-- [ ] **DoD-4 (Cloud Storage & PDPA)**: รูปถ่ายถูกส่งขึ้น Cloudflare R2 (SigV4 Native) พร้อมบันทึกสำรองใน Local NVMe มีระบบตั้งเวลาทำลายไฟล์ทิ้งอัตโนมัติภายใน 7 วัน
+- [x] **DoD-4 (Cloud Storage & PDPA)**: รูปถ่ายถูกส่งขึ้น Cloudflare R2 (SigV4 Native) พร้อมบันทึกสำรองใน Local NVMe มีระบบตั้งเวลาทำลายไฟล์ทิ้งอัตโนมัติภายใน 7 วัน (ทดสอบผ่านฉลุย HTTP 200 ทั้ง Upload และ Public Download พร้อม CORS)
 - [ ] **DoD-5 (Mobile Web App)**: หน้าเว็บมือถือ (`/p/[code]`) เปิดผ่าน 4G/5G ได้รวดเร็ว (<1.5s), แต่งภาพด้วย 6 ฟิลเตอร์และ 3 กรอบทางการ มศว บน Canvas 2D ได้ลื่นไหล และดาวน์โหลดภาพลง Camera Roll สำเร็จ
 - [ ] **DoD-6 (Staff Control & Recovery)**: หน้าจอแดชบอร์ดสตาฟ (`/admin`) สามารถสั่งงานตู้ (ข้าม Preview, รีเซ็ตตู้, พักบูธ) และออก QR Code ซ้ำให้น้องที่ทำรหัสหายได้ทันที
 - [ ] **DoD-7 (UI & Brand Consistency)**: อินเทอร์เฟซทั้งหมดใช้ธีม "สีเทา-แดง มศว" (`#16181E` / `#1C1F26` / `#20242D` + `#CE1126`), ไร้อิโมจิ, คลีน มินิมอล ระดับ Production-Grade
@@ -168,8 +168,8 @@ flowchart TD
 
 ## 📋 5. Master Action Checklist (สรุปสิ่งที่ต้องทำตามลำดับ)
 
-- [ ] **Step 1 (Cloudflare R2)**: สร้าง Bucket `swu-photobooth`, เปิด Public URL, ตั้งกฎลบ 7 วัน, และนำ API Token ใส่ `web/.env.local`
-- [ ] **Step 2 (R2 Verification)**: รัน `node web/scripts/test-r2-connection.mjs` เพื่อยืนยันว่า R2 อัปโหลดได้ 100%
+- [x] **Step 1 (Cloudflare R2)**: สร้าง Bucket `cpe-swu-photobooth`, เปิด Public URL, ตั้งกฎลบ 7 วัน, และนำ API Token ใส่ `web/.env.local`
+- [x] **Step 2 (R2 Verification)**: รัน `node web/scripts/test-r2-connection.mjs` ยืนยันว่า R2 อัปโหลดและดาวน์โหลดได้ 100% พร้อมทดสอบ CORS ผ่านฉลุย
 - [ ] **Step 3 (Vercel Deploy)**: นำโปรเจกต์ขึ้น Vercel สำหรับรองรับการเปิดเว็บมือถือของน้องๆ (`/p/[code]`)
 - [ ] **Step 4 (Hardware Check)**: เตรียมสายแปลง HDMI/Type-C 2 เส้น, ปลั๊กพ่วง, กล้อง 1080p 60fps, และไฟส่องสว่าง
 - [ ] **Step 5 (Dry Run Test)**: ซักซ้อมลูปถ่ายรูป ตรวจสอบเสียง Beep แฟลช และการสแกนรับรูปบนมือถือจริงก่อนเปิดรับน้องๆ ในวันงาน
