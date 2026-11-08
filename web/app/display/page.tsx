@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL } from '@/lib/contracts';
 import { CpeLogo } from '@/components/CpeLogo';
+import { StaffGate } from '@/components/StaffGate';
 
 interface GalleryItem {
   code: string;
@@ -71,7 +72,7 @@ function formatPhotoDate(iso: string) {
   };
 }
 
-export default function ShowcaseDisplayScreen() {
+function ShowcaseScreen() {
   const [photos, setPhotos] = useState<GalleryItem[]>(DEFAULT_SEEDS);
   const [currentTime, setCurrentTime] = useState<string>('12:00');
   const [newestCode, setNewestCode] = useState<string>('');
@@ -334,5 +335,13 @@ export default function ShowcaseDisplayScreen() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function ShowcaseDisplayScreen() {
+  return (
+    <StaffGate title="จอแสดงผล">
+      <ShowcaseScreen />
+    </StaffGate>
   );
 }

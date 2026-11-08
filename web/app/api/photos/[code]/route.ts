@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { photoStorageService } from '@/lib/storage/storageService';
 import { isValidShortCode } from '@/lib/mobile/shortCodeGenerator';
+import { requireStaff } from '@/lib/auth/requireStaff';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -53,10 +54,13 @@ export async function GET(
   }
 }
 
+// Staff only.
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
+  const denied = requireStaff(req, CORS_HEADERS);
+  if (denied) return denied;
   try {
     const { code } = await params;
 

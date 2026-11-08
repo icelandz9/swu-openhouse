@@ -22,8 +22,9 @@ import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
 import { calculate43Crop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
+import { StaffGate } from '@/components/StaffGate';
 
-export default function KioskCapturePage() {
+function KioskScreen() {
   const {
     send,
     state,
@@ -218,7 +219,7 @@ export default function KioskCapturePage() {
     setIsSyncing(true);
 
     try {
-      const code = generateShortCode();
+      let code = generateShortCode();
       setSyncedCode(code);
       const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
       let qrUrl = `${origin}/p/${code}`;
@@ -242,6 +243,11 @@ export default function KioskCapturePage() {
         });
         if (res.ok) {
           const data = await res.json();
+          // The server may pick another code if this one was already taken.
+          if (data.code && data.code !== code) {
+            code = data.code;
+            setSyncedCode(code);
+          }
           if (data.photoUrl) finalPhotoUrl = data.photoUrl;
           if (data.qrUrl) qrUrl = data.qrUrl;
         }
@@ -895,5 +901,13 @@ export default function KioskCapturePage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function KioskCapturePage() {
+  return (
+    <StaffGate title="จอตู้ถ่ายรูป">
+      <KioskScreen />
+    </StaffGate>
   );
 }

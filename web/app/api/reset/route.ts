@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireStaff } from '@/lib/auth/requireStaff';
 
 export async function POST(req: NextRequest) {
+  const denied = requireStaff(req);
+  if (denied) return denied;
   try {
     const body = await req.json().catch(() => ({}));
     const { action } = body;
