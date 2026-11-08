@@ -3,7 +3,7 @@
 // Locks a staff-only screen (/admin) until this browser is unlocked with the staff PIN.
 // The session is a cookie, so unlocking once covers every tab of the same browser.
 import React, { useEffect, useState } from 'react';
-import { Lock } from 'lucide-react';
+import { Eye, EyeOff, Lock } from 'lucide-react';
 import { CpeLogo } from '@/components/CpeLogo';
 
 type GateState = 'checking' | 'locked' | 'open';
@@ -13,6 +13,7 @@ export function StaffGate({ title, children }: { title: string; children: React.
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showPin, setShowPin] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth')
@@ -65,16 +66,27 @@ export function StaffGate({ title, children }: { title: string; children: React.
           <h1 className="text-xl font-bold">{title}</h1>
           <p className="mt-1 text-xs text-slate-400">สำหรับสตาฟ กรอก PIN เพื่อเปิดหน้านี้</p>
         </div>
-        <input
-          type="password"
-          inputMode="numeric"
-          autoComplete="current-password"
-          value={pin}
-          onChange={(e) => setPin(e.target.value)}
-          placeholder="••••"
-          className="h-12 w-full rounded-xl border border-white/10 bg-[#0A0A0A] text-center font-mono text-2xl tracking-[0.4em] text-white outline-none focus:border-[#CE1126]"
-          autoFocus
-        />
+        <div className="relative">
+          <input
+            type={showPin ? 'text' : 'password'}
+            inputMode="numeric"
+            autoComplete="current-password"
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            placeholder="••••"
+            className="h-12 w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-12 text-center font-mono text-2xl tracking-[0.4em] text-white outline-none focus:border-[#CE1126]"
+            autoFocus
+          />
+          <button
+            type="button"
+            onClick={() => setShowPin((v) => !v)}
+            aria-label={showPin ? 'ซ่อน PIN' : 'แสดง PIN'}
+            aria-pressed={showPin}
+            className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-slate-400 transition-colors hover:text-white"
+          >
+            {showPin ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+          </button>
+        </div>
         {error && <p className="text-sm text-rose-400">{error}</p>}
         <button
           type="submit"
