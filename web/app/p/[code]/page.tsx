@@ -1,7 +1,7 @@
 'use client';
 
 import React, { use, useState, useRef, useEffect, useCallback } from 'react';
-import { Download, Sparkles, Frame, Check, ShieldAlert, Sun, Sticker, Trash2, ShieldCheck, Lock } from 'lucide-react';
+import { Download, Sparkles, Frame, Check, ShieldAlert, Sun, Sticker, Trash2, ShieldCheck, Lock, Maximize2, X } from 'lucide-react';
 import { FilterPresetId } from '@/lib/contracts';
 import { applyColorFilter } from '@/lib/mobile/colorFilters';
 import { FRAME_TEMPLATES, NO_FRAME_ID, FrameTemplate, PHOTO_ONLY_SIZE, drawPhotoCover } from '@/lib/mobile/frameTemplates';
@@ -53,6 +53,7 @@ export default function MobilePhotoEditorPage({
   const [activeTab, setActiveTab] = useState<Tab>('frames');
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [photoLoaded, setPhotoLoaded] = useState<boolean>(false);
+  const [stickerSheetOpen, setStickerSheetOpen] = useState<boolean>(false);
   const [filterThumbs, setFilterThumbs] = useState<Partial<Record<FilterPresetId, string>>>({});
   const [frameImages, setFrameImages] = useState<Record<string, HTMLImageElement>>({});
 
@@ -478,18 +479,29 @@ export default function MobilePhotoEditorPage({
             {stickerCatalog.length === 0 ? (
               <p className="text-xs text-slate-400 text-center py-2">กำลังโหลดสติกเกอร์...</p>
             ) : (
-              <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none">
-                {stickerCatalog.map((s) => (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-slate-400">แตะเพื่อวางบนรูป · {stickerCatalog.length} แบบ</span>
                   <button
-                    key={s.src}
-                    onClick={() => addSticker(s)}
-                    className="flex-shrink-0 size-12 rounded-lg bg-white/5 hover:bg-white/10 p-1.5 flex items-center justify-center transition-colors border border-white/5"
-                    title={s.src.split('/').pop() || 'sticker'}
+                    onClick={() => setStickerSheetOpen(true)}
+                    className="flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] font-bold text-slate-200 hover:bg-white/5"
                   >
-                    <img src={s.src} alt="" className="max-h-full max-w-full object-contain" draggable={false} />
+                    <Maximize2 className="size-3.5" /> ดูทั้งหมด
                   </button>
-                ))}
-              </div>
+                </div>
+                <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+                  {stickerCatalog.map((s) => (
+                    <button
+                      key={s.src}
+                      onClick={() => addSticker(s)}
+                      className="flex-shrink-0 size-14 rounded-lg bg-white/5 hover:bg-white/10 p-1.5 flex items-center justify-center transition-colors border border-white/5"
+                      title={s.src.split('/').pop() || 'sticker'}
+                    >
+                      <img src={s.src} alt="" className="max-h-full max-w-full object-contain" draggable={false} />
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
             {stickers.length > 0 && (
               <div className="flex items-center justify-between text-[11px] text-slate-400">
@@ -508,6 +520,51 @@ export default function MobilePhotoEditorPage({
           </div>
         )}
       </div>
+
+      {/* All stickers, large, in a bottom sheet */}
+      {stickerSheetOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setStickerSheetOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="สติกเกอร์ทั้งหมด"
+        >
+          <div
+            className="flex max-h-[80dvh] w-full max-w-md flex-col rounded-t-2xl border border-white/10 bg-[#0E131D] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <div>
+                <h2 className="text-sm font-bold text-white">สติกเกอร์ทั้งหมด</h2>
+                <p className="text-[11px] text-slate-400">แตะเพื่อวางบนรูป</p>
+              </div>
+              <button
+                onClick={() => setStickerSheetOpen(false)}
+                aria-label="ปิด"
+                className="flex size-9 items-center justify-center rounded-full bg-white/5 text-slate-300 hover:bg-white/10"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-3 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              {stickerCatalog.map((s) => (
+                <button
+                  key={s.src}
+                  onClick={() => {
+                    addSticker(s);
+                    setStickerSheetOpen(false);
+                  }}
+                  className="flex aspect-square items-center justify-center rounded-xl border border-white/5 bg-white/5 p-2.5 transition-colors hover:bg-white/10 active:scale-95"
+                  title={s.src.split('/').pop() || 'sticker'}
+                >
+                  <img src={s.src} alt="" className="max-h-full max-w-full object-contain" draggable={false} loading="lazy" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Save Action Bar & PDPA Notice */}
       <footer className="px-5 pt-4 space-y-3">
