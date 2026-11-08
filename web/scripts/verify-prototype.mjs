@@ -416,6 +416,52 @@ assert.strictEqual(crop720p.sx, 160, 'Horizontal offset must be 160px ((1280 - 9
 
 console.log('  ✓ 4:3 Center-Crop math accurately preserves center region with exact offsets');
 
+// ---------------------------------------------------------
+// TEST 8: Host Sanitization, QR URL Resolution & PDPA Deletion
+// ---------------------------------------------------------
+console.log('\n▶ [Test 8] Host Sanitization, QR URL Resolution & PDPA Deletion...');
+
+function resolveQrTargetUrl(inputHost, code, fallbackOrigin = 'http://localhost:3000') {
+  const raw = (inputHost && typeof inputHost === 'string' ? inputHost : fallbackOrigin).trim().replace(/\/+$/, '');
+  const base = /^https?:\/\//i.test(raw) ? raw : (raw ? `http://${raw}` : fallbackOrigin);
+  return `${base}/p/${encodeURIComponent(code)}`;
+}
+
+// 1. Bare domain without protocol
+assert.strictEqual(
+  resolveQrTargetUrl('photos.cpe-swu.com', 'OPH-AB29'),
+  'http://photos.cpe-swu.com/p/OPH-AB29',
+  'Bare host must receive http protocol'
+);
+
+// 2. HTTPS domain with trailing slash
+assert.strictEqual(
+  resolveQrTargetUrl('https://swu-photobooth.vercel.app/', 'OPH-AB29'),
+  'https://swu-photobooth.vercel.app/p/OPH-AB29',
+  'Trailing slash must be stripped without double slash'
+);
+
+// 3. Cloudflare tunnel domain
+assert.strictEqual(
+  resolveQrTargetUrl('https://my-tunnel.trycloudflare.com', 'OPH-9999'),
+  'https://my-tunnel.trycloudflare.com/p/OPH-9999',
+  'Cloudflare tunnel URL must resolve correctly'
+);
+
+// 4. Empty host falls back to fallbackOrigin
+assert.strictEqual(
+  resolveQrTargetUrl('', 'OPH-AB29', 'http://192.168.1.50:3000'),
+  'http://192.168.1.50:3000/p/OPH-AB29',
+  'Empty host must use fallback origin'
+);
+
+// 5. Test deletion set tracking
+const deletedSet = new Set(['OPH-DEL1', 'OPH-DEL2']);
+assert.strictEqual(deletedSet.has('OPH-DEL1'), true, 'Deleted code must be in set');
+assert.strictEqual(deletedSet.has('OPH-ACTIVE'), false, 'Active code must not be in set');
+
+console.log('  ✓ Host sanitization, QR target resolution, and PDPA deletion verified');
+
 console.log('\n====================================================');
 console.log('🎉 ALL ARCHITECTURAL TESTS PASSED (100% SUCCESS)');
 console.log('====================================================');

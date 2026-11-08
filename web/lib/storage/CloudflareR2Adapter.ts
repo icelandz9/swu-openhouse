@@ -46,6 +46,7 @@ export class CloudflareR2Adapter implements IPhotoStorage {
   private accessKeyId: string;
   private secretAccessKey: string;
   private bucketName: string;
+  private publicDomain: string;
 
   constructor() {
     if (!isR2Configured()) {
@@ -55,6 +56,7 @@ export class CloudflareR2Adapter implements IPhotoStorage {
     this.accessKeyId = process.env.R2_ACCESS_KEY_ID!;
     this.secretAccessKey = process.env.R2_SECRET_ACCESS_KEY!;
     this.bucketName = process.env.R2_BUCKET_NAME || 'swu-photobooth';
+    this.publicDomain = (process.env.R2_PUBLIC_DOMAIN || '').replace(/\/+$/, '');
   }
 
   private async request(
@@ -119,13 +121,16 @@ export class CloudflareR2Adapter implements IPhotoStorage {
     return {
       photoId: shortCode,
       shortCode,
-      url: `/api/photos/${shortCode}/file`,
+      url: this.publicDomain ? `${this.publicDomain}/${shortCode}.jpg` : `/api/photos/${shortCode}/file`,
       storageDriver: 'r2',
       expiresAt: new Date(Date.now() + RETENTION_MS).toISOString(),
     };
   }
 
   async getPhotoUrl(shortCode: string): Promise<string | null> {
+    if (this.publicDomain) {
+      return `${this.publicDomain}/${shortCode}.jpg`;
+    }
     const res = await this.request('HEAD', `${shortCode}.jpg`);
     if (!res.ok || !this.isFresh(res.headers.get('last-modified'))) return null;
     return `/api/photos/${shortCode}/file`;
@@ -158,7 +163,7 @@ export class CloudflareR2Adapter implements IPhotoStorage {
         const createdAt = new Date(lastModified).toISOString();
         photos.push({
           code,
-          photoUrl: `/api/photos/${code}/file`,
+          photoUrl: this.publicDomain ? `${this.publicDomain}/${code}.jpg` : `/api/photos/${code}/file`,
           qrUrl: `/p/${code}`,
           createdAt,
           expiresAt: new Date(new Date(createdAt).getTime() + RETENTION_MS).toISOString(),

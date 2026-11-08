@@ -85,7 +85,7 @@ export default function ShowcaseDisplayScreen() {
     if (typeof window !== 'undefined') {
       const customHost = localStorage.getItem('swu_booth_host');
       const envAppUrl = process.env.NEXT_PUBLIC_APP_URL;
-      setHostOrigin(envAppUrl || customHost || window.location.origin);
+      setHostOrigin(customHost || envAppUrl || window.location.origin);
     }
   }, []);
 
@@ -173,9 +173,15 @@ export default function ShowcaseDisplayScreen() {
           return updated;
         });
       } else if (data.type === 'KIOSK_COMMAND' && data.command === 'SET_PUBLIC_DOMAIN') {
-        if (data.value && typeof window !== 'undefined') {
-          setHostOrigin(data.value);
-          localStorage.setItem('swu_booth_host', data.value);
+        if (typeof window !== 'undefined') {
+          const val = typeof data.value === 'string' ? data.value.trim() : '';
+          if (val) {
+            setHostOrigin(val);
+            localStorage.setItem('swu_booth_host', val);
+          } else {
+            localStorage.removeItem('swu_booth_host');
+            setHostOrigin(process.env.NEXT_PUBLIC_APP_URL || window.location.origin);
+          }
         }
       } else if (data.type === 'PHOTO_DELETED') {
         const deletedCode = data.code;
@@ -214,9 +220,16 @@ export default function ShowcaseDisplayScreen() {
   const historyPhotos = photos.slice(1);
 
   // Compute clean QR URL (Hydration-safe with hostOrigin fallback)
-  const qrTargetUrl = hostOrigin
-    ? `${hostOrigin}/p/${encodeURIComponent(latest.code)}`
-    : latest.qrUrl || `/p/${latest.code}`;
+  const cleanHostOrigin = hostOrigin?.trim().replace(/\/+$/, '');
+  const baseOrigin = cleanHostOrigin
+    ? (/^https?:\/\//i.test(cleanHostOrigin)
+        ? cleanHostOrigin
+        : `${typeof window !== 'undefined' ? window.location.protocol : 'http:'}//${cleanHostOrigin}`)
+    : (typeof window !== 'undefined' ? window.location.origin : '');
+
+  const qrTargetUrl = baseOrigin
+    ? `${baseOrigin}/p/${encodeURIComponent(latest.code)}`
+    : (latest.qrUrl && /^https?:\/\//i.test(latest.qrUrl) ? latest.qrUrl : `/p/${latest.code}`);
 
   return (
     <main className="display-shell grid h-dvh w-screen place-items-center overflow-hidden bg-black select-none">
@@ -244,6 +257,9 @@ export default function ShowcaseDisplayScreen() {
                   src={latest.photoUrl}
                   alt={`รูปล่าสุด ${latest.code}`}
                   className="h-full w-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = '/sample-photo.jpg';
+                  }}
                 />
                 <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/85 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
                   <span className="text-[clamp(.42rem,.52vw,.62rem)] font-bold">
@@ -321,6 +337,9 @@ export default function ShowcaseDisplayScreen() {
                         src={photo.photoUrl}
                         alt={`ภาพถ่าย ${photo.code}`}
                         className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = '/sample-photo.jpg';
+                        }}
                       />
                       <figcaption className="absolute bottom-1.5 left-1.5 rounded bg-black/65 px-1.5 py-0.5 text-[clamp(.32rem,.4vw,.48rem)] font-bold tracking-[.08em] text-white/80 backdrop-blur">
                         #{photo.code.replace('OPH-', '')}

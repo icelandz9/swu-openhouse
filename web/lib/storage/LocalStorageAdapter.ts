@@ -46,6 +46,18 @@ export class LocalStorageAdapter implements IPhotoStorage {
     }
 
     this.initialized = true;
+    this.pruneExpiredPhotos().catch(() => {});
+  }
+
+  async pruneExpiredPhotos(): Promise<number> {
+    let pruned = 0;
+    for (const [code, meta] of Array.from(this.metaCache.entries())) {
+      if (this.isExpired(meta.createdAt)) {
+        await this.deletePhoto(code);
+        pruned++;
+      }
+    }
+    return pruned;
   }
 
   private cachePhoto(shortCode: string, buffer: Buffer) {
@@ -134,6 +146,11 @@ export class LocalStorageAdapter implements IPhotoStorage {
     } catch {
       return null;
     }
+  }
+
+  async isDeleted(shortCode: string): Promise<boolean> {
+    await this.ensureInit();
+    return this.deletedCodes.has(shortCode);
   }
 
   async getPhotoBuffer(shortCode: string): Promise<Buffer | null> {

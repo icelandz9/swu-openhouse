@@ -186,6 +186,14 @@ function StaffAdminScreen() {
     }
   }, []);
 
+  const handleLogout = async () => {
+    await fetch('/api/auth', { method: 'DELETE' }).catch(() => {});
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('swu_admin_auth');
+    }
+    window.location.reload();
+  };
+
   const sendCommand = (command: string, message: string, value?: any) => {
     channelRef.current?.postMessage({
       type: 'KIOSK_COMMAND',
@@ -204,7 +212,11 @@ function StaffAdminScreen() {
   const handleSavePublicDomain = () => {
     const cleanDomain = publicDomain.trim().replace(/\/+$/, '');
     if (typeof window !== 'undefined') {
-      localStorage.setItem('swu_booth_host', cleanDomain);
+      if (cleanDomain) {
+        localStorage.setItem('swu_booth_host', cleanDomain);
+      } else {
+        localStorage.removeItem('swu_booth_host');
+      }
     }
     sendCommand('SET_PUBLIC_DOMAIN', 'อัปเดต Public Domain สำหรับ 4G/5G และส่งต่อให้ทุกจอแล้ว', cleanDomain);
   };
@@ -215,8 +227,15 @@ function StaffAdminScreen() {
   };
 
   const copyLink = async (photo: PhotoRecord) => {
-    const origin = publicDomain || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
-    const link = `${origin.replace(/\/+$/, '')}/p/${photo.code}`;
+    const rawOrigin = publicDomain || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+    const cleanOrigin = rawOrigin.trim().replace(/\/+$/, '');
+    const origin = /^https?:\/\//i.test(cleanOrigin)
+      ? cleanOrigin
+      : (cleanOrigin ? `http://${cleanOrigin}` : '');
+
+    const link = (!publicDomain && photo.qrUrl && /^https?:\/\//i.test(photo.qrUrl))
+      ? photo.qrUrl
+      : `${origin}/p/${photo.code}`;
     try {
       await navigator.clipboard.writeText(link);
       setCopiedCode(photo.code);
@@ -357,9 +376,12 @@ function StaffAdminScreen() {
           <button
             onClick={async () => {
               await fetch('/api/auth', { method: 'DELETE' }).catch(() => {});
+              if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('swu_admin_auth');
+              }
               window.location.reload();
             }}
-            className="flex items-center gap-2 rounded border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+            className="flex items-center gap-2 rounded border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
           >
             <LogOut className="size-3.5" /> ล็อกเอาท์
           </button>
@@ -623,6 +645,9 @@ function StaffAdminScreen() {
                     src={photo.photoUrl}
                     alt={photo.code}
                     className="h-full w-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = '/sample-photo.jpg';
+                    }}
                   />
                   <div className="absolute top-2 right-2 rounded bg-black/70 px-2 py-0.5 text-[9px] font-bold text-emerald-400 backdrop-blur">
                     LOCAL + R2
@@ -702,13 +727,14 @@ function StaffAdminScreen() {
             {/* QR Code Presentation */}
             <div className="mx-auto aspect-square w-64 rounded-2xl bg-white p-4 shadow-xl flex items-center justify-center">
               <QRCodeSVG
-                value={
-                  publicDomain
-                    ? `${publicDomain.replace(/\/+$/, '')}/p/${encodeURIComponent(selectedPhoto.code)}`
-                    : typeof window !== 'undefined'
-                    ? `${window.location.origin}/p/${encodeURIComponent(selectedPhoto.code)}`
-                    : selectedPhoto.qrUrl
-                }
+                value={(() => {
+                  const raw = publicDomain || (typeof window !== 'undefined' ? window.location.origin : '');
+                  const clean = raw.trim().replace(/\/+$/, '');
+                  const base = /^https?:\/\//i.test(clean)
+                    ? clean
+                    : (clean ? `http://${clean}` : '');
+                  return base ? `${base}/p/${encodeURIComponent(selectedPhoto.code)}` : selectedPhoto.qrUrl;
+                })()}
                 level="H"
                 bgColor="#FFFFFF"
                 fgColor="#000000"
