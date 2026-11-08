@@ -1,19 +1,19 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { Search, ShieldCheck, ArrowLeft } from 'lucide-react';
-import { CpeLogo } from '@/components/CpeLogo';
+import React, { useState } from "react";
+import Link from "next/link";
+import { Search, ShieldCheck, ArrowLeft } from "lucide-react";
+import { CpeLogo } from "@/components/CpeLogo";
 
 export default function FindPhotoPage() {
-  const [code, setCode] = useState('');
-  const [error, setError] = useState('');
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const normalized = code.trim().toUpperCase();
     if (!/^[A-HJ-NP-Z2-9]{4}$/.test(normalized)) {
-      setError('กรุณากรอกรหัส 4 หลัก (ไม่ใช้ 0, O, 1, I, L)');
+      setError("กรุณากรอกรหัส 4 หลัก (ไม่ใช้ 0, O, 1, I, L)");
       return;
     }
     window.location.href = `/p/OPH-${normalized}`;
@@ -33,19 +33,27 @@ export default function FindPhotoPage() {
         </p>
 
         <form onSubmit={handleSearch} className="mt-8">
-          <label htmlFor="photo-code" className="text-xs font-bold text-slate-300">
+          <label
+            htmlFor="photo-code"
+            className="text-xs font-bold text-slate-300"
+          >
             รหัสรูปถ่าย
           </label>
           <div className="mt-2 flex h-16 items-center rounded-xl border border-white/10 bg-[#0A0A0A] px-4 focus-within:border-cyan-400/60 shadow-inner">
-            <span className="mono text-lg font-semibold tracking-[.12em] text-slate-500">OPH-</span>
+            <span className="mono text-lg font-semibold tracking-[.12em] text-slate-500">
+              OPH-
+            </span>
             <input
               id="photo-code"
               value={code}
               onChange={(e) => {
                 const raw = e.target.value.toUpperCase();
-                const stripped = raw.replace(/^OPH-?/, '').replace(/[^A-HJ-NP-Z2-9]/g, '').slice(0, 4);
+                const stripped = raw
+                  .replace(/^OPH-?/, "")
+                  .replace(/[^A-HJ-NP-Z2-9]/g, "")
+                  .slice(0, 4);
                 setCode(stripped);
-                setError('');
+                setError("");
               }}
               autoCapitalize="characters"
               autoComplete="off"
@@ -69,7 +77,8 @@ export default function FindPhotoPage() {
         <div className="mt-8 flex items-start gap-3 border-t border-white/[.07] pt-5">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-400" />
           <p className="text-[10px] leading-relaxed text-slate-500">
-            ระบบเก็บรักษาภาพเป็นเวลา 7 วันตามนโยบาย PDPA หลังจากนั้นภาพจะถูกลบโดยอัตโนมัติและไม่สามารถกู้คืนได้
+            ระบบเก็บรักษาภาพเป็นเวลา 7 วันตามนโยบาย PDPA
+            หลังจากนั้นภาพจะถูกลบโดยอัตโนมัติและไม่สามารถกู้คืนได้
           </p>
         </div>
 
