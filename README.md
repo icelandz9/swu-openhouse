@@ -1,87 +1,213 @@
 # SWU Open House — AI Photo Booth
 
 ตู้ถ่ายรูปไร้สัมผัสสำหรับงานเปิดบ้าน ภาควิชาวิศวกรรมคอมพิวเตอร์ มศว (CPE SWU)
-ผู้ร่วมงาน**แบมือหน้ากล้อง**เพื่อถ่ายรูป **สแกน QR** รับรูป แล้วแต่งฟิลเตอร์และกรอบต่อบนมือถือตัวเอง ตู้จึงว่างให้คนถัดไปได้เร็ว
-
-| เป้าหมาย | ค่า |
-|---|---|
-| เวลาหน้าตู้ | ≤ 30 วินาทีต่อคน (60–80 คน/ชม.) |
-| สเกลงาน | 2 วัน, 1,000–2,000 รูป |
-| ค่าคลาวด์ | 0 บาท (Free Tier) |
-| การส่งรูป | ดิจิทัล 100% ไม่มีเครื่องพิมพ์ |
-
-## การทำงานของระบบ
+ผู้ร่วมงาน**แบมือหน้ากล้อง**เพื่อถ่ายรูป **สแกน QR** รับรูป แล้วแต่งฟิลเตอร์ กรอบ และสติกเกอร์ต่อบนมือถือตัวเอง
 
 ```mermaid
 flowchart LR
-    A["แบมือค้าง 1.5 วิ"] --> B["นับถอยหลัง 5 วิ<br>เปลี่ยนท่าโพสได้"]
-    B --> C["ถ่าย 9:16<br>พรีวิว 8 วิ"]
-    C --> D["หน้าตู้แสดง QR"]
+    A["แบมือค้าง 1.5 วิ"] --> B["นับถอยหลัง"]
+    B --> C["ถ่ายรูป + พรีวิว"]
+    C --> D["จอแสดง QR"]
     D --> E["สแกนด้วยมือถือ<br>/p/OPH-XXXX"]
-    E --> F["ฟิลเตอร์ 6 แบบ<br>+ กรอบ CPE 3 แบบ"]
+    E --> F["ฟิลเตอร์ + กรอบ CPE<br>+ สติกเกอร์"]
     F --> G["บันทึก / แชร์"]
 ```
 
-ค่าทั้งหมดของระบบอยู่ที่ **[docs/decisions.md](docs/decisions.md)** · ไดอะแกรมละเอียดอยู่ที่ [docs/system-overview.md](docs/system-overview.md)
+ค่าทั้งหมดของระบบอยู่ที่ [docs/decisions.md](docs/decisions.md) · ไดอะแกรมละเอียดอยู่ที่ [docs/system-overview.md](docs/system-overview.md)
 
-## สถานะโครงการ
+---
 
-| งาน | สถานะ |
-|---|---|
-| Task 00 — Discovery, PoC, งบประมาณ | ✅ เสร็จ |
-| Task 01 — Requirements (BRD, PRD, SRS, NFR, RTM) | ✅ เสร็จ |
-| Task 02 — Architecture & Technical Design | ✅ เสร็จ |
-| Task 03–11 — Data/API, UX, PDPA, พัฒนา, ทดสอบ, ติดตั้ง | 🔲 ยังไม่เริ่ม |
-| Web app (MVP) | 🚧 ขั้น 1/6 — ตั้งโปรเจกต์แล้ว |
+## วิธีติดตั้งและใช้งาน (ทำตามลำดับ)
 
-แผนงานทั้งหมดอยู่ที่ [docs/backlog.md](docs/backlog.md)
+ขั้นที่ 1–6 คือสิ่งที่ต้องทำเพื่อให้ตู้ใช้งานได้ ขั้นที่ 7 เป็นต้นไปทำเฉพาะเมื่อต้องการ
 
-## โครงสร้างโปรเจกต์
+### ขั้นที่ 1 — ติดตั้งโปรแกรมที่ต้องใช้
 
-```
-├── docs/                 เอกสารทั้งหมด (เริ่มที่ docs/README.md)
-│   ├── decisions.md      มติล่าสุด + บันทึกการแก้ไข
-│   ├── system-overview.md
-│   ├── backlog.md
-│   ├── task00-discovery/
-│   ├── task01-requirements/
-│   └── task02-architecture/
-├── poc/
-│   ├── test_poc.mjs          ทดสอบ logic หลัก 4 ข้อ (ท่ามือ, debounce, รหัส, PDPA)
-│   └── validate_mermaid.mjs  ตรวจ syntax ไดอะแกรม Mermaid ในไฟล์ .md ทั้งหมด
-├── scripts/
-│   └── model-training/   เดโมเปิดกล้องตรวจท่ามือ + เก็บข้อมูลและเทรนโมเดล (Python)
-└── web/                  เว็บแอป Next.js (ดู web/README.md)
+| โปรแกรม | ใช้ทำอะไร | ดาวน์โหลด |
+|---|---|---|
+| **Node.js LTS** (20 ขึ้นไป) | รันเว็บแอป | https://nodejs.org |
+| **Git** | ดาวน์โหลดโค้ด | https://git-scm.com |
+| **Google Chrome** หรือ **Microsoft Edge** | เปิดหน้าตู้ (ต้องใช้กล้องและ GPU) | — |
+| **เว็บแคม** | กล้องของตู้ (USB หรือกล้องในโน้ตบุ๊ก) | — |
+
+ตรวจว่าติดตั้งสำเร็จ เปิด PowerShell แล้วรัน:
+
+```powershell
+node -v
+npm -v
+git --version
 ```
 
-## วิธีรัน
+ทุกคำสั่งต้องขึ้นเลขเวอร์ชัน ถ้าขึ้นว่า "not recognized" ให้ปิดแล้วเปิด PowerShell ใหม่ หรือรีสตาร์ตเครื่อง
 
-ต้องมี [Node.js LTS](https://nodejs.org)
+### ขั้นที่ 2 — ดาวน์โหลดโค้ด
 
-**เว็บแอป**
+```powershell
+git clone https://github.com/icelandz9/swu-openhouse.git
+cd swu-openhouse
+```
+
+### ขั้นที่ 3 — ติดตั้ง library ของเว็บ
+
+ตัวเว็บอยู่ในโฟลเดอร์ `web/` **คำสั่ง npm ของเว็บต้องรันในโฟลเดอร์นี้เสมอ** ถ้ารันที่ root จะขึ้น `Missing script: "build"` หรือ `"dev"`
+
 ```powershell
 cd web
 npm install
+```
+
+ใช้เวลาไม่กี่นาที ต้องต่ออินเทอร์เน็ต
+
+### ขั้นที่ 4 — ตั้งค่า (ข้ามได้ ถ้าทดสอบในเครื่องเดียว)
+
+ถ้าไม่สร้างไฟล์ตั้งค่า ระบบจะเก็บรูปในเครื่อง (`web/data/`) และใช้ที่อยู่ที่เปิดหน้าเว็บเป็นลิงก์ใน QR ซึ่งเพียงพอสำหรับทดสอบ
+
+ถ้าต้องการตั้งค่า ให้คัดลอกไฟล์ตัวอย่าง (ยังอยู่ในโฟลเดอร์ `web/`):
+
+```powershell
+Copy-Item .env.example .env.local
+```
+
+แล้วแก้ค่าใน `.env.local`:
+
+| ค่า | ความหมาย |
+|---|---|
+| `NEXT_PUBLIC_APP_URL` | ที่อยู่เว็บที่ใส่ใน QR **ถ้าไม่มีโดเมนจริง ให้ลบค่านี้ทิ้งหรือเว้นว่าง** ค่าในไฟล์ตัวอย่างเป็นแค่ตัวอย่าง ถ้าปล่อยไว้ QR จะชี้ไปที่อยู่ที่ใช้ไม่ได้ |
+| `STORAGE_DRIVER` | `local` = เก็บรูปในเครื่อง, `r2` = เก็บบน Cloudflare R2 (ดูขั้นที่ 8) |
+| `R2_*` | ข้อมูลบัญชี Cloudflare R2 ใช้เมื่อ `STORAGE_DRIVER=r2` |
+| `ADMIN_PIN` | ยังไม่ได้ใช้ ตอนนี้ PIN ของหน้า `/admin` คือ `1234` (เขียนไว้ในโค้ด) |
+
+`.env.local` ไม่ขึ้น Git ใส่รหัสลับได้
+
+### ขั้นที่ 5 — เปิดเว็บ
+
+```powershell
 npm run dev
 ```
-เปิด http://localhost:3000 — รายละเอียดใน [web/README.md](web/README.md)
 
-**PoC และตัวตรวจไดอะแกรม** (รันจาก root)
+- ครั้งแรกจะโหลดโมเดลจับมือของ MediaPipe (~8 MB) มาไว้ใน `public/mediapipe/` ต้องต่ออินเทอร์เน็ตแค่ครั้งแรก
+- ถ้า Windows ถามสิทธิ์ Firewall ให้กด **Allow** (ทั้ง Private และ Public) ไม่อย่างนั้นมือถือจะเปิดรูปไม่ได้
+- เห็นข้อความ `Ready` แล้วเปิดเบราว์เซอร์ได้เลย ปิดเซิร์ฟเวอร์ด้วย `Ctrl + C`
+
+| หน้า | เปิดที่ | ใช้ทำอะไร |
+|---|---|---|
+| หน้าแรก | http://localhost:3000 | ลิงก์ไปทุกหน้า |
+| จอที่ 1: ตู้ถ่ายรูป | http://localhost:3000/kiosk | หน้าจอที่ผู้ร่วมงานยืนแบมือ อนุญาตให้ใช้กล้องเมื่อเบราว์เซอร์ถาม |
+| จอที่ 2: แสดงผล | http://localhost:3000/display | แสดง QR ของรูปล่าสุด และรูปทั้งหมด |
+| แดชบอร์ดสตาฟ | http://localhost:3000/admin | PIN `1234` ควบคุมตู้ ลบรูป ออก QR ใหม่ |
+| ค้นรูปด้วยรหัส | http://localhost:3000/find | กรอกรหัส `OPH-XXXX` เพื่อดึงรูปย้อนหลัง |
+
+> **สำคัญ:** หน้า `/kiosk`, `/display` และ `/admin` สื่อสารกันผ่านเบราว์เซอร์ ต้องเปิด**ในเบราว์เซอร์เดียวกัน บนเครื่องเดียวกัน** (คนละแท็บหรือคนละหน้าต่างได้) ถ้าเปิดคนละเครื่องหรือคนละเบราว์เซอร์ จอจะไม่อัปเดตตามกัน
+
+### ขั้นที่ 6 — ให้มือถือสแกน QR แล้วเปิดรูปได้
+
+มือถือเปิด `localhost` ของคอมไม่ได้ จึงต้องให้ QR ชี้ไปที่ IP ของคอม
+
+1. ต่อคอมตู้และมือถือเข้า **Wi-Fi วงเดียวกัน**
+2. หา IP ของคอม ใน PowerShell รัน `ipconfig` แล้วดูบรรทัด `IPv4 Address` ของ Wi-Fi เช่น `192.168.1.10`
+3. เปิดหน้าตู้และหน้าแสดงผล**ด้วย IP แทน localhost**:
+   - `http://192.168.1.10:3000/kiosk`
+   - `http://192.168.1.10:3000/display`
+4. ถ่ายรูปหนึ่งรูป แล้วลองสแกน QR บนจอด้วยมือถือ ควรเปิดหน้าแต่งรูป `/p/OPH-XXXX` ได้
+
+ถ้าสแกนแล้วเปิดไม่ได้ ดูหัวข้อ [แก้ปัญหา](#แก้ปัญหาที่พบบ่อย)
+
+**ใช้งานผ่าน 4G/5G (ไม่ต้องต่อ Wi-Fi เดียวกัน)** ใช้ Cloudflare Tunnel สร้างลิงก์สาธารณะชั่วคราว:
+
+1. ติดตั้ง `cloudflared`: `winget install --id Cloudflare.cloudflared`
+2. เปิด PowerShell อีกหน้าต่าง (ปล่อย `npm run dev` ไว้) แล้วรัน `cloudflared tunnel --url http://localhost:3000`
+3. คัดลอกลิงก์ `https://....trycloudflare.com` ที่ได้
+4. เข้าหน้า `/admin` ใส่ลิงก์ในช่อง Public Domain แล้วกดบันทึก หรือใส่ใน `NEXT_PUBLIC_APP_URL` ของ `.env.local` แล้วรัน `npm run dev` ใหม่
+
+ลิงก์ของ `trycloudflare.com` เปลี่ยนทุกครั้งที่รันใหม่ ต้องอัปเดตทุกครั้ง
+
+### ขั้นที่ 7 — รันแบบใช้งานจริงในวันงาน
+
+`npm run dev` ใช้ตอนพัฒนา ในวันงานให้ build แล้วรันแบบ production จะเร็วและนิ่งกว่า (ยังอยู่ในโฟลเดอร์ `web/`):
+
 ```powershell
-npm install
-node poc/test_poc.mjs
-node poc/validate_mermaid.mjs
+npm run build
+npm run start
 ```
 
-**เดโมเปิดกล้องตรวจท่ามือ** ต้องมี [Python 3.13](https://www.python.org/downloads/) (รันจาก root)
+ปิด `npm run dev` ก่อนรัน `npm run build` ถ้ารันพร้อมกัน dev server จะพัง เมื่อแก้โค้ดต้อง build ใหม่ทุกครั้ง
+
+**เช็กลิสต์ก่อนเปิดตู้**
+- [ ] คอมเสียบปลั๊ก ปิดโหมด Sleep และปิดการอัปเดตอัตโนมัติ
+- [ ] เปิด `/kiosk` เต็มจอ (`F11`) บนจอที่ 1 และ `/display` เต็มจอบนจอที่ 2 ด้วย IP หรือลิงก์ tunnel
+- [ ] ลองแบมือถ่าย 1 รูป แล้วสแกน QR ด้วยมือถือของตัวเอง
+- [ ] เปิด `/admin` ไว้บนโน้ตบุ๊กสตาฟ (เบราว์เซอร์เดียวกับเครื่องตู้ ดูหมายเหตุในขั้นที่ 5)
+
+### ขั้นที่ 8 — (ไม่บังคับ) เก็บรูปบน Cloudflare R2
+
+1. สร้าง bucket และ API Token ที่ Cloudflare Dashboard → R2
+2. ใส่ `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_DOMAIN` ใน `web/.env.local` และตั้ง `STORAGE_DRIVER=r2`
+3. ทดสอบการเชื่อมต่อ (รันจาก root ของ repo):
+   ```powershell
+   node web/scripts/test-r2-connection.mjs
+   ```
+4. รัน `npm run dev` ใหม่
+
+### ขั้นที่ 9 — (ไม่บังคับ) เดโมตรวจท่ามือด้วย Python
+
+ใช้ทดสอบกติกาท่ามือกับกล้องจริง เก็บข้อมูล และเทรนโมเดล **ตัวตู้จริงไม่ได้ใช้ส่วนนี้** ต้องมี [Python 3.13](https://www.python.org/downloads/) รันจาก root ของ repo:
+
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r scripts/model-training/requirements.txt
 python scripts/model-training/fivepalm_shutter.py
 ```
-รายละเอียดและวิธีแก้ปัญหาอยู่ใน [scripts/model-training/README.md](scripts/model-training/README.md)
+
+รูปที่ถ่ายจะอยู่ใน `scripts/model-training/captures/` และไม่ขึ้น Git รายละเอียดอยู่ใน [scripts/model-training/README.md](scripts/model-training/README.md)
+
+### ขั้นที่ 10 — (ไม่บังคับ) PoC และตัวตรวจไดอะแกรม
+
+รันจาก root ของ repo (คนละ `npm install` กับของเว็บ):
+
+```powershell
+npm install
+node poc/test_poc.mjs
+node poc/validate_mermaid.mjs
+```
+
+---
+
+## แก้ปัญหาที่พบบ่อย
+
+| อาการ | สาเหตุและวิธีแก้ |
+|---|---|
+| `npm error Missing script: "build"` หรือ `"dev"` | รันผิดโฟลเดอร์ ให้ `cd web` ก่อน |
+| `Port 3000 is in use` | มีเซิร์ฟเวอร์เปิดค้างอยู่ ปิดหน้าต่าง PowerShell เดิม หรือกด `Ctrl + C` ในหน้าต่างนั้น |
+| หน้าตู้ขึ้นว่าไม่พบกล้อง | ตรวจว่าเสียบกล้องแล้ว ปิดโปรแกรมอื่นที่ใช้กล้องอยู่ (Zoom, Teams, Camera) และกดอนุญาตกล้องที่ไอคอนแม่กุญแจหน้า URL |
+| กล้องเปิดได้เมื่อใช้ `localhost` แต่ใช้ IP ไม่ได้ | เบราว์เซอร์ให้ใช้กล้องเฉพาะ `localhost` หรือ `https` ให้เปิด `/kiosk` ด้วย `localhost` บนเครื่องตู้ แล้วตั้ง Public Domain ใน `/admin` เป็น IP หรือลิงก์ tunnel แทน |
+| สแกน QR แล้วมือถือเปิดไม่ได้ | ตรวจว่ามือถือต่อ Wi-Fi วงเดียวกับคอม, กด Allow ใน Firewall แล้ว, และ QR ไม่ได้ชี้ไปที่ `localhost` |
+| QR ชี้ไปที่โดเมนแปลก ๆ | ลบหรือแก้ `NEXT_PUBLIC_APP_URL` ใน `web/.env.local` และค่า Public Domain ใน `/admin` |
+| จอแสดงผลไม่อัปเดตเมื่อถ่ายรูป | `/kiosk` กับ `/display` ต้องเปิดในเบราว์เซอร์เดียวกันบนเครื่องเดียวกัน |
+| โหลดโมเดลจับมือไม่สำเร็จตอน `npm run dev` | ต่ออินเทอร์เน็ตแล้วรันใหม่ ต้องใช้เน็ตแค่ครั้งแรก |
+
+---
+
+## โครงสร้างโปรเจกต์
+
+```
+├── web/                  เว็บแอป Next.js (ตัวตู้จริง) — ดู web/README.md
+│   ├── app/              หน้าเว็บและ API
+│   ├── lib/              ตรรกะท่ามือ, สถานะตู้, ฟิลเตอร์, ที่เก็บรูป
+│   ├── public/           กรอบรูป, สติกเกอร์, โลโก้
+│   └── data/             รูปที่ถ่าย (สร้างอัตโนมัติ ไม่ขึ้น Git)
+├── scripts/
+│   ├── model-training/   เดโมตรวจท่ามือ + เก็บข้อมูลและเทรนโมเดล (Python)
+│   └── frames/           สคริปต์ทำกรอบรูปจากไฟล์ของผู้ออกแบบ
+├── docs/                 เอกสารทั้งหมด (เริ่มที่ docs/README.md)
+├── poc/                  ชุดทดสอบช่วง PoC และตัวตรวจไดอะแกรม
+└── tasks/                แผนงาน
+```
+
+## ข้อมูลส่วนบุคคล (PDPA)
+
+รูปที่ถ่ายเป็นรูปหน้าคนจริง **ห้าม commit รูป** (`.jpg`, `.jpeg`, `.png`) ขึ้น Git `.gitignore` กันไว้แล้ว ยกเว้นกรอบรูปและสติกเกอร์ที่เป็นไฟล์ออกแบบ กติกาทั้งหมดอยู่ใน [AGENTS.md](AGENTS.md)
 
 ## เทคโนโลยี
 
-Next.js 15 + TypeScript · Google MediaPipe Hand Landmarker · HTML5 Canvas · Cloudflare R2 (แผน)
+Next.js 15 + TypeScript · Tailwind CSS · Google MediaPipe Hand Landmarker · HTML5 Canvas · Cloudflare R2 (ไม่บังคับ)

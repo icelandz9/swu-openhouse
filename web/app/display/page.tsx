@@ -58,6 +58,19 @@ const DEFAULT_SEEDS: GalleryItem[] = [
   },
 ];
 
+// Photo date shown on the latest-photo card, in Thai time so the server and browser agree.
+function formatPhotoDate(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return { thai: '', dotted: '' };
+  const opts = { timeZone: 'Asia/Bangkok' } as const;
+  return {
+    // e.g. "7 พ.ย. 2026"
+    thai: date.toLocaleDateString('th-TH-u-ca-gregory', { ...opts, day: 'numeric', month: 'short', year: 'numeric' }),
+    // e.g. "07.11.2026"
+    dotted: date.toLocaleDateString('en-GB', { ...opts, day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '.'),
+  };
+}
+
 export default function ShowcaseDisplayScreen() {
   const [photos, setPhotos] = useState<GalleryItem[]>(DEFAULT_SEEDS);
   const [currentTime, setCurrentTime] = useState<string>('12:00');
@@ -253,7 +266,7 @@ export default function ShowcaseDisplayScreen() {
                     <span className="text-[#CE1126]">CPE</span> OPEN HOUSE
                   </span>
                   <span className="text-[clamp(.34rem,.42vw,.5rem)] text-slate-300">
-                    วิศวกรรมคอมพิวเตอร์ • 7 พ.ย. 2026
+                    วิศวกรรมคอมพิวเตอร์ • {formatPhotoDate(latest.createdAt).thai}
                   </span>
                 </div>
               </div>
@@ -262,7 +275,7 @@ export default function ShowcaseDisplayScreen() {
                   CPE OPEN HOUSE
                 </div>
                 <div className="mono mt-1 text-[clamp(.38rem,.46vw,.56rem)] text-slate-500 font-semibold">
-                  07.11.2026 · #{latest.code.replace('OPH-', '')}
+                  {formatPhotoDate(latest.createdAt).dotted} · #{latest.code.replace('OPH-', '')}
                 </div>
               </div>
             </div>

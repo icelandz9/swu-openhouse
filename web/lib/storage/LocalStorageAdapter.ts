@@ -19,6 +19,8 @@ export class LocalStorageAdapter implements IPhotoStorage {
   private metaCache: Map<string, StoredMetadata> = new Map();
   private deletedCodes: Set<string> = new Set();
   private initialized = false;
+  // Keep only the most recent photos in RAM; older ones are read from disk when asked for.
+  private static readonly MEMORY_CACHE_LIMIT = 100;
 
   private async ensureInit() {
     if (this.initialized) return;
@@ -58,6 +60,23 @@ export class LocalStorageAdapter implements IPhotoStorage {
     return pruned;
   }
 
+  private cachePhoto(shortCode: string, buffer: Buffer) {
+    this.memoryCache.delete(shortCode);
+    this.memoryCache.set(shortCode, buffer);
+    while (this.memoryCache.size > LocalStorageAdapter.MEMORY_CACHE_LIMIT) {
+      const oldest = this.memoryCache.keys().next().value;
+      if (oldest === undefined) break;
+      this.memoryCache.delete(oldest);
+    }
+  }
+
+  // Deleted by staff, or older than the 7-day PDPA window.
+  private isGone(shortCode: string): boolean {
+    if (this.deletedCodes.has(shortCode)) return true;
+    const meta = this.metaCache.get(shortCode);
+    return meta ? this.isExpired(meta.createdAt) : false;
+  }
+
   private async saveMeta() {
     try {
       const list = Array.from(this.metaCache.values());
@@ -86,7 +105,7 @@ export class LocalStorageAdapter implements IPhotoStorage {
 
     const filePath = path.join(this.baseDir, `${shortCode}.jpg`);
     await fs.writeFile(filePath, imageBuffer);
-    this.memoryCache.set(shortCode, imageBuffer);
+    this.cachePhoto(shortCode, imageBuffer);
 
     const createdAt = new Date().toISOString();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -114,7 +133,7 @@ export class LocalStorageAdapter implements IPhotoStorage {
 
   async getPhotoUrl(shortCode: string): Promise<string | null> {
     await this.ensureInit();
-    if (this.deletedCodes.has(shortCode)) {
+    if (this.isGone(shortCode)) {
       return null;
     }
     if (this.memoryCache.has(shortCode)) {
@@ -136,16 +155,18 @@ export class LocalStorageAdapter implements IPhotoStorage {
 
   async getPhotoBuffer(shortCode: string): Promise<Buffer | null> {
     await this.ensureInit();
-    if (this.deletedCodes.has(shortCode)) {
+    if (this.isGone(shortCode)) {
       return null;
     }
-    if (this.memoryCache.has(shortCode)) {
-      return this.memoryCache.get(shortCode)!;
+    const cached = this.memoryCache.get(shortCode);
+    if (cached) {
+      this.cachePhoto(shortCode, cached);
+      return cached;
     }
     const filePath = path.join(this.baseDir, `${shortCode}.jpg`);
     try {
       const buf = await fs.readFile(filePath);
-      this.memoryCache.set(shortCode, buf);
+      this.cachePhoto(shortCode, buf);
       return buf;
     } catch {
       return null;
@@ -155,7 +176,7 @@ export class LocalStorageAdapter implements IPhotoStorage {
   async getAllPhotos(): Promise<PhotoRecord[]> {
     await this.ensureInit();
     const list = Array.from(this.metaCache.values()).filter(
-      (p) => !this.deletedCodes.has(p.code)
+      (p) => !this.isGone(p.code)
     );
     // Sort descending by createdAt
     list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
