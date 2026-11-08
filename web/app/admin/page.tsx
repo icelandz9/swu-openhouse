@@ -31,50 +31,7 @@ import { CpeLogo } from '@/components/CpeLogo';
 import { StaffGate } from '@/components/StaffGate';
 import { PhotoRecord, ScreenSyncEvent, SCREEN_SYNC_CHANNEL } from '@/lib/contracts';
 
-const DEFAULT_SAMPLE_PHOTOS: PhotoRecord[] = [
-  {
-    code: 'OPH-AB29',
-    photoUrl: 'https://images.unsplash.com/photo-1634938332514-6f3d23c8cc42?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=900&h=1100',
-    qrUrl: '/p/OPH-AB29',
-    createdAt: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    code: 'OPH-2018',
-    photoUrl: 'https://images.unsplash.com/photo-1758534063829-a72058381e21?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=900&h=1100',
-    qrUrl: '/p/OPH-2018',
-    createdAt: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    code: 'OPH-1996',
-    photoUrl: 'https://images.unsplash.com/photo-1782069326883-090221bfcd6e?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=900&h=1100',
-    qrUrl: '/p/OPH-1996',
-    createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    code: 'OPH-1984',
-    photoUrl: 'https://images.unsplash.com/photo-1791573391615-1ad1f53d7f9e?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=900&h=1100',
-    qrUrl: '/p/OPH-1984',
-    createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    code: 'OPH-8842',
-    photoUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
-    qrUrl: '/p/OPH-8842',
-    createdAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    code: 'OPH-7721',
-    photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-    qrUrl: '/p/OPH-7721',
-    createdAt: new Date(Date.now() - 55 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
+const DEFAULT_SAMPLE_PHOTOS: PhotoRecord[] = [];
 
 function StaffAdminScreen() {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -646,7 +603,7 @@ function StaffAdminScreen() {
                     alt={photo.code}
                     className="h-full w-full object-cover"
                     onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = '/sample-photo.jpg';
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
                     }}
                   />
                   <div className="absolute top-2 right-2 rounded bg-black/70 px-2 py-0.5 text-[9px] font-bold text-emerald-400 backdrop-blur">

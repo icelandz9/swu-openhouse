@@ -14,50 +14,7 @@ interface GalleryItem {
   style?: string;
 }
 
-const DEFAULT_SEEDS: GalleryItem[] = [
-  {
-    code: 'OPH-AB29',
-    qrUrl: '/p/OPH-AB29',
-    photoUrl: 'https://images.unsplash.com/photo-1634938332514-6f3d23c8cc42?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=900&h=1100',
-    createdAt: '2026-11-07T12:00:00.000Z',
-    style: 'NEURAL RED',
-  },
-  {
-    code: 'OPH-2018',
-    qrUrl: '/p/OPH-2018',
-    photoUrl: 'https://images.unsplash.com/photo-1758534063829-a72058381e21?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=900&h=1100',
-    createdAt: '2026-11-07T11:54:00.000Z',
-    style: 'CYBER GRID',
-  },
-  {
-    code: 'OPH-1996',
-    qrUrl: '/p/OPH-1996',
-    photoUrl: 'https://images.unsplash.com/photo-1782069326883-090221bfcd6e?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=900&h=1100',
-    createdAt: '2026-11-07T11:48:00.000Z',
-    style: 'SIGNAL NOIR',
-  },
-  {
-    code: 'OPH-1984',
-    qrUrl: '/p/OPH-1984',
-    photoUrl: 'https://images.unsplash.com/photo-1791573391615-1ad1f53d7f9e?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=900&h=1100',
-    createdAt: '2026-11-07T11:40:00.000Z',
-    style: 'RED SHIFT',
-  },
-  {
-    code: 'OPH-8842',
-    qrUrl: '/p/OPH-8842',
-    photoUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
-    createdAt: '2026-11-07T11:25:00.000Z',
-    style: 'STUDIO RAW',
-  },
-  {
-    code: 'OPH-7721',
-    qrUrl: '/p/OPH-7721',
-    photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-    createdAt: '2026-11-07T11:10:00.000Z',
-    style: 'NEURAL RED',
-  },
-];
+const DEFAULT_SEEDS: GalleryItem[] = [];
 
 // Photo date shown on the latest-photo card, in Thai time so the server and browser agree.
 function formatPhotoDate(iso: string) {
@@ -338,7 +295,7 @@ export default function ShowcaseDisplayScreen() {
                       alt={`รูปล่าสุด ${activePhoto.code}`}
                       className="h-full w-full object-cover"
                       onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = '/sample-photo.jpg';
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
                       }}
                     />
                     <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/85 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
@@ -469,7 +426,7 @@ export default function ShowcaseDisplayScreen() {
                         alt={`ภาพถ่าย ${photo.code}`}
                         className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
                         onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src = '/sample-photo.jpg';
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
                         }}
                       />
                       <figcaption className="absolute bottom-1.5 left-1.5 rounded bg-black/65 px-1.5 py-0.5 text-[clamp(.32rem,.4vw,.48rem)] font-bold tracking-[.08em] text-white/80 backdrop-blur">

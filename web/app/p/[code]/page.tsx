@@ -113,16 +113,19 @@ export default function MobilePhotoEditorPage({
 
       if (cancelled) return;
 
-      // C. Attempt loading candidateSrc, fallback to file endpoint, then sample photo
+      // C. Attempt loading strictly from Cloudflare R2 / API endpoint
       let img = await loadImage(candidateSrc);
       if (!img && candidateSrc !== `/api/photos/${normalizedCode}/file`) {
         img = await loadImage(`/api/photos/${normalizedCode}/file${token ? `?t=${encodeURIComponent(token)}` : ''}`);
       }
-      if (!img) {
-        img = await loadImage('/sample-photo.jpg');
-      }
 
-      if (cancelled || !img) return;
+      if (cancelled) return;
+
+      // If photo is not found on Cloudflare R2, mark not_found (Never use fake sample photo)
+      if (!img) {
+        setAuthStatus('not_found');
+        return;
+      }
       baseImageRef.current = img;
       setPhotoLoaded(true);
     }

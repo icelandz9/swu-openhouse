@@ -70,7 +70,7 @@ export default function KioskCapturePage() {
   const [retakeCount, setRetakeCount] = useState<number>(0);
 
   // Captured snapshot URL
-  const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string>('/sample-photo.jpg');
+  const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string>('');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const isSyncingRef = useRef<boolean>(false);
   const [syncedCode, setSyncedCode] = useState<string>('');

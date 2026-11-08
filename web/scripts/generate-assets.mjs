@@ -117,52 +117,8 @@ fs.writeFileSync(path.join(framesDir, 'template-3-photostrip.png'), transparentP
 
 console.log('[generate-assets] 3 CPE Frame templates created in public/templates and public/frames');
 
-// Sample photo asset
-const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1080" width="1440" height="1080">
-  <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1E293B" />
-      <stop offset="50%" stop-color="#0F172A" />
-      <stop offset="100%" stop-color="#06080D" />
-    </linearGradient>
-    <radialGradient id="spotlight" cx="50%" cy="40%" r="50%">
-      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.35" />
-      <stop offset="60%" stop-color="#CE1126" stop-opacity="0.15" />
-      <stop offset="100%" stop-color="#000000" stop-opacity="0.9" />
-    </radialGradient>
-  </defs>
-  <rect width="1440" height="1080" fill="url(#bgGrad)" />
-  <rect width="1440" height="1080" fill="url(#spotlight)" />
-  <circle cx="720" cy="420" r="160" fill="#E2E8F0" fill-opacity="0.12" />
-  <path d="M520 780 C520 580, 920 580, 920 780 Z" fill="#E2E8F0" fill-opacity="0.1" />
-  <text x="720" y="470" font-family="'Plus Jakarta Sans', sans-serif" font-weight="800" font-size="44" fill="#F8FAFC" text-anchor="middle" letter-spacing="-1">SWU OPEN HOUSE</text>
-  <text x="720" y="525" font-family="'JetBrains Mono', monospace" font-weight="600" font-size="20" fill="#06B6D4" text-anchor="middle" letter-spacing="2">COMPUTER ENGINEERING PHOTO BOOTH</text>
-  <text x="720" y="565" font-family="'Plus Jakarta Sans', 'Prompt', sans-serif" font-size="16" fill="#94A3B8" text-anchor="middle">1440 × 1080 RAW 4:3 STUDIO CAPTURE</text>
-</svg>`;
-
-fs.writeFileSync(path.join(root, 'public', 'sample-photo.svg'), sampleSvg);
-
-// Minimal valid 1x1 base64 JPEG fallback bytes:
-const minimalJpegBase64 = '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
-const samplePhotoJpgPath = path.join(root, 'public', 'sample-photo.jpg');
-
-try {
-  // If online, fetch a high-res sample photo from Unsplash seed
-  const res = await fetch('https://images.unsplash.com/photo-1634938332514-6f3d23c8cc42?fit=crop&fm=jpg&q=80&w=900&h=1100', { signal: AbortSignal.timeout(3000) });
-  if (res.ok) {
-    const arrayBuffer = await res.arrayBuffer();
-    fs.writeFileSync(samplePhotoJpgPath, Buffer.from(arrayBuffer));
-    console.log('[generate-assets] High-res sample JPEG fetched successfully');
-  } else {
-    fs.writeFileSync(samplePhotoJpgPath, Buffer.from(minimalJpegBase64, 'base64'));
-    console.log('[generate-assets] Minimal sample JPEG created');
-  }
-} catch {
-  fs.writeFileSync(samplePhotoJpgPath, Buffer.from(minimalJpegBase64, 'base64'));
-  console.log('[generate-assets] Fallback minimal JPEG created');
-}
-
 // Generate valid weights JSON for public/models/gesture_weights.json
+
 const weightsPayload = {
   modelType: "MLPClassifier",
   exportedAt: new Date().toISOString(),
