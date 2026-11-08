@@ -29,7 +29,7 @@ export default function FindPhotoPage() {
           ของคุณ
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-slate-400">
-          กรอกรหัสที่แสดงบนจอรับรูป เพื่อกลับไปแต่งและดาวน์โหลดภาพถ่ายของคุณ
+          กรอกรหัส 4 หลัก เพื่อกลับไปแต่งและดาวน์โหลดภาพถ่ายบนอุปกรณ์ที่เคยสแกน QR Code จากซุ้มถ่ายภาพ
         </p>
 
         <form onSubmit={handleSearch} className="mt-8">
