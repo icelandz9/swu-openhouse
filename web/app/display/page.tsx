@@ -74,11 +74,24 @@ function formatPhotoDate(iso: string) {
 
 export default function ShowcaseDisplayScreen() {
   const [photos, setPhotos] = useState<GalleryItem[]>(DEFAULT_SEEDS);
+  const [activePhoto, setActivePhoto] = useState<GalleryItem | null>(null);
   const [currentTime, setCurrentTime] = useState<string>('12:00');
   const [newestCode, setNewestCode] = useState<string>('');
   const [isMounted, setIsMounted] = useState<boolean>(false);
   const [hostOrigin, setHostOrigin] = useState<string>('');
   const channelRef = useRef<BroadcastChannel | null>(null);
+  const queueTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Activates a photo on the left showcase for 30s. If next photo arrives, resets timer immediately.
+  const showPhotoInQueue = useCallback((photo: GalleryItem) => {
+    setActivePhoto(photo);
+    if (queueTimerRef.current) {
+      clearTimeout(queueTimerRef.current);
+    }
+    queueTimerRef.current = setTimeout(() => {
+      setActivePhoto(null); // Return to Standby mode (Black photo + IG QR)
+    }, 30000); // 30 seconds
+  }, []);
 
   // Mount tracking and host resolution for hydration safety
   useEffect(() => {
@@ -119,6 +132,21 @@ export default function ShowcaseDisplayScreen() {
           if (Array.isArray(parsed) && parsed.length > 0) {
             const clean = parsed.filter((p: any) => !deletedCodes.includes(p?.code));
             setPhotos(clean.length > 0 ? clean : DEFAULT_SEEDS.filter(s => !deletedCodes.includes(s.code)));
+          }
+        }
+
+        // Check if there was a photo captured within the last 30 seconds
+        const savedLatest = localStorage.getItem('swu_latest_photo');
+        if (savedLatest) {
+          const parsedLatest: GalleryItem = JSON.parse(savedLatest);
+          if (parsedLatest?.code && !deletedCodes.includes(parsedLatest.code)) {
+            const ageMs = Date.now() - new Date(parsedLatest.createdAt).getTime();
+            if (ageMs < 30000) {
+              setActivePhoto(parsedLatest);
+              queueTimerRef.current = setTimeout(() => {
+                setActivePhoto(null);
+              }, 30000 - ageMs);
+            }
           }
         }
       } catch {}
@@ -163,6 +191,8 @@ export default function ShowcaseDisplayScreen() {
         };
 
         setNewestCode(data.code);
+        showPhotoInQueue(newItem); // Starts 30s display; immediately replaces previous queue
+
         setPhotos((prev) => {
           const filtered = prev.filter((p) => p.code !== data.code);
           const updated = [newItem, ...filtered].slice(0, 50);
@@ -187,6 +217,16 @@ export default function ShowcaseDisplayScreen() {
         }
       } else if (data.type === 'PHOTO_DELETED') {
         const deletedCode = data.code;
+
+        // If the deleted photo is currently in the active 30s showcase, return to standby immediately
+        setActivePhoto((prev) => {
+          if (prev?.code === deletedCode) {
+            if (queueTimerRef.current) clearTimeout(queueTimerRef.current);
+            return null;
+          }
+          return prev;
+        });
+
         if (typeof window !== 'undefined') {
           try {
             const rawDel = localStorage.getItem('swu_deleted_codes') || '[]';
@@ -203,7 +243,7 @@ export default function ShowcaseDisplayScreen() {
               if (latestStored) {
                 const parsed = JSON.parse(latestStored);
                 if (parsed?.code === deletedCode) {
-                  localStorage.setItem('swu_latest_photo', JSON.stringify(updated[0] ?? null));
+                  localStorage.removeItem('swu_latest_photo');
                 }
               }
             } catch {}
@@ -215,11 +255,11 @@ export default function ShowcaseDisplayScreen() {
 
     return () => {
       channel.close();
+      if (queueTimerRef.current) {
+        clearTimeout(queueTimerRef.current);
+      }
     };
-  }, []);
-
-  const latest = photos[0] ?? DEFAULT_SEEDS[0];
-  const historyPhotos = photos.slice(1);
+  }, [showPhotoInQueue]);
 
   // Compute clean QR URL (Hydration-safe with hostOrigin fallback)
   const cleanHostOrigin = hostOrigin?.trim().replace(/\/+$/, '');
@@ -229,93 +269,154 @@ export default function ShowcaseDisplayScreen() {
         : `${typeof window !== 'undefined' ? window.location.protocol : 'http:'}//${cleanHostOrigin}`)
     : (typeof window !== 'undefined' ? window.location.origin : '');
 
-  // Extract token query string if present in latest.qrUrl
+  // Extract token query string if present in activePhoto
   let tokenQuery = '';
-  if (latest.token) {
-    tokenQuery = `?t=${encodeURIComponent(latest.token)}`;
-  } else if (latest.qrUrl && latest.qrUrl.includes('?')) {
-    tokenQuery = latest.qrUrl.slice(latest.qrUrl.indexOf('?'));
+  if (activePhoto?.token) {
+    tokenQuery = `?t=${encodeURIComponent(activePhoto.token)}`;
+  } else if (activePhoto?.qrUrl && activePhoto.qrUrl.includes('?')) {
+    tokenQuery = activePhoto.qrUrl.slice(activePhoto.qrUrl.indexOf('?'));
   }
 
-  const qrTargetUrl = baseOrigin
-    ? `${baseOrigin}/p/${encodeURIComponent(latest.code)}${tokenQuery}`
-    : (latest.qrUrl && /^https?:\/\//i.test(latest.qrUrl) ? latest.qrUrl : `/p/${latest.code}${tokenQuery}`);
+  const qrTargetUrl = activePhoto
+    ? (baseOrigin
+        ? `${baseOrigin}/p/${encodeURIComponent(activePhoto.code)}${tokenQuery}`
+        : (activePhoto.qrUrl && /^https?:\/\//i.test(activePhoto.qrUrl) ? activePhoto.qrUrl : `/p/${activePhoto.code}${tokenQuery}`))
+    : '';
 
   return (
     <main className="display-shell grid h-dvh w-screen place-items-center overflow-hidden bg-black select-none">
       <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-black">
-        {/* Left Section (30%): Live Polaroid Showcase & White QR Pill Station */}
+        {/* Left Section (30%): Live Polaroid Showcase & White QR Station */}
         <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col border-r border-[#1C1C1C] px-[1.2%] py-[1.25%] justify-between">
           <div>
             {/* Live Indicator Banner */}
             <div className="mono flex items-center justify-between text-[clamp(.48rem,.62vw,.74rem)]">
-              <span className="flex items-center gap-2 tracking-[.16em] text-[#CE1126] font-bold">
-                <span className="size-2 rounded-full bg-[#10B981] animate-pulse shadow-[0_0_12px_#10B981]" />
-                LATEST SHOT
-              </span>
+              {activePhoto ? (
+                <span className="flex items-center gap-2 tracking-[.16em] text-[#CE1126] font-bold">
+                  <span className="size-2 rounded-full bg-[#10B981] animate-pulse shadow-[0_0_12px_#10B981]" />
+                  LATEST SHOT
+                </span>
+              ) : (
+                <span className="flex items-center gap-2 tracking-[.16em] text-slate-300 font-bold">
+                  <span className="size-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_12px_#22D3EE]" />
+                  STANDBY · พร้อมถ่ายภาพ
+                </span>
+              )}
               <span className="text-slate-400 font-bold" suppressHydrationWarning>{currentTime}</span>
             </div>
 
             <h1 className="mt-[1.1vw] text-[clamp(1.4rem,2vw,2.4rem)] font-extrabold tracking-[-.035em] text-white">
-              รูปล่าสุด
+              {activePhoto ? 'รูปล่าสุด' : 'ยินดีต้อนรับ'}
             </h1>
 
             {/* Polaroid Frame Card tilted -2deg */}
             <div className="mx-auto mt-[1vw] w-[96%] shrink-0 rotate-[-2deg] rounded-[.18vw] bg-[#F8FAFC] p-[.7vw] pb-[.8vw] shadow-[0_24px_70px_rgba(0,0,0,.55)] transition-transform duration-500 hover:rotate-0">
-              <div className="relative aspect-[4/3] overflow-hidden bg-slate-900 rounded-[2px]">
-                <img
-                  src={latest.photoUrl}
-                  alt={`รูปล่าสุด ${latest.code}`}
-                  className="h-full w-full object-cover"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src = '/sample-photo.jpg';
-                  }}
-                />
-                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/85 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
-                  <span className="text-[clamp(.42rem,.52vw,.62rem)] font-bold">
-                    <span className="text-[#CE1126]">CPE</span> OPEN HOUSE
-                  </span>
-                  <span className="text-[clamp(.34rem,.42vw,.5rem)] text-slate-300">
-                    วิศวกรรมคอมพิวเตอร์ • {formatPhotoDate(latest.createdAt).thai}
-                  </span>
-                </div>
-              </div>
-              <div className="pt-[.65vw] text-center text-[#0F172A]">
-                <div className="text-[clamp(.52rem,.68vw,.82rem)] font-extrabold tracking-[.12em]">
-                  CPE OPEN HOUSE
-                </div>
-                <div className="mono mt-1 text-[clamp(.38rem,.46vw,.56rem)] text-slate-500 font-semibold">
-                  {formatPhotoDate(latest.createdAt).dotted} · #{latest.code.replace('OPH-', '')}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* White QR Card - Centered, Clean & Minimal */}
-          <div className="qr-card mx-auto mt-[0.8vw] flex flex-col items-center justify-center rounded-[1vw] border-t-[.3vw] border-[#CE1126] bg-white px-[1.4vw] pb-[1.4vw] pt-[1.1vw] shadow-2xl shrink-0 w-fit text-center">
-            <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
-              สแกนรับ<span className="text-[#CE1126]">รูป</span>
-            </div>
-            <div className="aspect-square w-[clamp(150px,13vw,240px)] bg-white flex items-center justify-center">
-              {isMounted ? (
-                <QRCodeSVG
-                  value={qrTargetUrl}
-                  level="H"
-                  bgColor="#FFFFFF"
-                  fgColor="#000000"
-                  className="h-full w-full"
-                  title={`รับรูป ${latest.code}`}
-                />
+              {activePhoto ? (
+                // Active Attendee Photo
+                <>
+                  <div className="relative aspect-[4/3] overflow-hidden bg-slate-900 rounded-[2px]">
+                    <img
+                      src={activePhoto.photoUrl}
+                      alt={`รูปล่าสุด ${activePhoto.code}`}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = '/sample-photo.jpg';
+                      }}
+                    />
+                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/85 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
+                      <span className="text-[clamp(.42rem,.52vw,.62rem)] font-bold">
+                        <span className="text-[#CE1126]">CPE</span> OPEN HOUSE
+                      </span>
+                      <span className="text-[clamp(.34rem,.42vw,.5rem)] text-slate-300">
+                        วิศวกรรมคอมพิวเตอร์ • {formatPhotoDate(activePhoto.createdAt).thai}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="pt-[.65vw] text-center text-[#0F172A]">
+                    <div className="text-[clamp(.52rem,.68vw,.82rem)] font-extrabold tracking-[.12em]">
+                      CPE OPEN HOUSE
+                    </div>
+                    <div className="mono mt-1 text-[clamp(.38rem,.46vw,.56rem)] text-slate-500 font-semibold">
+                      {formatPhotoDate(activePhoto.createdAt).dotted} · #{activePhoto.code.replace('OPH-', '')}
+                    </div>
+                  </div>
+                </>
               ) : (
-                <div className="h-full w-full bg-slate-100 flex items-center justify-center text-slate-300 text-[10px] font-mono animate-pulse rounded">
-                  QR CODE
-                </div>
+                // Standby Idle Black Card (Not stored in history)
+                <>
+                  <div className="relative aspect-[4/3] overflow-hidden bg-black rounded-[2px] flex items-center justify-center">
+                    <div className="flex flex-col items-center justify-center gap-2 select-none">
+                      <CpeLogo className="h-[2.2vw] opacity-30 text-white" />
+                      <span className="text-[clamp(.42rem,.54vw,.66rem)] font-semibold tracking-widest text-slate-500 uppercase">
+                        STANDBY · รอถ่ายภาพถัดไป
+                      </span>
+                    </div>
+                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/90 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
+                      <span className="text-[clamp(.42rem,.52vw,.62rem)] font-bold">
+                        <span className="text-[#CE1126]">CPE</span> OPEN HOUSE
+                      </span>
+                      <span className="text-[clamp(.34rem,.42vw,.5rem)] text-slate-400">
+                        วิศวกรรมคอมพิวเตอร์ มศว
+                      </span>
+                    </div>
+                  </div>
+                  <div className="pt-[.65vw] text-center text-[#0F172A]">
+                    <div className="text-[clamp(.52rem,.68vw,.82rem)] font-extrabold tracking-[.12em]">
+                      CPE OPEN HOUSE
+                    </div>
+                    <div className="mono mt-1 text-[clamp(.38rem,.46vw,.56rem)] text-slate-400 font-semibold">
+                      ซุ้มถ่ายภาพวิศวะคอม · STANDBY
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           </div>
+
+          {/* White QR Card - Clean & Minimal (Red Top Border Removed) */}
+          <div className="qr-card mx-auto mt-[0.8vw] flex flex-col items-center justify-center rounded-[1vw] bg-white px-[1.4vw] pb-[1.4vw] pt-[1.1vw] shadow-2xl shrink-0 w-fit text-center">
+            {activePhoto ? (
+              // Active Photo Scan QR
+              <>
+                <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
+                  สแกนรับ<span className="text-[#CE1126]">รูป</span>
+                </div>
+                <div className="aspect-square w-[clamp(150px,13vw,240px)] bg-white flex items-center justify-center">
+                  {isMounted ? (
+                    <QRCodeSVG
+                      value={qrTargetUrl}
+                      level="H"
+                      bgColor="#FFFFFF"
+                      fgColor="#000000"
+                      className="h-full w-full"
+                      title={`รับรูป ${activePhoto.code}`}
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-slate-100 flex items-center justify-center text-slate-300 text-[10px] font-mono animate-pulse rounded">
+                      QR CODE
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              // Standby Follow Us (Instagram) QR
+              <>
+                <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
+                  ติดตาม<span className="text-[#CE1126]">เรา</span>
+                </div>
+                <div className="aspect-square w-[clamp(150px,13vw,240px)] bg-white flex items-center justify-center p-1">
+                  <img
+                    src="/cpe-ig-qr.png"
+                    alt="Instagram @cpe_swu"
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </section>
 
-        {/* Right Section (70%): Live Photo Wall / Gallery */}
+        {/* Right Section (70%): Live Photo Wall / Gallery (Never contains black standby cards) */}
         <section className="absolute inset-y-0 right-0 flex w-[70%] flex-col bg-black px-[2.45vw] py-[.75vw]">
           <header className="flex items-center justify-between border-b border-white/10 pb-3">
             <h2 className="flex items-center gap-[.3em] text-[clamp(1.55rem,2.5vw,3rem)] font-extrabold tracking-[-.05em]">
@@ -334,7 +435,7 @@ export default function ShowcaseDisplayScreen() {
 
             <div className="photo-wall-scroll mt-[1vw] min-h-0 flex-1 overflow-y-auto pr-[.5vw]">
               <div className="grid grid-cols-5 gap-[.65vw] pb-[2vw]">
-                {historyPhotos.map((photo, index) => {
+                {photos.map((photo, index) => {
                   const isNew = photo.code === newestCode;
                   return (
                     <figure
