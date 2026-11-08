@@ -40,6 +40,8 @@ function KioskScreen() {
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const initCameraRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const handleConfirmUploadRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  // Palm hold, preview timer, keyboard, button and staff command can all confirm; only the first one uploads.
+  const uploadInFlightRef = useRef<boolean>(false);
 
   // Camera & Stream state
   const [cameraActive, setCameraActive] = useState<boolean>(false);
@@ -215,6 +217,8 @@ function KioskScreen() {
 
   // Confirm photo, post to API, broadcast to Screen 2, and reset
   const handleConfirmUpload = useCallback(async () => {
+    if (uploadInFlightRef.current) return;
+    uploadInFlightRef.current = true;
     send({ type: 'CONFIRM_UPLOAD' });
     setIsSyncing(true);
 
@@ -284,6 +288,7 @@ function KioskScreen() {
         setIsSyncing(false);
         previewGestureLockRef.current = false;
         setRetakeCount(0);
+        uploadInFlightRef.current = false;
         send({ type: 'COOLDOWN_EXPIRED' });
       }, 1500);
     } catch (err) {
@@ -293,6 +298,7 @@ function KioskScreen() {
         setIsSyncing(false);
         previewGestureLockRef.current = false;
         setRetakeCount(0);
+        uploadInFlightRef.current = false;
         send({ type: 'COOLDOWN_EXPIRED' });
       }, 1500);
     }
@@ -578,16 +584,18 @@ function KioskScreen() {
     if (isPreviewing) {
       previewEnterTimeRef.current = performance.now();
       previewGestureLockRef.current = false;
-      setPreviewSeconds(10);
+      let remaining = 10;
+      setPreviewSeconds(remaining);
 
+      // Keep the upload out of the setState updater: React may run updaters twice (Strict Mode),
+      // which uploaded every photo twice under two different codes.
       previewInterval = setInterval(() => {
-        setPreviewSeconds((prev) => {
-          if (prev <= 1) {
-            handleConfirmUploadRef.current();
-            return 0;
-          }
-          return prev - 1;
-        });
+        remaining -= 1;
+        setPreviewSeconds(Math.max(remaining, 0));
+        if (remaining <= 0) {
+          clearInterval(previewInterval);
+          handleConfirmUploadRef.current();
+        }
       }, 1000);
     }
     return () => clearInterval(previewInterval);
