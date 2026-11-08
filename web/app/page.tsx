@@ -1,4 +1,6 @@
-import Link from 'next/link';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import {
   Camera,
   Monitor,
@@ -6,212 +8,288 @@ import {
   Smartphone,
   ArrowRight,
   ShieldCheck,
-  Cpu,
+  Sparkles,
 } from 'lucide-react';
 import { CpeLogo } from '@/components/CpeLogo';
 
-export default function Home() {
-  return (
-    <main className="relative min-h-screen bg-black text-[#F8FAFC] flex flex-col justify-between p-6 md:p-12 font-sans select-none overflow-x-hidden">
-      {/* Background Engineering Grid (faint, on pure black) */}
-      <div className="pointer-events-none absolute inset-0 engineering-grid opacity-25" />
+interface ModuleCardProps {
+  id: string;
+  hotkey: string;
+  route: string;
+  badge: string;
+  title: string;
+  icon: React.ReactNode;
+  accentColor: 'red' | 'cyan' | 'blue' | 'amber';
+  specs: string[];
+  ctaText: string;
+  onLaunch: () => void;
+}
 
-      {/* Top Brand Banner */}
-      <header className="relative z-10 w-full max-w-6xl mx-auto flex items-center justify-between border-b border-[#1C1C1C] pb-6">
+const ACCENT_STYLES = {
+  red: {
+    badgeBg: 'bg-red-500/10 text-red-400 border-red-500/30',
+    iconBg: 'bg-red-500/10 text-red-500 border-red-500/20',
+    hoverBorder: 'hover:border-red-500/50',
+    glow: 'group-hover:shadow-[0_0_35px_rgba(229,9,20,0.22)]',
+    ctaText: 'text-red-400 group-hover:text-red-300',
+    ctaBg: 'bg-red-500/10 group-hover:bg-red-500/20',
+  },
+  cyan: {
+    badgeBg: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
+    iconBg: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    hoverBorder: 'hover:border-cyan-500/50',
+    glow: 'group-hover:shadow-[0_0_35px_rgba(0,242,254,0.22)]',
+    ctaText: 'text-cyan-400 group-hover:text-cyan-300',
+    ctaBg: 'bg-cyan-500/10 group-hover:bg-cyan-500/20',
+  },
+  blue: {
+    badgeBg: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+    iconBg: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    hoverBorder: 'hover:border-blue-500/50',
+    glow: 'group-hover:shadow-[0_0_35px_rgba(59,130,246,0.22)]',
+    ctaText: 'text-blue-400 group-hover:text-blue-300',
+    ctaBg: 'bg-blue-500/10 group-hover:bg-blue-500/20',
+  },
+  amber: {
+    badgeBg: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+    iconBg: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    hoverBorder: 'hover:border-amber-500/50',
+    glow: 'group-hover:shadow-[0_0_35px_rgba(245,158,11,0.22)]',
+    ctaText: 'text-amber-400 group-hover:text-amber-300',
+    ctaBg: 'bg-amber-500/10 group-hover:bg-amber-500/20',
+  },
+};
+
+export default function MasterHub() {
+  // Physical Keyboard shortcut routing [1-4]
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Avoid firing when typing in an input or textarea
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      if (['1', '2', '3', '4'].includes(e.key)) {
+        e.preventDefault();
+        const routes: Record<string, string> = {
+          '1': '/kiosk',
+          '2': '/display',
+          '3': '/admin',
+          '4': '/p/demo-code',
+        };
+        window.open(routes[e.key], '_blank');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  return (
+    <div className="relative min-h-screen bg-[#07080B] text-slate-100 flex flex-col justify-between overflow-hidden font-['Prompt'] select-none">
+      {/* Engineering Background Grid */}
+      <div className="absolute inset-0 bg-[radial-gradient(#ffffff08_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-red-600/10 blur-[140px] pointer-events-none rounded-full" />
+
+      {/* Top Bar */}
+      <header className="relative z-10 w-full max-w-7xl mx-auto px-6 py-5 flex items-center justify-between border-b border-white/[0.06]">
         <div className="flex items-center gap-3.5">
-          <CpeLogo className="h-11" />
-          <div>
-            <div className="mono text-[10px] tracking-[.18em] text-[#CE1126] font-bold uppercase">
+          <CpeLogo className="h-10" />
+          <div className="border-l border-white/10 pl-3.5">
+            <div className="text-[10px] font-['JetBrains_Mono'] tracking-widest text-slate-400 uppercase font-semibold">
               SRINAKHARINWIROT UNIVERSITY • FACULTY OF ENGINEERING
             </div>
-            <div className="text-lg font-black text-white tracking-tight">
-              CPE PhotoBooth <span className="text-slate-500 font-normal">|</span> Open House 2026
+            <div className="text-sm font-semibold tracking-wide text-white">
+              CPE PhotoBooth <span className="text-[#E50914]">•</span> Open House 2026
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 backdrop-blur-md">
-          <span className="size-2 rounded-full bg-[#10B981] animate-pulse" />
-          <span className="mono text-xs font-semibold text-emerald-400 tracking-wider">
-            SYSTEM READY · DUAL-SCREEN ACTIVE
+        {/* Live Hardware Telemetry Pill */}
+        <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-['JetBrains_Mono'] font-medium backdrop-blur-md">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
           </span>
+          <span>SYSTEM READY</span>
+          <span className="text-slate-600">|</span>
+          <span className="text-emerald-300">DUAL-SCREEN SYNCED</span>
         </div>
       </header>
 
-      {/* Main Hub Presentation */}
-      <section className="relative z-10 w-full max-w-6xl mx-auto my-auto py-12 space-y-12">
-        {/* Hero Title */}
-        <div className="text-center space-y-3 max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-1 text-[11px] font-bold tracking-wider text-cyan-300 uppercase mono">
-            <Cpu className="size-3.5 text-cyan-400" />
+      {/* Main Hero Section */}
+      <main className="relative z-10 w-full max-w-7xl mx-auto px-6 py-8 flex-1 flex flex-col justify-center">
+        <div className="text-center max-w-3xl mx-auto mb-10">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/[0.04] border border-white/10 text-cyan-400 text-xs font-['JetBrains_Mono'] mb-4 tracking-wider">
+            <Sparkles className="w-3.5 h-3.5" />
             TOUCHLESS AI VISION CONTROL SUITE
           </div>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white">
-            CPE PhotoBooth
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight font-['Kanit'] bg-gradient-to-b from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+            CPE Central Mission Launchpad
           </h1>
-          <p className="text-sm md:text-base text-slate-400 font-medium leading-relaxed">
-            ระบบตู้ถ่ายภาพอัจฉริยะไร้สัมผัส 1 Laptop ควบคุม 2 จอแสดงผลภายนอก เชื่อมต่อเรียลไทม์ผ่าน BroadcastChannel
+          <p className="mt-3 text-sm md:text-base text-slate-400 leading-relaxed max-w-2xl mx-auto">
+            1 Laptop ควบคุม 2 จอแสดงผลแบบไร้สัมผัส เชื่อมต่อ Real-time Inter-window ผ่าน{' '}
+            <code className="text-slate-200 bg-white/5 px-2 py-0.5 rounded font-['JetBrains_Mono'] text-xs border border-white/10">
+              BroadcastChannel API
+            </code>
           </p>
         </div>
 
-        {/* 4 Screen Launcher Cards */}
+        {/* Bento Grid: 4 Target Modules */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {/* Card 1: Screen 1 Kiosk */}
-          <Link
-            href="/kiosk"
-            target="_blank"
-            className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] hover:border-[#CE1126] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(206,17,38,0.2)] backdrop-blur-md"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-[#CE1126]/15 border border-[#CE1126]/30 text-[#CE1126] shadow-inner group-hover:scale-105 transition-transform">
-                  <Camera className="size-5" strokeWidth={1.8} />
-                </div>
-                <span className="mono text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-md bg-[#CE1126]/15 text-[#CE1126] font-bold border border-[#CE1126]/30">
-                  DISPLAY 1
-                </span>
-              </div>
-
-              <div>
-                <div className="mono text-[11px] text-slate-400 font-bold mb-1">
-                  /kiosk
-                </div>
-                <h2 className="text-lg font-bold text-white group-hover:text-[#CE1126] transition-colors leading-snug">
-                  ตู้ถ่ายรูปไร้สัมผัส
-                </h2>
-              </div>
-
-              <p className="text-xs text-slate-400 leading-relaxed">
-                จอ 16:9 ไกด์ 4:3 แบมือ 1.5 วินาทีเพื่อเริ่มถ่าย นับถอยหลัง 3..2..1 ชัตเตอร์แฟลช 150ms และพรีวิว 10 วินาที ไร้สัมผัส 100%
-              </p>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-[#1C1C1C]/60 flex items-center justify-between text-xs font-bold text-[#CE1126]">
-              <span>เปิดหน้าตู้ถ่ายรูป</span>
-              <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
-
-          {/* Card 2: Screen 2 Showcase */}
-          <Link
-            href="/display"
-            target="_blank"
-            className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] hover:border-[#06B6D4] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(6,182,212,0.2)] backdrop-blur-md"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-[#06B6D4]/15 border border-[#06B6D4]/30 text-[#06B6D4] shadow-inner group-hover:scale-105 transition-transform">
-                  <Monitor className="size-5" strokeWidth={1.8} />
-                </div>
-                <span className="mono text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-md bg-[#06B6D4]/15 text-[#06B6D4] font-bold border border-[#06B6D4]/30">
-                  DISPLAY 2
-                </span>
-              </div>
-
-              <div>
-                <div className="mono text-[11px] text-slate-400 font-bold mb-1">
-                  /display
-                </div>
-                <h2 className="text-lg font-bold text-white group-hover:text-[#06B6D4] transition-colors leading-snug">
-                  Showcase & QR
-                </h2>
-              </div>
-
-              <p className="text-xs text-slate-400 leading-relaxed">
-                แบ่งสัดส่วน 30/70 ซ้าย 30% สถานีสแกนรับรูป QR Code ความคมชัดสูง ขวา 70% Live Photo Wall แสดงภาพรวมแบบเรียลไทม์
-              </p>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-[#1C1C1C]/60 flex items-center justify-between text-xs font-bold text-[#06B6D4]">
-              <span>เปิดหน้า Showcase</span>
-              <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
-
-          {/* Card 3: Laptop Admin Portal */}
-          <Link
-            href="/admin"
-            target="_blank"
-            className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] hover:border-[#38BDF8] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(56,189,248,0.2)] backdrop-blur-md"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-[#38BDF8]/15 border border-[#38BDF8]/30 text-[#38BDF8] shadow-inner group-hover:scale-105 transition-transform">
-                  <Sliders className="size-5" strokeWidth={1.8} />
-                </div>
-                <span className="mono text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-md bg-[#38BDF8]/15 text-[#38BDF8] font-bold border border-[#38BDF8]/30">
-                  STAFF CONSOLE
-                </span>
-              </div>
-
-              <div>
-                <div className="mono text-[11px] text-slate-400 font-bold mb-1">
-                  /admin
-                </div>
-                <h2 className="text-lg font-bold text-white group-hover:text-[#38BDF8] transition-colors leading-snug">
-                  แดชบอร์ดสตาฟ
-                </h2>
-              </div>
-
-              <p className="text-xs text-slate-400 leading-relaxed">
-                ระบบรักษาความปลอดภัย PIN Gate (1234), เทเลเมตรีฮาร์ดแวร์, ปุ่มลบรูปตาม PDPA, ควบคุม Kiosk ฉุกเฉิน และ Re-issue QR
-              </p>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-[#1C1C1C]/60 flex items-center justify-between text-xs font-bold text-[#38BDF8]">
-              <span>เปิดแดชบอร์ดสตาฟ</span>
-              <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
-
-          {/* Card 4: Mobile App */}
-          <Link
-            href="/p/OPH-SWU1"
-            target="_blank"
-            className="group relative flex flex-col justify-between p-6 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] hover:border-[#F59E0B] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(245,158,11,0.2)] backdrop-blur-md"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-[#F59E0B]/15 border border-[#F59E0B]/30 text-[#F59E0B] shadow-inner group-hover:scale-105 transition-transform">
-                  <Smartphone className="size-5" strokeWidth={1.8} />
-                </div>
-                <span className="mono text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-md bg-[#F59E0B]/15 text-[#F59E0B] font-bold border border-[#F59E0B]/30">
-                  MOBILE WEB
-                </span>
-              </div>
-
-              <div>
-                <div className="mono text-[11px] text-slate-400 font-bold mb-1">
-                  /p/[code]
-                </div>
-                <h2 className="text-lg font-bold text-white group-hover:text-[#F59E0B] transition-colors leading-snug">
-                  เว็บดาวน์โหลด & แต่งรูป
-                </h2>
-              </div>
-
-              <p className="text-xs text-slate-400 leading-relaxed">
-                เว็บดาวน์โหลดรูปผ่าน 4G/5G ด้วย Canvas Editor แต่งฟิลเตอร์ 6 พรีเซ็ต ปรับแสง และใส่กรอบลายวิศวะ SWU บันทึกลงเครื่องทันที
-              </p>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-[#1C1C1C]/60 flex items-center justify-between text-xs font-bold text-[#F59E0B]">
-              <span>ทดสอบเว็บบนมือถือ</span>
-              <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
+          <ModuleCard
+            id="kiosk"
+            hotkey="1"
+            route="/kiosk"
+            badge="DISPLAY 1"
+            title="ตู้ถ่ายรูปไร้สัมผัส"
+            icon={<Camera className="w-5 h-5" />}
+            accentColor="red"
+            specs={[
+              'สัดส่วน 16:9 ไกด์ 4:3',
+              'AI Gesture แบมือ 1.5s',
+              'Flash 150ms + Preview 10s',
+            ]}
+            ctaText="เปิดหน้าตู้ถ่ายรูป"
+            onLaunch={() => window.open('/kiosk', '_blank')}
+          />
+          <ModuleCard
+            id="display"
+            hotkey="2"
+            route="/display"
+            badge="DISPLAY 2"
+            title="Showcase & QR"
+            icon={<Monitor className="w-5 h-5" />}
+            accentColor="cyan"
+            specs={[
+              'สัดส่วนแบ่ง 30:70',
+              'ซ้าย: Dynamic QR Code',
+              'ขวา: Live Photo Wall',
+            ]}
+            ctaText="เปิดหน้า Showcase"
+            onLaunch={() => window.open('/display', '_blank')}
+          />
+          <ModuleCard
+            id="admin"
+            hotkey="3"
+            route="/admin"
+            badge="STAFF CONSOLE"
+            title="แดชบอร์ดสตาฟ"
+            icon={<Sliders className="w-5 h-5" />}
+            accentColor="blue"
+            specs={[
+              'PIN Gate Security (1234)',
+              'ลบรูปตาม PDPA 1-Click',
+              'Kiosk Emergency Reset',
+            ]}
+            ctaText="เปิดแดชบอร์ดสตาฟ"
+            onLaunch={() => window.open('/admin', '_blank')}
+          />
+          <ModuleCard
+            id="mobile"
+            hotkey="4"
+            route="/p/[code]"
+            badge="MOBILE WEB"
+            title="เว็บดาวน์โหลด & แต่งรูป"
+            icon={<Smartphone className="w-5 h-5" />}
+            accentColor="amber"
+            specs={[
+              'Canvas Editor 4G/5G',
+              '6 Presets + สติกเกอร์วิศวะ',
+              'บันทึกลง Camera Roll ทันที',
+            ]}
+            ctaText="ทดสอบเว็บบนมือถือ"
+            onLaunch={() => window.open('/p/demo-code', '_blank')}
+          />
         </div>
-      </section>
+      </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 w-full max-w-6xl mx-auto border-t border-[#1C1C1C] pt-6 flex flex-col md:flex-row items-center justify-between text-xs text-slate-400">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="size-4 text-emerald-400" />
-          <span>ภาควิชาวิศวกรรมคอมพิวเตอร์ คณะวิศวกรรมศาสตร์ มหาวิทยาลัยศรีนครินทรวิโรฒ • Open House 2026</span>
-        </div>
-        <div className="mt-2 md:mt-0 mono text-[11px] text-slate-400">
-          Compliant with PDPA (7-Day TTL) • Impeccable Tech Craft
+      {/* Footer Info */}
+      <footer className="relative z-10 w-full max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 border-t border-white/[0.06] font-['JetBrains_Mono']">
+        <div>Department of Computer Engineering, Srinakharinwirot University</div>
+        <div className="flex items-center gap-4">
+          <span className="hidden md:inline">Shortcuts: Press [1] [2] [3] [4] to open directly</span>
+          <span className="rounded bg-white/5 px-2 py-0.5 border border-white/10 text-slate-400">
+            v2.6-Production
+          </span>
         </div>
       </footer>
-    </main>
+    </div>
+  );
+}
+
+function ModuleCard({
+  hotkey,
+  route,
+  badge,
+  title,
+  icon,
+  accentColor,
+  specs,
+  ctaText,
+  onLaunch,
+}: ModuleCardProps) {
+  const styles = ACCENT_STYLES[accentColor];
+
+  return (
+    <div
+      onClick={onLaunch}
+      className={`group relative flex flex-col justify-between p-5 rounded-2xl bg-[#0E1017]/90 border border-white/[0.08] backdrop-blur-md transition-all duration-300 hover:scale-[1.018] cursor-pointer ${styles.hoverBorder} ${styles.glow}`}
+    >
+      <div>
+        {/* Card Header: Icon & Hotkey Pill */}
+        <div className="flex items-center justify-between mb-4">
+          <div
+            className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-transform duration-300 group-hover:scale-110 ${styles.iconBg}`}
+          >
+            {icon}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-['JetBrains_Mono'] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400 group-hover:border-white/25">
+              Key [{hotkey}]
+            </span>
+            <span
+              className={`text-[10px] font-bold font-['JetBrains_Mono'] px-2 py-0.5 rounded-full border tracking-wide uppercase ${styles.badgeBg}`}
+            >
+              {badge}
+            </span>
+          </div>
+        </div>
+
+        {/* Route & Title */}
+        <div className="font-['JetBrains_Mono'] text-xs text-slate-500 mb-1">
+          {route}
+        </div>
+        <h3 className="text-lg font-bold font-['Kanit'] text-white group-hover:text-slate-100 transition-colors">
+          {title}
+        </h3>
+
+        {/* Spec Chips */}
+        <div className="mt-3.5 space-y-1.5">
+          {specs.map((spec, i) => (
+            <div key={i} className="flex items-center gap-2 text-xs text-slate-400">
+              <span className="w-1 h-1 rounded-full bg-slate-600 group-hover:bg-slate-400 transition-colors" />
+              <span>{spec}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Integrated Action Button */}
+      <div className="mt-6 pt-3.5 border-t border-white/[0.06] flex items-center justify-between">
+        <span
+          className={`text-xs font-semibold font-['Kanit'] tracking-wide transition-colors ${styles.ctaText}`}
+        >
+          {ctaText}
+        </span>
+        <div
+          className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:translate-x-1 ${styles.ctaBg} ${styles.ctaText}`}
+        >
+          <ArrowRight className="w-3.5 h-3.5" />
+        </div>
+      </div>
+    </div>
   );
 }

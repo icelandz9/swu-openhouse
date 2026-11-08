@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Prompt:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Kanit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Prompt:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
 @theme {
@@ -22,9 +22,40 @@
 
   --font-sans: 'Plus Jakarta Sans', 'Prompt', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', 'Space Mono', monospace;
+  --color-cpe-red: #E50914;
+  --color-swu-crimson: #D8232A;
+  --color-bg-deep: #07080B;
+  --color-surface-card: #0F1117;
+  --color-surface-card-hover: #161922;
+  --color-neon-cyan: #00F2FE;
+  --color-admin-blue: #3B82F6;
+  --color-amber-gold: #F59E0B;
+  --color-emerald-live: #10B981;
+  --font-display: 'Kanit', -apple-system, sans-serif;
+  --font-body: 'Prompt', 'Sukhumvit Set', sans-serif;
+
 }
 
 :root {
+  /* Brand Core (CPE Engineering Theme) */
+  --cpe-red: #E50914;
+  --cpe-red-glow: rgba(229, 9, 20, 0.35);
+  --swu-crimson: #D8232A;
+  
+  /* Cyber Dark Surfaces (Anti-OLED Smear) */
+  --bg-deep: #07080B;
+  --surface-card: #0F1117;
+  --surface-card-hover: #161922;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.22);
+  
+  /* Accents & Status */
+  --neon-cyan: #00F2FE;
+  --neon-cyan-glow: rgba(0, 242, 254, 0.3);
+  --admin-blue: #3B82F6;
+  --amber-gold: #F59E0B;
+  --emerald-live: #10B981;
+
   /* Brand Tokens */
   --swu-red: #CE1126;
   --swu-red-hover: #EF4444;
