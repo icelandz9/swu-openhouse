@@ -20,7 +20,6 @@ import {
   Check,
   X,
   ShieldCheck,
-  Lock,
   Camera,
   AlertTriangle,
   Sliders,
@@ -29,6 +28,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { CpeLogo } from '@/components/CpeLogo';
+import { StaffGate } from '@/components/StaffGate';
 import { PhotoRecord, ScreenSyncEvent, SCREEN_SYNC_CHANNEL } from '@/lib/contracts';
 
 const DEFAULT_SAMPLE_PHOTOS: PhotoRecord[] = [
@@ -76,9 +76,7 @@ const DEFAULT_SAMPLE_PHOTOS: PhotoRecord[] = [
   },
 ];
 
-export default function StaffAdminPortal() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
-  const [pinInput, setPinInput] = useState<string>('');
+function StaffAdminScreen() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [timeFilter, setTimeFilter] = useState<string>('ทั้งหมด');
   const [photos, setPhotos] = useState<PhotoRecord[]>(DEFAULT_SAMPLE_PHOTOS);
@@ -330,47 +328,6 @@ export default function StaffAdminPortal() {
     },
   ];
 
-  if (!isAuthenticated) {
-    return (
-      <main className="min-h-screen bg-black grid place-items-center p-6 text-white select-none">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (pinInput === '1234') {
-              setIsAuthenticated(true);
-            } else {
-              alert('PIN ไม่ถูกต้อง (PIN เริ่มต้น: 1234)');
-            }
-          }}
-          className="w-full max-w-sm rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] p-8 space-y-6 text-center shadow-2xl"
-        >
-          <div className="size-16 rounded-2xl bg-[#CE1126]/20 border border-[#CE1126]/40 flex items-center justify-center mx-auto text-[#CE1126]">
-            <Lock className="size-8" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold">Staff Master Dashboard</h1>
-            <p className="text-xs text-slate-400 mt-1">กรุณากรอก PIN เพื่อเข้าสู่ระบบ (1234)</p>
-          </div>
-          <input
-            type="password"
-            maxLength={6}
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value)}
-            placeholder="••••"
-            className="w-full h-12 text-center text-2xl font-mono tracking-[0.4em] rounded-xl bg-[#0A0A0A] border border-white/10 text-white outline-none focus:border-[#CE1126]"
-            autoFocus
-          />
-          <button
-            type="submit"
-            className="w-full h-11 rounded-xl bg-[#CE1126] hover:bg-[#e1132b] text-sm font-bold text-white transition-colors"
-          >
-            เข้าสู่ระบบ
-          </button>
-        </form>
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-dvh bg-black text-slate-200 select-none">
       {/* Top Header */}
@@ -398,7 +355,10 @@ export default function StaffAdminPortal() {
             Bus: <span className="text-emerald-400">swu_photobooth_bus</span>
           </div>
           <button
-            onClick={() => setIsAuthenticated(false)}
+            onClick={async () => {
+              await fetch('/api/auth', { method: 'DELETE' }).catch(() => {});
+              window.location.reload();
+            }}
             className="flex items-center gap-2 rounded border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
           >
             <LogOut className="size-3.5" /> ล็อกเอาท์
@@ -777,5 +737,13 @@ export default function StaffAdminPortal() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function StaffAdminPortal() {
+  return (
+    <StaffGate title="Staff Master Dashboard">
+      <StaffAdminScreen />
+    </StaffGate>
   );
 }
