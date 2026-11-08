@@ -48,7 +48,7 @@ import {
 interface AuditLogItem {
   id: string;
   time: string;
-  type: 'STAFF' | 'KIOSK' | 'DISPLAY' | 'STORAGE' | 'PDPA';
+  type: 'STAFF' | 'KIOSK' | 'DISPLAY' | 'NETWORK' | 'STORAGE' | 'PDPA';
   text: string;
   variant: 'info' | 'success' | 'warning' | 'danger';
 }
@@ -62,7 +62,9 @@ function StaffAdminScreen() {
   const [deletedCodes, setDeletedCodes] = useState<string[]>([]);
   const [kioskState, setKioskState] = useState<'standby' | 'paused' | 'active'>('standby');
   const [isDisplayMuted, setIsDisplayMuted] = useState<boolean>(false);
-  const [storageMode, setStorageMode] = useState<'r2_dual' | 'local_only'>('r2_dual');
+  const [netLatency, setNetLatency] = useState<number | null>(null);
+  const [isCheckingNet, setIsCheckingNet] = useState<boolean>(false);
+  const [isNetOnline, setIsNetOnline] = useState<boolean>(true);
   const [commandNotice, setCommandNotice] = useState<string>('');
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoRecord | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -117,6 +119,51 @@ function StaffAdminScreen() {
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Check Onsite Network & Gateway Latency
+  const checkNetwork = useCallback(async () => {
+    setIsCheckingNet(true);
+    const start = performance.now();
+    try {
+      const res = await fetch('/api/photos?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('Network error');
+      const end = performance.now();
+      const lat = Math.round(end - start);
+      setNetLatency(lat);
+      setIsNetOnline(true);
+      addAuditLog('NETWORK', `ตรวจสอบสัญญาณเครือข่าย: ความเร็วตอบสนอง ${lat} ms (ปกติ)`, 'success');
+      setCommandNotice(`เครือข่ายออนไลน์: Latency ${lat} ms`);
+      setTimeout(() => setCommandNotice(''), 2500);
+    } catch {
+      setIsNetOnline(false);
+      addAuditLog('NETWORK', 'ตรวจสอบสัญญาณเครือข่าย: ไม่สามารถเชื่อมต่อกับเกตเวย์ได้!', 'danger');
+      setCommandNotice('แจ้งเตือน: สัญญาณเครือข่ายขัดข้อง กรุณาตรวจสอบการเชื่อมต่อ');
+      setTimeout(() => setCommandNotice(''), 2500);
+    } finally {
+      setIsCheckingNet(false);
+    }
+  }, [addAuditLog]);
+
+  // Network online/offline listener and initial check
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsNetOnline(true);
+      addAuditLog('NETWORK', 'สัญญาณอินเทอร์เน็ตกลับมาเชื่อมต่อแล้ว (Online)', 'success');
+    };
+    const handleOffline = () => {
+      setIsNetOnline(false);
+      addAuditLog('NETWORK', 'สัญญาณอินเทอร์เน็ตขาดหาย! (Offline)', 'danger');
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    checkNetwork();
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [checkNetwork, addAuditLog]);
 
   // Initialize BroadcastChannel
   useEffect(() => {
@@ -610,29 +657,48 @@ function StaffAdminScreen() {
             </div>
           </article>
 
-          {/* 3. Storage Resilience & Circuit Breaker Module */}
+          {/* 3. Onsite Network & QR Gateway Health Module (แทน DUAL STORAGE) */}
           <article className="craft-hud-card tactical-corner p-5 relative overflow-hidden group transition-all duration-300 hover:border-cyan-500/40">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-                  <HardDrive className="size-4" />
+                <div className={`size-8 rounded-lg flex items-center justify-center border transition-colors ${
+                  isNetOnline
+                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                    : 'bg-red-500/10 border-red-500/30 text-red-400'
+                }`}>
+                  <Wifi className="size-4" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-slate-300">พื้นที่จัดเก็บรูปภาพ</h3>
-                  <div className="text-[10px] text-slate-500 font-mono">Cloudflare R2 + Local</div>
+                  <h3 className="text-xs font-bold text-slate-300">เครือข่าย & เกตเวย์ QR</h3>
+                  <div className="text-[10px] text-slate-500 font-mono">Onsite Gateway & 5GHz AP</div>
                 </div>
               </div>
-              <span className="flex items-center gap-1.5 rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-mono font-bold text-cyan-400 border border-cyan-500/30">
-                <span className="size-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                R2 ACTIVE
+              <span className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-mono font-bold border ${
+                isNetOnline
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  : 'bg-red-500/10 text-red-400 border-red-500/30'
+              }`}>
+                <span className={`size-1.5 rounded-full ${isNetOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
+                {isNetOnline ? 'INTERNET OK' : 'OFFLINE'}
               </span>
             </div>
-            <div className="mt-4 font-mono text-xl font-black text-white">
-              cpe-swu-photobooth
+            <div className="mt-4 font-mono text-xl font-black text-white flex items-baseline justify-between">
+              <span>{netLatency !== null ? `${netLatency} ms` : 'พร้อมให้บริการ'}</span>
+              <span className="text-[11px] font-normal text-slate-400 font-sans">
+                {netLatency !== null && netLatency < 80 ? '🟢 สัญญาณเสถียร' : netLatency !== null ? '🟡 ความเร็วปานกลาง' : 'พร้อมใช้งาน'}
+              </span>
             </div>
             <div className="mt-1 text-[11px] text-slate-400 flex items-center justify-between">
-              <span>Dual Storage: Cloudflare + Local Disk</span>
-              <span className="text-[10px] text-indigo-400 font-mono">0 Mocks</span>
+              <span className="truncate max-w-[190px] font-mono text-[10px] text-slate-400" title={publicDomain || 'http://localhost:3000'}>
+                {publicDomain ? publicDomain.replace(/^https?:\/\//, '') : 'localhost:3000'}
+              </span>
+              <button
+                onClick={checkNetwork}
+                disabled={isCheckingNet}
+                className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 underline cursor-pointer disabled:opacity-50"
+              >
+                {isCheckingNet ? 'กำลังวัด...' : 'ทดสอบสปีด'}
+              </button>
             </div>
           </article>
 
@@ -1252,7 +1318,7 @@ function StaffAdminScreen() {
                         />
                         <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 rounded bg-black/80 px-2 py-0.5 text-[9px] font-mono font-bold text-emerald-400 backdrop-blur border border-emerald-500/20">
                           <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          R2 + LOCAL
+                          READY
                         </div>
                         <div className="absolute bottom-2.5 left-2.5 rounded bg-black/80 px-2 py-0.5 text-[10px] font-mono font-bold text-white backdrop-blur border border-white/10">
                           #{photo.code.replace('OPH-', '')}
@@ -1372,6 +1438,8 @@ function StaffAdminScreen() {
                         ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                         : log.type === 'DISPLAY'
                         ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                        : log.type === 'NETWORK'
+                        ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                         : log.type === 'PDPA'
                         ? 'bg-red-500/20 text-red-300 border border-red-500/30'
                         : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
