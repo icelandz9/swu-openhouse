@@ -50,6 +50,12 @@ export function checkPin(pin: unknown): boolean {
 }
 
 export function isStaffRequest(req: NextRequest): boolean {
+  // 1. Dedicated Onsite Operator: localhost / 127.0.0.1 is always authorized
+  const host = req.headers.get('host') || '';
+  if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) {
+    return true;
+  }
+  // 2. Otherwise verify signed staff cookie
   const secret = getSecret();
   const token = req.cookies.get(STAFF_COOKIE)?.value;
   if (!secret || !token) return false;

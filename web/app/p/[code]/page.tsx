@@ -1,7 +1,7 @@
 'use client';
 
 import React, { use, useState, useRef, useEffect, useCallback } from 'react';
-import { Download, Sparkles, Frame, Check, ShieldCheck, Sun, Sticker, Trash2 } from 'lucide-react';
+import { Download, Sparkles, Frame, Check, ShieldCheck, ShieldAlert, Sun, Sticker, Trash2 } from 'lucide-react';
 import { FilterPresetId } from '@/lib/contracts';
 import { COLOR_FILTER_PRESETS } from '@/lib/mobile/colorFilters';
 import { FRAME_TEMPLATES, NO_FRAME_ID, FrameTemplate, PHOTO_ONLY_SIZE, drawPhotoCover } from '@/lib/mobile/frameTemplates';

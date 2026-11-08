@@ -8,6 +8,7 @@ import { CpeLogo } from '@/components/CpeLogo';
 interface GalleryItem {
   code: string;
   qrUrl: string;
+  token?: string;
   photoUrl: string;
   createdAt: string;
   style?: string;
@@ -155,6 +156,7 @@ export default function ShowcaseDisplayScreen() {
         const newItem: GalleryItem = {
           code: data.code,
           qrUrl: data.qrUrl,
+          token: data.token,
           photoUrl: data.photoUrl,
           createdAt: data.createdAt,
           style: 'NEURAL RED',
@@ -227,9 +229,17 @@ export default function ShowcaseDisplayScreen() {
         : `${typeof window !== 'undefined' ? window.location.protocol : 'http:'}//${cleanHostOrigin}`)
     : (typeof window !== 'undefined' ? window.location.origin : '');
 
+  // Extract token query string if present in latest.qrUrl
+  let tokenQuery = '';
+  if (latest.token) {
+    tokenQuery = `?t=${encodeURIComponent(latest.token)}`;
+  } else if (latest.qrUrl && latest.qrUrl.includes('?')) {
+    tokenQuery = latest.qrUrl.slice(latest.qrUrl.indexOf('?'));
+  }
+
   const qrTargetUrl = baseOrigin
-    ? `${baseOrigin}/p/${encodeURIComponent(latest.code)}`
-    : (latest.qrUrl && /^https?:\/\//i.test(latest.qrUrl) ? latest.qrUrl : `/p/${latest.code}`);
+    ? `${baseOrigin}/p/${encodeURIComponent(latest.code)}${tokenQuery}`
+    : (latest.qrUrl && /^https?:\/\//i.test(latest.qrUrl) ? latest.qrUrl : `/p/${latest.code}${tokenQuery}`);
 
   return (
     <main className="display-shell grid h-dvh w-screen place-items-center overflow-hidden bg-black select-none">

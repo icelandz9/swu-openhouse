@@ -123,26 +123,45 @@ export class CloudflareR2Adapter implements IPhotoStorage {
   }
 
   async savePhoto(shortCode: string, imageBuffer: Buffer): Promise<StoredPhotoResult> {
-    // 1. Dual-Write Safety Net: Always save locally first on laptop NVMe to prevent loss on Wi-Fi drops
+    // 1. Dual-Write Safety Net: Always save locally first on laptop NVMe
+    let savedToLocal = false;
     if (this.localBackup) {
-      await this.localBackup.savePhoto(shortCode, imageBuffer).catch((err) => {
+      try {
+        await this.localBackup.savePhoto(shortCode, imageBuffer);
+        savedToLocal = true;
+      } catch (err) {
         console.warn('Local NVMe backup save notice:', err);
-      });
+      }
     }
 
-    // 2. Upload to Cloudflare R2
-    const res = await this.request('PUT', `${shortCode}.jpg`, {
-      body: new Uint8Array(imageBuffer),
-      contentType: 'image/jpeg',
-    });
-    if (!res.ok) {
-      throw new Error(`R2 upload failed: HTTP ${res.status} ${await res.text()}`);
+    // 2. Upload to Cloudflare R2 with resilient offline fallback
+    let savedToCloud = false;
+    try {
+      const res = await this.request('PUT', `${shortCode}.jpg`, {
+        body: new Uint8Array(imageBuffer),
+        contentType: 'image/jpeg',
+      });
+      if (res.ok) {
+        savedToCloud = true;
+      } else {
+        console.warn(`R2 upload non-OK status: HTTP ${res.status}`);
+      }
+    } catch (err) {
+      console.warn('R2 network upload offline/interrupted, preserved in local NVMe:', err);
     }
+
+    // If both failed, then we must report an error
+    if (!savedToCloud && !savedToLocal) {
+      throw new Error('Photo storage failed: both cloud and local NVMe storage were unreachable');
+    }
+
     return {
       photoId: shortCode,
       shortCode,
-      url: this.publicDomain ? `${this.publicDomain}/${shortCode}.jpg` : `/api/photos/${shortCode}/file`,
-      storageDriver: 'r2',
+      url: (savedToCloud && this.publicDomain)
+        ? `${this.publicDomain}/${shortCode}.jpg`
+        : `/api/photos/${shortCode}/file`,
+      storageDriver: savedToCloud ? 'r2' : 'local',
       expiresAt: new Date(Date.now() + RETENTION_MS).toISOString(),
     };
   }
