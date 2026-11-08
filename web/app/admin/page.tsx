@@ -458,7 +458,7 @@ function StaffAdminScreen() {
   }, [photos, deletedCodes, searchQuery, filterTab]);
 
   return (
-    <main className="min-h-dvh bg-[#070A0F] text-slate-200 select-none antialiased">
+    <main className="min-h-dvh hud-dot-grid text-slate-200 select-none antialiased">
       {/* Top Header - UIHut Mission Control Bar */}
       <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-[#0B0F17]/95 px-6 py-3.5 backdrop-blur-md">
         <div className="mx-auto flex max-w-[1920px] flex-wrap items-center justify-between gap-4">
@@ -549,7 +549,7 @@ function StaffAdminScreen() {
         {/* 4 Telemetry HUD Modules (UIHut Command Center Style) */}
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {/* 1. Camera & AI Vision Module */}
-          <article className="rounded-xl border border-slate-800/80 bg-[#0B0F17] p-5 shadow-sm relative overflow-hidden group">
+          <article className="craft-hud-card tactical-corner p-5 relative overflow-hidden group transition-all duration-300 hover:border-cyan-500/40">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="size-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
@@ -557,7 +557,7 @@ function StaffAdminScreen() {
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-slate-300">กล้อง & Hand AI Vision</h3>
-                  <div className="text-[10px] text-slate-500">Kiosk Screen 1</div>
+                  <div className="text-[10px] text-slate-500 font-mono">Kiosk Screen 1</div>
                 </div>
               </div>
               <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-mono font-bold text-emerald-400 border border-emerald-500/30">
@@ -580,7 +580,7 @@ function StaffAdminScreen() {
           </article>
 
           {/* 2. Multi-Screen Real-Time Sync Module */}
-          <article className="rounded-xl border border-slate-800/80 bg-[#0B0F17] p-5 shadow-sm relative overflow-hidden group">
+          <article className="craft-hud-card tactical-corner p-5 relative overflow-hidden group transition-all duration-300 hover:border-cyan-500/40">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="size-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
@@ -588,7 +588,7 @@ function StaffAdminScreen() {
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-slate-300">การซิงค์ 2 หน้าจอ</h3>
-                  <div className="text-[10px] text-slate-500">BroadcastChannel</div>
+                  <div className="text-[10px] text-slate-500 font-mono">BroadcastChannel</div>
                 </div>
               </div>
               <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-mono font-bold text-emerald-400 border border-emerald-500/30">
@@ -611,7 +611,7 @@ function StaffAdminScreen() {
           </article>
 
           {/* 3. Storage Resilience & Circuit Breaker Module */}
-          <article className="rounded-xl border border-slate-800/80 bg-[#0B0F17] p-5 shadow-sm relative overflow-hidden group">
+          <article className="craft-hud-card tactical-corner p-5 relative overflow-hidden group transition-all duration-300 hover:border-cyan-500/40">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="size-8 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
@@ -619,7 +619,7 @@ function StaffAdminScreen() {
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-slate-300">พื้นที่จัดเก็บรูปภาพ</h3>
-                  <div className="text-[10px] text-slate-500">Cloudflare R2 + Local</div>
+                  <div className="text-[10px] text-slate-500 font-mono">Cloudflare R2 + Local</div>
                 </div>
               </div>
               <span className="flex items-center gap-1.5 rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-mono font-bold text-cyan-400 border border-cyan-500/30">
@@ -637,7 +637,7 @@ function StaffAdminScreen() {
           </article>
 
           {/* 4. PDPA Compliance & Retention Module */}
-          <article className="rounded-xl border border-slate-800/80 bg-[#0B0F17] p-5 shadow-sm relative overflow-hidden group">
+          <article className="craft-hud-card tactical-corner p-5 relative overflow-hidden group transition-all duration-300 hover:border-cyan-500/40">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="size-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
@@ -645,7 +645,7 @@ function StaffAdminScreen() {
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-slate-300">รูปภาพ & นโยบาย PDPA</h3>
-                  <div className="text-[10px] text-slate-500">Retention Management</div>
+                  <div className="text-[10px] text-slate-500 font-mono">Retention Management</div>
                 </div>
               </div>
               <span className="flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-mono font-bold text-amber-400 border border-amber-500/30">
@@ -658,13 +658,184 @@ function StaffAdminScreen() {
             </div>
             <div className="mt-1 text-[11px] text-slate-400 flex items-center justify-between">
               <span>Auto-Purge 7 วัน · สิทธิลบรูปทันที</span>
-              <span className="text-[10px] text-amber-400 font-bold">100% Secure</span>
+              <span className="text-[10px] text-amber-400 font-bold font-mono">100% Secure</span>
             </div>
           </article>
         </section>
 
+        {/* Dual Cockpit Live Fleet Telemetry (George Railean / Fuselab Dribbble HUD Style) */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Screen 1: Kiosk Station Cockpit */}
+          <div className="craft-hud-card tactical-corner p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="size-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <Monitor className="size-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-mono font-bold tracking-wider text-white flex items-center gap-2">
+                    SCREEN 1 · KIOSK COCKPIT
+                    <span className="rounded bg-cyan-500/20 px-1.5 py-0.5 text-[9px] font-mono text-cyan-300 border border-cyan-500/40">
+                      STATION A
+                    </span>
+                  </h3>
+                  <div className="text-[10px] text-slate-400 font-mono">1080p WebRTC Viewfinder · MediaPipe Hand AI</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="pulse-beacon">
+                  <span className="pulse-beacon-ring bg-emerald-400" />
+                  <span className="pulse-beacon-dot bg-emerald-400" />
+                </span>
+                <span className="font-mono text-[10px] text-emerald-400 font-bold">LIVE RADAR</span>
+              </div>
+            </div>
+
+            {/* Viewfinder Monitor Visual */}
+            <div className="relative aspect-video w-full rounded-xl bg-black/90 border border-cyan-500/30 overflow-hidden shadow-inner flex flex-col justify-between p-3">
+              {/* Radar Grid Overlay */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(6,182,212,0.12)_0%,_transparent_70%)] pointer-events-none" />
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,#06b6d410_1px,transparent_1px),linear-gradient(to_bottom,#06b6d410_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+
+              {/* Top Viewfinder Ticker */}
+              <div className="relative z-10 flex items-center justify-between text-[10px] font-mono text-cyan-400/80">
+                <div className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-full bg-red-500 animate-pulse" />
+                  <span>REC · 60 FPS</span>
+                </div>
+                <div>THRESHOLD: {sensitivity.toFixed(1)}%</div>
+              </div>
+
+              {/* Center Target Crosshair & Hand Detection Visual */}
+              <div className="relative z-10 flex flex-col items-center justify-center text-center my-auto space-y-2">
+                <div className="relative size-20 rounded-full border border-cyan-400/40 flex items-center justify-center animate-pulse">
+                  <div className="size-14 rounded-full border border-dashed border-cyan-400/60 flex items-center justify-center">
+                    <Camera className="size-6 text-cyan-400" />
+                  </div>
+                  {/* Crosshair ticks */}
+                  <div className="absolute -top-1 w-2 h-0.5 bg-cyan-400" />
+                  <div className="absolute -bottom-1 w-2 h-0.5 bg-cyan-400" />
+                  <div className="absolute -left-1 h-2 w-0.5 bg-cyan-400" />
+                  <div className="absolute -right-1 h-2 w-0.5 bg-cyan-400" />
+                </div>
+                <div className="text-[11px] font-mono font-bold text-cyan-300">
+                  {kioskState === 'paused' ? 'PAUSED BY STAFF' : 'HAND GESTURE TRACKING ACTIVE'}
+                </div>
+                <div className="text-[9px] text-slate-400 font-mono">
+                  Gesture: แบมือ 5 นิ้วค้าง 1.2 วินาทีเพื่อลั่นชัตเตอร์
+                </div>
+              </div>
+
+              {/* Bottom Telemetry Bar */}
+              <div className="relative z-10 flex items-center justify-between text-[10px] font-mono border-t border-cyan-500/20 pt-2 text-slate-400">
+                <span>STATE: <span className="text-emerald-400 font-bold">{kioskState.toUpperCase()}</span></span>
+                <span>COUNTDOWN: <span className="text-amber-400 font-bold">{countdownDuration}s</span></span>
+                <button
+                  onClick={() => sendCommand('STAFF_TRIGGER', 'สั่งถ่ายภาพฉุกเฉินจาก Kiosk Cockpit แล้ว')}
+                  className="rounded bg-red-600/90 hover:bg-red-500 px-2.5 py-0.5 text-[9px] font-bold text-white transition-colors cursor-pointer"
+                >
+                  TRIGGER SHUTTER
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Screen 2: Showcase Display Station Cockpit */}
+          <div className="craft-hud-card tactical-corner p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="size-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <Tv className="size-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-mono font-bold tracking-wider text-white flex items-center gap-2">
+                    SCREEN 2 · SHOWCASE MEGA DISPLAY
+                    <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-mono text-emerald-300 border border-emerald-500/40">
+                      HALL DISPLAY
+                    </span>
+                  </h3>
+                  <div className="text-[10px] text-slate-400 font-mono">Real-Time Photo Spotlight · QR Download Broadcast</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="pulse-beacon">
+                  <span className={`pulse-beacon-ring ${isDisplayMuted ? 'bg-red-400' : 'bg-emerald-400'}`} />
+                  <span className={`pulse-beacon-dot ${isDisplayMuted ? 'bg-red-400' : 'bg-emerald-400'}`} />
+                </span>
+                <span className={`font-mono text-[10px] font-bold ${isDisplayMuted ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {isDisplayMuted ? 'BLACKOUT MUTED' : 'BROADCASTING'}
+                </span>
+              </div>
+            </div>
+
+            {/* Showcase Monitor Visual */}
+            <div className={`relative aspect-video w-full rounded-xl border overflow-hidden shadow-inner flex flex-col justify-between p-3 transition-colors ${
+              isDisplayMuted
+                ? 'bg-red-950/40 border-red-500/40'
+                : 'bg-black/90 border-emerald-500/30'
+            }`}>
+              {/* Background Glow */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(16,185,129,0.12)_0%,_transparent_70%)] pointer-events-none" />
+
+              {/* Top Bar */}
+              <div className="relative z-10 flex items-center justify-between text-[10px] font-mono">
+                <span className="text-emerald-400/90 font-bold">DISPLAY STATUS: {isDisplayMuted ? 'MUTED' : 'ACTIVE'}</span>
+                <span className="text-slate-400">LATENCY: &lt; 1ms</span>
+              </div>
+
+              {/* Center Content Preview */}
+              <div className="relative z-10 flex flex-col items-center justify-center my-auto space-y-2">
+                {isDisplayMuted ? (
+                  <div className="text-center space-y-1">
+                    <EyeOff className="size-8 text-red-400 mx-auto animate-pulse" />
+                    <div className="text-xs font-mono font-bold text-red-300">EMERGENCY BLACKOUT MUTED</div>
+                    <div className="text-[9px] text-slate-400 font-mono">หน้าจอใหญ่ถูกปิดเพื่อความปลอดภัยของสตาฟฟ์</div>
+                  </div>
+                ) : photos.length > 0 ? (
+                  <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-lg p-2.5 max-w-sm">
+                    <img
+                      src={photos[0].photoUrl}
+                      alt=""
+                      className="size-16 rounded object-cover border border-white/10"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                    <div className="text-left space-y-1">
+                      <div className="text-[11px] font-mono font-bold text-white">
+                        LATEST: #{photos[0].code.replace('OPH-', '')}
+                      </div>
+                      <div className="text-[9px] text-slate-400 font-mono">Spotlight Active (30s Carousel)</div>
+                      <div className="text-[9px] text-emerald-400 font-mono">QR Code Generated for Attendees</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center space-y-1">
+                    <Tv className="size-8 text-emerald-400 mx-auto" />
+                    <div className="text-xs font-mono font-bold text-white">STANDBY SHOWCASE IDLE</div>
+                    <div className="text-[9px] text-slate-400 font-mono">รอรูปภาพแรกจาก Kiosk Screen 1</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom Telemetry Bar */}
+              <div className="relative z-10 flex items-center justify-between text-[10px] font-mono border-t border-white/10 pt-2 text-slate-400">
+                <span>QUEUE: <span className="text-white font-bold">{photos.length} PHOTOS</span></span>
+                <button
+                  onClick={toggleDisplayMute}
+                  className={`rounded px-2.5 py-0.5 text-[9px] font-bold text-white transition-colors cursor-pointer ${
+                    isDisplayMuted ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-red-600/90 hover:bg-red-500'
+                  }`}
+                >
+                  {isDisplayMuted ? 'UNMUTE DISPLAY' : 'PANIC MUTE'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Tactical Onsite Accident Recovery Center (ศูนย์บัญชาการแก้วิกฤตหน้างาน) */}
-        <section className="rounded-2xl border border-red-500/30 bg-[#0B0F17] p-5 shadow-xl space-y-4">
+        <section className="craft-hud-card tactical-corner p-6 shadow-2xl space-y-5 border-red-500/40">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-800/80 pb-3">
             <div className="flex items-center gap-3">
               <div className="size-10 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
@@ -975,7 +1146,7 @@ function StaffAdminScreen() {
         )}
 
         {/* Live Photo Stream & Re-issue Station */}
-        <section className="rounded-2xl border border-slate-800/80 bg-[#0B0F17] overflow-hidden shadow-xl">
+        <section className="craft-hud-card tactical-corner overflow-hidden shadow-2xl">
           {/* Gallery Header */}
           <div className="flex flex-col gap-4 border-b border-slate-800/80 p-6 xl:flex-row xl:items-center xl:justify-between">
             <div>
@@ -1172,7 +1343,7 @@ function StaffAdminScreen() {
         </section>
 
         {/* Live Mission Audit Log (Terminal Event Ticker) */}
-        <section className="rounded-2xl border border-slate-800/80 bg-[#0B0F17] overflow-hidden shadow-lg">
+        <section className="craft-hud-card tactical-corner overflow-hidden shadow-2xl">
           <div className="flex items-center justify-between border-b border-slate-800/80 px-5 py-3 bg-black/50">
             <div className="flex items-center gap-2">
               <Terminal className="size-4 text-cyan-400" />
