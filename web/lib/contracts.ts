@@ -51,6 +51,27 @@ export type ScreenSyncEvent =
       type: "STAFF_TRIGGER_CAPTURE";
     }
   | {
+      type: "MUTE_DISPLAY";
+    }
+  | {
+      type: "UNMUTE_DISPLAY";
+    }
+  | {
+      type: "PUSH_TO_DISPLAY";
+      photo: PhotoRecord;
+    }
+  | {
+      type: "HEARTBEAT_PING";
+      sender: "ADMIN" | "KIOSK" | "DISPLAY";
+      timestamp: number;
+    }
+  | {
+      type: "HEARTBEAT_PONG";
+      sender: "KIOSK" | "DISPLAY";
+      timestamp: number;
+      status?: Record<string, any>;
+    }
+  | {
       type: "KIOSK_COMMAND";
       command:
         | "RESET_STANDBY"
@@ -60,6 +81,9 @@ export type ScreenSyncEvent =
         | "RELOAD_CAMERA"
         | "CANCEL_COUNTDOWN"
         | "SET_THRESHOLD"
+        | "SET_COUNTDOWN"
+        | "MUTE_DISPLAY"
+        | "UNMUTE_DISPLAY"
         | string;
       value?: any;
     };

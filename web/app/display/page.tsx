@@ -31,6 +31,7 @@ function formatPhotoDate(iso: string) {
 
 export default function ShowcaseDisplayScreen() {
   const [photos, setPhotos] = useState<GalleryItem[]>(DEFAULT_SEEDS);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
   const [activePhoto, setActivePhoto] = useState<GalleryItem | null>(null);
   const [currentTime, setCurrentTime] = useState<string>('12:00');
   const [newestCode, setNewestCode] = useState<string>('');
@@ -190,6 +191,37 @@ export default function ShowcaseDisplayScreen() {
             localStorage.removeItem('swu_latest_photo');
           } catch {}
         }
+      } else if (data.type === 'MUTE_DISPLAY' || (data.type === 'KIOSK_COMMAND' && data.command === 'MUTE_DISPLAY')) {
+        if (queueTimerRef.current) {
+          clearTimeout(queueTimerRef.current);
+          queueTimerRef.current = null;
+        }
+        setActivePhoto(null);
+        setIsMuted(true);
+      } else if (data.type === 'UNMUTE_DISPLAY' || (data.type === 'KIOSK_COMMAND' && data.command === 'UNMUTE_DISPLAY')) {
+        setIsMuted(false);
+      } else if (data.type === 'PUSH_TO_DISPLAY') {
+        const pushItem: GalleryItem = {
+          code: data.photo.code,
+          qrUrl: data.photo.qrUrl,
+          photoUrl: data.photo.photoUrl,
+          createdAt: data.photo.createdAt,
+          style: 'NEURAL RED',
+        };
+        setIsMuted(false);
+        setNewestCode(pushItem.code);
+        showPhotoInQueue(pushItem);
+      } else if (data.type === 'HEARTBEAT_PING') {
+        channelRef.current?.postMessage({
+          type: 'HEARTBEAT_PONG',
+          sender: 'DISPLAY',
+          timestamp: Date.now(),
+          status: {
+            activeCode: activePhoto?.code || null,
+            totalPhotos: photos.length,
+            isMuted,
+          },
+        });
       } else if (data.type === 'PHOTO_DELETED') {
         const deletedCode = data.code;
 
@@ -261,6 +293,16 @@ export default function ShowcaseDisplayScreen() {
   return (
     <main className="display-shell grid h-dvh w-screen place-items-center overflow-hidden bg-black select-none">
       <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-black">
+        {isMuted && (
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md text-white select-none animate-in fade-in">
+            <CpeLogo className="h-16 text-white opacity-40 mb-4" />
+            <div className="rounded-full bg-red-500/20 border border-red-500/40 px-4 py-1 text-xs font-mono text-red-400 mb-2">
+              EMERGENCY PRIVACY SHIELD ACTIVE
+            </div>
+            <h2 className="text-xl font-bold text-white">จอแสดงผลอยู่ในโหมดพักการแสดงภาพชั่วคราว</h2>
+            <p className="text-xs text-slate-400 mt-1">เจ้าหน้าที่กำลังจัดเตรียมระบบ กรุณารอสักครู่</p>
+          </div>
+        )}
         {/* Left Section (30%): Live Polaroid Showcase & Centered White QR Station */}
         <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col border-r border-[#1C1C1C] px-[1.2%] py-[1.2vw] justify-between">
           <div>

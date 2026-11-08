@@ -66,6 +66,7 @@ export default function KioskCapturePage() {
   const previewEnterTimeRef = useRef<number>(0);
 
   const [countdown, setCountdown] = useState<number>(3);
+  const defaultCountdownRef = useRef<number>(3);
   const [previewSeconds, setPreviewSeconds] = useState<number>(10);
   const [retakeCount, setRetakeCount] = useState<number>(0);
 
@@ -153,6 +154,11 @@ export default function KioskCapturePage() {
           setCountdown(3);
           setHoldProgress(0);
           holdStartTimeRef.current = null;
+        } else if (data.command === 'SET_COUNTDOWN') {
+          if (typeof data.value === 'number') {
+            defaultCountdownRef.current = data.value;
+            setCountdown(data.value);
+          }
         } else if (data.command === 'SET_THRESHOLD') {
           if (typeof data.value === 'number') {
             setHandAreaThreshold(data.value);
@@ -167,6 +173,18 @@ export default function KioskCapturePage() {
             }
           }
         }
+      } else if (data.type === 'HEARTBEAT_PING') {
+        channelRef.current?.postMessage({
+          type: 'HEARTBEAT_PONG',
+          sender: 'KIOSK',
+          timestamp: Date.now(),
+          status: {
+            state: state,
+            isPaused,
+            cameraActive,
+            threshold: handAreaThreshold,
+          },
+        });
       }
     };
 
