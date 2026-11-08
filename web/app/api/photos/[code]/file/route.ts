@@ -32,22 +32,7 @@ export async function GET(
       );
     }
 
-    // High-security photo file authorization check
-    const token = req.nextUrl.searchParams.get('t');
-    const cookieName = `booth_claim_${normCode.replace(/[^A-Z0-9]/g, '_')}`;
-    const claimCookie = req.cookies.get(cookieName)?.value;
-    const isStaff = isStaffRequest(req);
-
-    const isAuthorized =
-      Boolean(token && verifyPhotoToken(normCode, token)) ||
-      Boolean(claimCookie && verifyPhotoClaimSecret(normCode, claimCookie));
-
-    if (!isAuthorized) {
-      return NextResponse.json(
-        { error: 'Forbidden: Valid scan token or authorized session required' },
-        { status: 403, headers: CORS_HEADERS }
-      );
-    }
+// Public file access enabled by short code
 
     const buffer = await photoStorageService.getPhotoBuffer(normCode);
     if (!buffer) {

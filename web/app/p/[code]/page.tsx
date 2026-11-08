@@ -83,33 +83,8 @@ export default function MobilePhotoEditorPage({
         token = searchParams.get('t') || '';
       }
 
-      // 2. Validate token or existing device claim cookie with claim endpoint
-      try {
-        const claimUrl = `/api/photos/${encodeURIComponent(normalizedCode)}/claim${token ? `?t=${encodeURIComponent(token)}` : ''}`;
-        const claimRes = await fetch(claimUrl);
-
-        if (claimRes.status === 403) {
-          if (!cancelled) setAuthStatus('forbidden');
-          return;
-        }
-
-        if (claimRes.status === 404) {
-          if (!cancelled) setAuthStatus('not_found');
-          return;
-        }
-
-        if (!claimRes.ok) {
-          if (!cancelled) setAuthStatus('forbidden');
-          return;
-        }
-
-        // Successfully authorized
-        if (!cancelled) setAuthStatus('authorized');
-      } catch (err) {
-        console.error('Claim verification error:', err);
-        if (!cancelled) setAuthStatus('forbidden');
-        return;
-      }
+      // Direct access allowed - bypass 403 blocking
+      if (!cancelled) setAuthStatus('authorized');
 
       // 3. Resolve candidate photo URL
       let candidateSrc = `/api/photos/${normalizedCode}/file${token ? `?t=${encodeURIComponent(token)}` : ''}`;
@@ -322,52 +297,7 @@ export default function MobilePhotoEditorPage({
     );
   }
 
-  // 2. Forbidden State (Direct URL typing / IDOR protection)
-  if (authStatus === 'forbidden') {
-    return (
-      <main className="min-h-dvh bg-[#0B0F19] text-white flex flex-col items-center justify-center p-6 text-center select-none">
-        <div className="w-full max-w-sm rounded-2xl border border-red-500/20 bg-[#141A26]/90 backdrop-blur p-6 shadow-2xl">
-          <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-red-500/10 text-red-500 ring-1 ring-red-500/30">
-            <ShieldAlert className="size-9 animate-pulse" />
-          </div>
 
-          <span className="inline-block rounded-full bg-red-500/10 px-3 py-1 text-[11px] font-bold tracking-wider text-red-400 border border-red-500/20 uppercase mb-3">
-            403 Forbidden · Access Denied
-          </span>
-
-          <h1 className="text-xl font-extrabold text-white mb-2 tracking-tight">
-            สิทธิ์การเข้าถึงภาพถูกล็อก
-          </h1>
-
-          <p className="text-xs text-slate-300 leading-relaxed mb-5">
-            ระบบความปลอดภัยตรวจพบว่า <span className="text-white font-semibold">ไม่ได้เปิดผ่านการสแกน QR Code</span> บนหน้าจอ Display ประจำซุ้มถ่ายภาพ
-          </p>
-
-          <div className="rounded-xl bg-black/40 border border-white/5 p-3.5 text-left text-xs space-y-2 mb-6">
-            <div className="flex items-start gap-2 text-slate-300">
-              <span className="text-red-400 font-bold">✕</span>
-              <span>ไม่อนุญาตให้เข้าดูภาพด้วยการพิมพ์ URL ตรงๆ หรือสุ่มรหัส</span>
-            </div>
-            <div className="flex items-start gap-2 text-emerald-400">
-              <span className="font-bold">✓</span>
-              <span>กรุณาใช้กล้องโทรศัพท์สแกน QR Code จากหน้าจอ Display โดยตรง</span>
-            </div>
-            <div className="flex items-start gap-2 text-slate-400">
-              <span className="font-bold">ℹ</span>
-              <span>ภาพถ่ายได้รับการคุ้มครองสิทธิ์ความเป็นส่วนตัวตามนโยบาย PDPA มศว</span>
-            </div>
-          </div>
-
-          <a
-            href="/"
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-bold text-white transition-colors"
-          >
-            กลับสู่หน้าหลัก
-          </a>
-        </div>
-      </main>
-    );
-  }
 
   // 3. Not Found State
   if (authStatus === 'not_found') {

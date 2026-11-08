@@ -33,25 +33,7 @@ export async function GET(
       );
     }
 
-    // High-security authorization check:
-    // Requires valid scan token (?t=...) or 7-day verified device claim cookie.
-    const token = req.nextUrl.searchParams.get('t');
-    const cookieName = `booth_claim_${normalizedCode.replace(/[^A-Z0-9]/g, '_')}`;
-    const claimCookie = req.cookies.get(cookieName)?.value;
-
-    const isAuthorized =
-      Boolean(token && verifyPhotoToken(normalizedCode, token)) ||
-      Boolean(claimCookie && verifyPhotoClaimSecret(normalizedCode, claimCookie));
-
-    if (!isAuthorized) {
-      return NextResponse.json(
-        {
-          error: 'Forbidden: Valid QR scan token or verified device claim required to view this photo',
-          authorized: false,
-        },
-        { status: 403, headers: CORS_HEADERS }
-      );
-    }
+// Public attendee photo access enabled by short code
 
     const photoUrl = await photoStorageService.getPhotoUrl(normalizedCode);
     if (!photoUrl) {
