@@ -3,7 +3,7 @@
 import React, { use, useState, useRef, useEffect, useCallback } from 'react';
 import { Download, Sparkles, Frame, Check, ShieldAlert, Sun, Sticker, Trash2, ShieldCheck, Lock } from 'lucide-react';
 import { FilterPresetId } from '@/lib/contracts';
-import { COLOR_FILTER_PRESETS } from '@/lib/mobile/colorFilters';
+import { applyColorFilter } from '@/lib/mobile/colorFilters';
 import { FRAME_TEMPLATES, NO_FRAME_ID, FrameTemplate, PHOTO_ONLY_SIZE, drawPhotoCover } from '@/lib/mobile/frameTemplates';
 import {
   PlacedSticker,
@@ -53,6 +53,7 @@ export default function MobilePhotoEditorPage({
   const [activeTab, setActiveTab] = useState<Tab>('frames');
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [photoLoaded, setPhotoLoaded] = useState<boolean>(false);
+  const [filterThumbs, setFilterThumbs] = useState<Partial<Record<FilterPresetId, string>>>({});
   const [frameImages, setFrameImages] = useState<Record<string, HTMLImageElement>>({});
 
   const [stickerCatalog, setStickerCatalog] = useState<StickerAsset[]>([]);
@@ -164,21 +165,8 @@ export default function MobilePhotoEditorPage({
 
     const win = activeFrame ? activeFrame.window : { x: 0, y: 0, w: outWidth, h: outHeight };
 
-    const filterPreset = COLOR_FILTER_PRESETS[selectedFilter];
-    let filterString = `brightness(${1 + brightness / 100})`;
-    if (filterPreset?.cssFilter && filterPreset.cssFilter !== 'none') {
-      filterString += ` ${filterPreset.cssFilter}`;
-    }
-    ctx.filter = filterString;
     drawPhotoCover(ctx, photo, win);
-    ctx.filter = 'none';
-
-    if (selectedFilter === 'rosy') {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-      for (let i = 0; i < 4000; i++) {
-        ctx.fillRect(win.x + Math.random() * win.w, win.y + Math.random() * win.h, 1, 1);
-      }
-    }
+    applyColorFilter(ctx, win, selectedFilter, brightness);
 
     if (activeFrame && frameImage) {
       ctx.drawImage(frameImage, 0, 0, outWidth, outHeight);
@@ -188,6 +176,26 @@ export default function MobilePhotoEditorPage({
   useEffect(() => {
     if (photoLoaded) renderComposite();
   }, [photoLoaded, renderComposite]);
+
+  // Small preview of the photo in every filter, for the filter tab
+  useEffect(() => {
+    const photo = baseImageRef.current;
+    if (!photoLoaded || !photo) return;
+    const size = 120;
+    const thumbCanvas = document.createElement('canvas');
+    thumbCanvas.width = size;
+    thumbCanvas.height = size;
+    const ctx = thumbCanvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+    const thumbs: Partial<Record<FilterPresetId, string>> = {};
+    for (const f of FILTER_LIST) {
+      ctx.clearRect(0, 0, size, size);
+      drawPhotoCover(ctx, photo, { x: 0, y: 0, w: size, h: size });
+      applyColorFilter(ctx, { x: 0, y: 0, w: size, h: size }, f.id);
+      thumbs[f.id] = thumbCanvas.toDataURL('image/jpeg', 0.85);
+    }
+    setFilterThumbs(thumbs);
+  }, [photoLoaded]);
 
   const addSticker = async (asset: StickerAsset) => {
     let img = stickerImagesRef.current.get(asset.src);
@@ -415,20 +423,35 @@ export default function MobilePhotoEditorPage({
         {/* Filters Tab */}
         {activeTab === 'filters' && (
           <div className="space-y-3 bg-[#141A26] p-3 rounded-xl border border-white/5">
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {FILTER_LIST.map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => setSelectedFilter(f.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                    selectedFilter === f.id
-                      ? 'bg-[#CE1126] text-white shadow-md'
-                      : 'bg-white/5 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {f.thai} ({f.label})
-                </button>
-              ))}
+            <div className="grid grid-cols-3 gap-2">
+              {FILTER_LIST.map((f) => {
+                const active = selectedFilter === f.id;
+                return (
+                  <button
+                    key={f.id}
+                    onClick={() => setSelectedFilter(f.id)}
+                    aria-pressed={active}
+                    className={`group overflow-hidden rounded-lg border-2 bg-white/5 text-left transition-colors ${
+                      active ? 'border-[#CE1126]' : 'border-transparent hover:border-white/20'
+                    }`}
+                  >
+                    <div className="relative aspect-square w-full bg-black/40">
+                      {filterThumbs[f.id] && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={filterThumbs[f.id]} alt="" className="h-full w-full object-cover" />
+                      )}
+                      {active && (
+                        <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-[#CE1126] text-white">
+                          <Check className="size-3" />
+                        </span>
+                      )}
+                    </div>
+                    <div className={`px-1.5 py-1 text-center text-[11px] font-semibold ${active ? 'bg-[#CE1126] text-white' : 'text-slate-300'}`}>
+                      {f.thai}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Brightness Slider */}
