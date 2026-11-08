@@ -286,8 +286,8 @@ export default function ShowcaseDisplayScreen() {
   return (
     <main className="display-shell grid h-dvh w-screen place-items-center overflow-hidden bg-black select-none">
       <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-black">
-        {/* Left Section (30%): Live Polaroid Showcase & White QR Station */}
-        <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col border-r border-[#1C1C1C] px-[1.2%] py-[1.25%] justify-between">
+        {/* Left Section (30%): Live Polaroid Showcase & Centered White QR Station */}
+        <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col border-r border-[#1C1C1C] px-[1.2%] py-[1.2vw] justify-between">
           <div>
             {/* Live Indicator Banner */}
             <div className="mono flex items-center justify-between text-[clamp(.48rem,.62vw,.74rem)]">
@@ -305,12 +305,12 @@ export default function ShowcaseDisplayScreen() {
               <span className="text-slate-400 font-bold" suppressHydrationWarning>{currentTime}</span>
             </div>
 
-            <h1 className="mt-[1.1vw] text-[clamp(1.4rem,2vw,2.4rem)] font-extrabold tracking-[-.035em] text-white">
+            <h1 className="mt-[0.6vw] text-[clamp(1.3rem,1.8vw,2.2rem)] font-extrabold tracking-[-.035em] text-white">
               {activePhoto ? 'รูปล่าสุด' : 'ยินดีต้อนรับ'}
             </h1>
 
             {/* Polaroid Frame Card tilted -2deg */}
-            <div className="mx-auto mt-[1vw] w-[96%] shrink-0 rotate-[-2deg] rounded-[.18vw] bg-[#F8FAFC] p-[.7vw] pb-[.8vw] shadow-[0_24px_70px_rgba(0,0,0,.55)] transition-transform duration-500 hover:rotate-0">
+            <div className="mx-auto mt-[0.6vw] w-[96%] shrink-0 rotate-[-2deg] rounded-[.18vw] bg-[#F8FAFC] p-[.65vw] pb-[.75vw] shadow-[0_24px_70px_rgba(0,0,0,.55)] transition-transform duration-500 hover:rotate-0">
               {activePhoto ? (
                 // Active Attendee Photo
                 <>
@@ -373,46 +373,48 @@ export default function ShowcaseDisplayScreen() {
             </div>
           </div>
 
-          {/* White QR Card - Clean & Minimal (Red Top Border Removed) */}
-          <div className="qr-card mx-auto mt-[0.8vw] flex flex-col items-center justify-center rounded-[1vw] bg-white px-[1.4vw] pb-[1.4vw] pt-[1.1vw] shadow-2xl shrink-0 w-fit text-center">
-            {activePhoto ? (
-              // Active Photo Scan QR
-              <>
-                <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
-                  สแกนรับ<span className="text-[#CE1126]">รูป</span>
-                </div>
-                <div className="aspect-square w-[clamp(150px,13vw,240px)] bg-white flex items-center justify-center">
-                  {isMounted ? (
-                    <QRCodeSVG
-                      value={qrTargetUrl}
-                      level="H"
-                      bgColor="#FFFFFF"
-                      fgColor="#000000"
-                      className="h-full w-full"
-                      title={`รับรูป ${activePhoto.code}`}
+          {/* White QR Card - Perfectly Centered in Lower Section, Elevated from Bottom */}
+          <div className="flex-1 flex flex-col items-center justify-center my-auto pt-[0.6vw] pb-[0.2vw]">
+            <div className="qr-card flex flex-col items-center justify-center rounded-[1vw] bg-white px-[1.4vw] pb-[1.3vw] pt-[1.0vw] shadow-2xl shrink-0 w-fit text-center">
+              {activePhoto ? (
+                // Active Photo Scan QR
+                <>
+                  <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
+                    สแกนรับ<span className="text-[#CE1126]">รูป</span>
+                  </div>
+                  <div className="aspect-square w-[clamp(145px,12.5vw,230px)] bg-white flex items-center justify-center">
+                    {isMounted ? (
+                      <QRCodeSVG
+                        value={qrTargetUrl}
+                        level="H"
+                        bgColor="#FFFFFF"
+                        fgColor="#000000"
+                        className="h-full w-full"
+                        title={`รับรูป ${activePhoto.code}`}
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-slate-100 flex items-center justify-center text-slate-300 text-[10px] font-mono animate-pulse rounded">
+                        QR CODE
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                // Standby Follow Us (Instagram) QR
+                <>
+                  <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
+                    ติดตาม<span className="text-[#CE1126]">เรา</span>
+                  </div>
+                  <div className="aspect-square w-[clamp(145px,12.5vw,230px)] bg-white flex items-center justify-center p-1">
+                    <img
+                      src="/cpe-ig-qr.png"
+                      alt="Instagram @cpe_swu"
+                      className="h-full w-full object-contain"
                     />
-                  ) : (
-                    <div className="h-full w-full bg-slate-100 flex items-center justify-center text-slate-300 text-[10px] font-mono animate-pulse rounded">
-                      QR CODE
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              // Standby Follow Us (Instagram) QR
-              <>
-                <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
-                  ติดตาม<span className="text-[#CE1126]">เรา</span>
-                </div>
-                <div className="aspect-square w-[clamp(150px,13vw,240px)] bg-white flex items-center justify-center p-1">
-                  <img
-                    src="/cpe-ig-qr.png"
-                    alt="Instagram @cpe_swu"
-                    className="h-full w-full object-contain"
-                  />
-                </div>
-              </>
-            )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </section>
 
