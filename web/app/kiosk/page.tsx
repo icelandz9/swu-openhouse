@@ -22,9 +22,8 @@ import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
 import { calculate43Crop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
-import { StaffGate } from '@/components/StaffGate';
 
-function KioskScreen() {
+export default function KioskCapturePage() {
   const {
     send,
     state,
@@ -909,13 +908,5 @@ function KioskScreen() {
         )}
       </div>
     </main>
-  );
-}
-
-export default function KioskCapturePage() {
-  return (
-    <StaffGate title="จอตู้ถ่ายรูป">
-      <KioskScreen />
-    </StaffGate>
   );
 }

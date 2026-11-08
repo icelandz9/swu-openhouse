@@ -1,6 +1,6 @@
 'use client';
 
-// Locks a staff-only screen (/kiosk, /display, /admin) until this browser is unlocked with the staff PIN.
+// Locks a staff-only screen (/admin) until this browser is unlocked with the staff PIN.
 // The session is a cookie, so unlocking once covers every tab of the same browser.
 import React, { useEffect, useState } from 'react';
 import { Lock } from 'lucide-react';

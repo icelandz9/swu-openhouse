@@ -1,4 +1,4 @@
-// Staff session for the booth screens (/kiosk, /display, /admin) and the APIs only staff may call.
+// Staff session for /admin and the APIs only staff may call (photo list, delete, reset).
 // Staff unlock once with ADMIN_PIN; the server then sets a signed, httpOnly cookie on that browser.
 import crypto from 'node:crypto';
 import type { NextRequest, NextResponse } from 'next/server';
@@ -17,11 +17,15 @@ export function getAdminPin(): string | null {
 
 // A deployed site needs a fixed AUTH_SECRET (serverless instances don't share memory).
 // Locally a random per-process secret is fine: staff just unlock again after a restart.
-const localSecret = crypto.randomBytes(32).toString('hex');
+// Kept on globalThis because `next dev` bundles each route separately; a module-level value would
+// differ between /api/auth and the other routes, and no cookie would ever verify.
+const globalForAuth = globalThis as typeof globalThis & { __boothLocalSecret?: string };
 function getSecret(): string | null {
   const secret = process.env.AUTH_SECRET?.trim();
   if (secret) return secret;
-  return onVercel ? null : localSecret;
+  if (onVercel) return null;
+  globalForAuth.__boothLocalSecret ??= crypto.randomBytes(32).toString('hex');
+  return globalForAuth.__boothLocalSecret;
 }
 
 export function authConfigError(): string | null {
