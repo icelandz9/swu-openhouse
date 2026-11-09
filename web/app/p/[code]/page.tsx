@@ -644,12 +644,25 @@ export default function MobilePhotoEditorPage({
                             onClick={() => setOpenStickerGroup('hearts')}
                             className="relative flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-[#CE1126]/50 bg-[#CE1126]/10 p-2 transition-colors hover:bg-[#CE1126]/20 active:scale-95"
                           >
-                            <img
-                              src={hearts.cover.src}
-                              alt=""
-                              draggable={false}
-                              className="h-[62%] w-[80%] object-contain"
-                            />
+                            <span className="relative block h-[62%] w-[80%]">
+                              {/* Two other hearts fanned out behind, เภสัช in front */}
+                              {hearts.stickers.slice(1, 3).map((st, i) => (
+                                <img
+                                  key={st.src}
+                                  src={st.src}
+                                  alt=""
+                                  draggable={false}
+                                  className="absolute inset-0 h-full w-full object-contain opacity-80"
+                                  style={{ transform: `translateX(${i === 0 ? -18 : 18}%) rotate(${i === 0 ? -14 : 14}deg) scale(0.82)` }}
+                                />
+                              ))}
+                              <img
+                                src={hearts.cover.src}
+                                alt=""
+                                draggable={false}
+                                className="absolute inset-0 h-full w-full object-contain drop-shadow-[0_4px_6px_rgba(0,0,0,0.5)]"
+                              />
+                            </span>
                             <span className="text-[12px] font-bold text-white">{hearts.title}</span>
                             <span className="absolute right-1.5 top-1.5 rounded-full bg-[#CE1126] px-1.5 py-0.5 text-[10px] font-bold text-white">
                               {hearts.stickers.length}
