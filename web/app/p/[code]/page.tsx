@@ -10,6 +10,7 @@ import {
   StickerAsset,
   STICKER_DEFAULT_WIDTH,
   drawStickers,
+  groupStickers,
   loadStickerCatalog,
 } from '@/lib/mobile/stickers';
 import { StickerLayer } from '@/components/StickerLayer';
@@ -550,19 +551,31 @@ export default function MobilePhotoEditorPage({
                 <X className="size-5" />
               </button>
             </div>
-            <div className="grid grid-cols-3 gap-3 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              {stickerCatalog.map((s) => (
-                <button
-                  key={s.src}
-                  onClick={() => {
-                    addSticker(s);
-                    setStickerSheetOpen(false);
-                  }}
-                  className="flex aspect-square items-center justify-center rounded-xl border border-white/5 bg-white/5 p-2.5 transition-colors hover:bg-white/10 active:scale-95"
-                  title={s.src.split('/').pop() || 'sticker'}
-                >
-                  <img src={s.src} alt="" className="max-h-full max-w-full object-contain" draggable={false} loading="lazy" />
-                </button>
+            <div className="space-y-5 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              {groupStickers(stickerCatalog).map((group) => (
+                <section key={group.id} aria-label={group.title}>
+                  <h3 className="mb-2.5 flex items-center gap-2 text-sm font-bold text-white">
+                    {group.title}
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
+                      {group.stickers.length}
+                    </span>
+                  </h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    {group.stickers.map((s) => (
+                      <button
+                        key={s.src}
+                        onClick={() => {
+                          addSticker(s);
+                          setStickerSheetOpen(false);
+                        }}
+                        className="flex aspect-square items-center justify-center rounded-xl border border-white/5 bg-white/5 p-2.5 transition-colors hover:bg-white/10 active:scale-95"
+                        title={s.src.split('/').pop() || 'sticker'}
+                      >
+                        <img src={s.src} alt="" className="max-h-full max-w-full object-contain" draggable={false} loading="lazy" />
+                      </button>
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           </div>

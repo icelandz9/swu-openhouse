@@ -54,3 +54,22 @@ export function drawStickers(
     ctx.restore();
   }
 }
+
+// Groups for the "view all" sticker sheet. "วิศวะรัก..." hearts first, everything else after.
+export interface StickerGroup {
+  id: string;
+  title: string;
+  stickers: StickerAsset[];
+}
+
+// heart_*.png, pixelheart_*.png and the original heart sheet (sheet4-*.png)
+const HEART_STICKER = /\/(heart|pixelheart)_[^/]*$|\/sheet4-[^/]*$/i;
+
+export function groupStickers(catalog: StickerAsset[]): StickerGroup[] {
+  const hearts = catalog.filter((s) => HEART_STICKER.test(decodeURIComponent(s.src)));
+  const others = catalog.filter((s) => !HEART_STICKER.test(decodeURIComponent(s.src)));
+  return [
+    { id: 'hearts', title: 'วิศวะรัก...', stickers: hearts },
+    { id: 'others', title: 'สติกเกอร์อื่น ๆ', stickers: others },
+  ].filter((g) => g.stickers.length > 0);
+}
