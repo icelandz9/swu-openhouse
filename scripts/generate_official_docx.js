@@ -11,7 +11,6 @@ const {
   Header,
   Footer,
   AlignmentType,
-  HeadingLevel,
   BorderStyle,
   WidthType,
   ShadingType,
@@ -32,7 +31,8 @@ const TABLE_BORDERS = {
   right: THIN_BORDER,
 };
 
-const FONT_FAMILY = "TH Sarabun New";
+// Thai Official Government Standard Font (14 National Fonts Standard)
+const FONT_FAMILY = "TH Sarabun PSK";
 
 function makeHeaderCell(text, width, bgColor = "CE1126") {
   return new TableCell({
@@ -40,17 +40,18 @@ function makeHeaderCell(text, width, bgColor = "CE1126") {
     shading: { fill: bgColor, type: ShadingType.CLEAR },
     verticalAlign: VerticalAlign.CENTER,
     borders: TABLE_BORDERS,
-    margins: { top: 120, bottom: 120, left: 140, right: 140 },
+    margins: { top: 140, bottom: 140, left: 140, right: 140 },
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
+        spacing: { line: 280 },
         children: [
           new TextRun({
             text,
             bold: true,
             color: "FFFFFF",
             font: FONT_FAMILY,
-            size: 24, // 12pt
+            size: 32, // 16pt (Official Thai Standard)
           }),
         ],
       }),
@@ -58,23 +59,24 @@ function makeHeaderCell(text, width, bgColor = "CE1126") {
   });
 }
 
-function makeCell(text, width, align = AlignmentType.LEFT, bold = false, fill = "FFFFFF", textColor = "1E293B") {
+function makeCell(text, width, align = AlignmentType.LEFT, bold = false, fill = "FFFFFF", textColor = "1E293B", fontSize = 30) {
   return new TableCell({
     width: { size: width, type: WidthType.DXA },
     shading: { fill, type: ShadingType.CLEAR },
     verticalAlign: VerticalAlign.CENTER,
     borders: TABLE_BORDERS,
-    margins: { top: 100, bottom: 100, left: 140, right: 140 },
+    margins: { top: 120, bottom: 120, left: 140, right: 140 },
     children: [
       new Paragraph({
         alignment: align,
+        spacing: { line: 280 },
         children: [
           new TextRun({
             text,
             bold,
             color: textColor,
             font: FONT_FAMILY,
-            size: 24, // 12pt
+            size: fontSize, // 15-16pt
           }),
         ],
       }),
@@ -84,14 +86,14 @@ function makeCell(text, width, align = AlignmentType.LEFT, bold = false, fill = 
 
 function createHeading1(text) {
   return new Paragraph({
-    spacing: { before: 320, after: 160 },
+    spacing: { before: 360, after: 180, line: 300 },
     children: [
       new TextRun({
         text,
         bold: true,
         color: "CE1126",
         font: FONT_FAMILY,
-        size: 32, // 16pt
+        size: 36, // 18pt ตัวหนา
       }),
     ],
   });
@@ -99,14 +101,14 @@ function createHeading1(text) {
 
 function createHeading2(text) {
   return new Paragraph({
-    spacing: { before: 240, after: 120 },
+    spacing: { before: 260, after: 140, line: 280 },
     children: [
       new TextRun({
         text,
         bold: true,
         color: "0F172A",
         font: FONT_FAMILY,
-        size: 28, // 14pt
+        size: 32, // 16pt ตัวหนา
       }),
     ],
   });
@@ -114,14 +116,14 @@ function createHeading2(text) {
 
 function createParagraph(text, isBold = false) {
   return new Paragraph({
-    spacing: { before: 80, after: 80 },
+    spacing: { before: 100, after: 100, line: 290 },
     children: [
       new TextRun({
         text,
         bold: isBold,
-        color: "334155",
+        color: "1E293B",
         font: FONT_FAMILY,
-        size: 24, // 12pt
+        size: 32, // 16pt มาตรฐานสารบรรณ
       }),
     ],
   });
@@ -161,13 +163,13 @@ const equipmentSection5 = [
   ["5.1", "เสากั้นทางเดิน / สายดึงกั้นคิว", "เสาสแตนเลสสายดึงยืดหดได้ จัดระเบียบทางเข้าและทางออก", "2-4 เสา", "ฝ่ายสถานที่"],
   ["5.2", "สติกเกอร์จุดยืนถ่ายรูป", "สติกเกอร์แปะพื้นระบุ 'จุดยืนถ่ายรูป (1.8 ม.)' ชัดเจน", "2 จุด", "ฝ่ายสถานที่"],
   ["5.3", "ป้าย X-Stand แนะนำการใช้งาน", "ป้ายขั้นตอน: 1. แบมือ 5 นิ้ว 2. ยิ้มนับ 3 วิ 3. สแกน QR ที่จอใหญ่", "1 ป้าย", "ฝ่ายสื่อ/ศิลป์"],
-  ["5.4", "ป้าย PDPA Privacy Notice", "ป้ายแจ้งการลบภาพอัตโนมัติภายใน 7 วัน และสิทธิขอถอนภาพ", "1 แผ่น", "ฝ่ายกฎหมาย/ประสานงาน"],
+  ["5.4", "ป้าย PDPA Privacy Notice", "ป้ายแจ้งการลบภาพอัตโนมัติภายใน 7 วัน และสิทธิขอถอนภาพ", "1 แผ่น", "ฝ่ายประสานงาน"],
   ["5.5", "พร็อพถ่ายรูป (Props)", "ป้ายคำพูดสไตล์เด็กคอมฯ, แว่นตาแฟนซี, ป้ายเกียร์ CPE SWU", "1 กล่อง", "ฝ่ายสันทนาการ"],
   ["5.6", "อุปกรณ์ทำความสะอาด", "ผ้าไมโครไฟเบอร์เช็ดหน้าเลนส์, สเปรย์แอลกอฮอล์, ทิชชู่เปียก", "1 ชุด", "ฝ่ายสถานที่"],
 ];
 
 function buildEquipmentTable(data) {
-  const colWidths = [800, 2200, 3726, 1000, 1300];
+  const colWidths = [800, 2400, 3526, 1000, 1300];
   const headerRow = new TableRow({
     children: [
       makeHeaderCell("ลำดับ", colWidths[0]),
@@ -182,11 +184,11 @@ function buildEquipmentTable(data) {
     const fill = idx % 2 === 1 ? "F8FAFC" : "FFFFFF";
     return new TableRow({
       children: [
-        makeCell(row[0], colWidths[0], AlignmentType.CENTER, false, fill),
-        makeCell(row[1], colWidths[1], AlignmentType.LEFT, true, fill),
-        makeCell(row[2], colWidths[2], AlignmentType.LEFT, false, fill),
-        makeCell(row[3], colWidths[3], AlignmentType.CENTER, false, fill),
-        makeCell(row[4], colWidths[4], AlignmentType.CENTER, false, fill),
+        makeCell(row[0], colWidths[0], AlignmentType.CENTER, false, fill, "1E293B", 30),
+        makeCell(row[1], colWidths[1], AlignmentType.LEFT, true, fill, "1E293B", 30),
+        makeCell(row[2], colWidths[2], AlignmentType.LEFT, false, fill, "334155", 28),
+        makeCell(row[3], colWidths[3], AlignmentType.CENTER, false, fill, "1E293B", 30),
+        makeCell(row[4], colWidths[4], AlignmentType.CENTER, false, fill, "1E293B", 30),
       ],
     });
   });
@@ -200,7 +202,7 @@ function buildEquipmentTable(data) {
 
 // 4-Shift Table
 function build4ShiftTable() {
-  const colWidths = [1500, 1800, 1500, 4226];
+  const colWidths = [1600, 2000, 1500, 3926];
   const headerRow = new TableRow({
     children: [
       makeHeaderCell("ผลัดที่", colWidths[0]),
@@ -241,10 +243,10 @@ function build4ShiftTable() {
     const fill = idx % 2 === 1 ? "F8FAFC" : "FFFFFF";
     return new TableRow({
       children: [
-        makeCell(row[0], colWidths[0], AlignmentType.CENTER, true, fill),
-        makeCell(row[1], colWidths[1], AlignmentType.CENTER, false, fill),
-        makeCell(row[2], colWidths[2], AlignmentType.CENTER, true, fill),
-        makeCell(row[3], colWidths[3], AlignmentType.LEFT, false, fill),
+        makeCell(row[0], colWidths[0], AlignmentType.CENTER, true, fill, "1E293B", 30),
+        makeCell(row[1], colWidths[1], AlignmentType.CENTER, false, fill, "1E293B", 30),
+        makeCell(row[2], colWidths[2], AlignmentType.CENTER, true, fill, "1E293B", 30),
+        makeCell(row[3], colWidths[3], AlignmentType.LEFT, false, fill, "334155", 28),
       ],
     });
   });
@@ -258,7 +260,7 @@ function build4ShiftTable() {
 
 // 2-Shift Table
 function build2ShiftTable() {
-  const colWidths = [1800, 2000, 1600, 3626];
+  const colWidths = [1800, 2000, 1500, 3726];
   const headerRow = new TableRow({
     children: [
       makeHeaderCell("ผลัดที่", colWidths[0]),
@@ -287,10 +289,10 @@ function build2ShiftTable() {
     const fill = idx % 2 === 1 ? "F8FAFC" : "FFFFFF";
     return new TableRow({
       children: [
-        makeCell(row[0], colWidths[0], AlignmentType.CENTER, true, fill),
-        makeCell(row[1], colWidths[1], AlignmentType.CENTER, false, fill),
-        makeCell(row[2], colWidths[2], AlignmentType.CENTER, true, fill),
-        makeCell(row[3], colWidths[3], AlignmentType.LEFT, false, fill),
+        makeCell(row[0], colWidths[0], AlignmentType.CENTER, true, fill, "1E293B", 30),
+        makeCell(row[1], colWidths[1], AlignmentType.CENTER, false, fill, "1E293B", 30),
+        makeCell(row[2], colWidths[2], AlignmentType.CENTER, true, fill, "1E293B", 30),
+        makeCell(row[3], colWidths[3], AlignmentType.LEFT, false, fill, "334155", 28),
       ],
     });
   });
@@ -326,9 +328,9 @@ function buildDecisionMatrixTable() {
     const fill = idx % 2 === 1 ? "F8FAFC" : "FFFFFF";
     return new TableRow({
       children: [
-        makeCell(row[0], colWidths[0], AlignmentType.LEFT, true, fill),
-        makeCell(row[1], colWidths[1], AlignmentType.LEFT, false, fill),
-        makeCell(row[2], colWidths[2], AlignmentType.LEFT, false, fill),
+        makeCell(row[0], colWidths[0], AlignmentType.LEFT, true, fill, "1E293B", 30),
+        makeCell(row[1], colWidths[1], AlignmentType.LEFT, false, fill, "334155", 30),
+        makeCell(row[2], colWidths[2], AlignmentType.LEFT, false, fill, "334155", 30),
       ],
     });
   });
@@ -383,9 +385,9 @@ function buildSOPTable() {
     const fill = idx % 2 === 1 ? "FEF2F2" : "FFFFFF";
     return new TableRow({
       children: [
-        makeCell(row[0], colWidths[0], AlignmentType.LEFT, true, fill, "991B1B"),
-        makeCell(row[1], colWidths[1], AlignmentType.LEFT, false, fill),
-        makeCell(row[2], colWidths[2], AlignmentType.LEFT, false, fill),
+        makeCell(row[0], colWidths[0], AlignmentType.LEFT, true, fill, "991B1B", 30),
+        makeCell(row[1], colWidths[1], AlignmentType.LEFT, false, fill, "334155", 28),
+        makeCell(row[2], colWidths[2], AlignmentType.LEFT, false, fill, "334155", 28),
       ],
     });
   });
@@ -405,34 +407,34 @@ function buildSignatureTable() {
       new TableCell({
         width: { size: colWidths[0], type: WidthType.DXA },
         borders: TABLE_BORDERS,
-        margins: { top: 160, bottom: 160, left: 140, right: 140 },
+        margins: { top: 180, bottom: 180, left: 140, right: 140 },
         children: [
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "ลงชื่อ........................................................", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "(........................................................)", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "หัวหน้าฝ่ายเทคโนโลยีและระบบ Kiosk", bold: true, font: FONT_FAMILY, size: 22 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "วันที่ ...... / ...... / 2569", font: FONT_FAMILY, size: 20, color: "64748B" })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "ลงชื่อ........................................................", font: FONT_FAMILY, size: 30 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "(........................................................)", font: FONT_FAMILY, size: 30 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "หัวหน้าฝ่ายเทคโนโลยีและระบบ Kiosk", bold: true, font: FONT_FAMILY, size: 28 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "วันที่ ...... / ...... / 2569", font: FONT_FAMILY, size: 26, color: "64748B" })] }),
         ],
       }),
       new TableCell({
         width: { size: colWidths[1], type: WidthType.DXA },
         borders: TABLE_BORDERS,
-        margins: { top: 160, bottom: 160, left: 140, right: 140 },
+        margins: { top: 180, bottom: 180, left: 140, right: 140 },
         children: [
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "ลงชื่อ........................................................", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "(........................................................)", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "หัวหน้าฝ่ายสถานที่และกำลังพล", bold: true, font: FONT_FAMILY, size: 22 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "วันที่ ...... / ...... / 2569", font: FONT_FAMILY, size: 20, color: "64748B" })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "ลงชื่อ........................................................", font: FONT_FAMILY, size: 30 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "(........................................................)", font: FONT_FAMILY, size: 30 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "หัวหน้าฝ่ายสถานที่และกำลังพล", bold: true, font: FONT_FAMILY, size: 28 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "วันที่ ...... / ...... / 2569", font: FONT_FAMILY, size: 26, color: "64748B" })] }),
         ],
       }),
       new TableCell({
         width: { size: colWidths[2], type: WidthType.DXA },
         borders: TABLE_BORDERS,
-        margins: { top: 160, bottom: 160, left: 140, right: 140 },
+        margins: { top: 180, bottom: 180, left: 140, right: 140 },
         children: [
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "ลงชื่อ........................................................", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "(........................................................)", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "อาจารย์ที่ปรึกษาโครงการ / ผู้รับรอง", bold: true, font: FONT_FAMILY, size: 22 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "วันที่ ...... / ...... / 2569", font: FONT_FAMILY, size: 20, color: "64748B" })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "ลงชื่อ........................................................", font: FONT_FAMILY, size: 30 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "(........................................................)", font: FONT_FAMILY, size: 30 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "อาจารย์ที่ปรึกษาโครงการ / ผู้รับรอง", bold: true, font: FONT_FAMILY, size: 28 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "วันที่ ...... / ...... / 2569", font: FONT_FAMILY, size: 26, color: "64748B" })] }),
         ],
       }),
     ],
@@ -447,6 +449,20 @@ function buildSignatureTable() {
 
 async function generateDocx() {
   const doc = new Document({
+    styles: {
+      default: {
+        document: {
+          run: {
+            font: FONT_FAMILY,
+            size: 32, // 16pt default body
+            color: "1E293B",
+          },
+          paragraph: {
+            spacing: { line: 290, after: 120 },
+          },
+        },
+      },
+    },
     numbering: {
       config: [
         {
@@ -496,12 +512,13 @@ async function generateDocx() {
             children: [
               new Paragraph({
                 alignment: AlignmentType.RIGHT,
+                spacing: { line: 240 },
                 children: [
                   new TextRun({
                     text: "ภาควิชาวิศวกรรมคอมพิวเตอร์ คณะวิศวกรรมศาสตร์ มศว | เอกสารทางการ CPE-OPH2026-DOC-004",
                     font: FONT_FAMILY,
-                    size: 18,
-                    color: "94A3B8",
+                    size: 24, // 12pt header
+                    color: "64748B",
                   }),
                 ],
               }),
@@ -513,18 +530,19 @@ async function generateDocx() {
             children: [
               new Paragraph({
                 alignment: AlignmentType.RIGHT,
+                spacing: { line: 240 },
                 children: [
                   new TextRun({
-                    text: "คู่มือเตรียมความพร้อมและบริหารกำลังพล CPE PhotoBooth | หน้า ",
+                    text: "คู่มือเตรียมความพร้อมและบริหารกำลังพล CPE PhotoBooth (ฟอนต์ TH Sarabun PSK 16pt) | หน้า ",
                     font: FONT_FAMILY,
-                    size: 18,
-                    color: "94A3B8",
+                    size: 24,
+                    color: "64748B",
                   }),
                   new TextRun({
                     children: [PageNumber.CURRENT],
                     font: FONT_FAMILY,
-                    size: 18,
-                    color: "94A3B8",
+                    size: 24,
+                    color: "64748B",
                   }),
                 ],
               }),
@@ -535,27 +553,27 @@ async function generateDocx() {
           // Document Header / Title
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { after: 120 },
+            spacing: { before: 100, after: 120, line: 320 },
             children: [
               new TextRun({
                 text: "เอกสารแผนปฏิบัติการและบริหารจัดการกำลังพลหน้างาน (ฉบับทางการ)",
                 bold: true,
                 color: "CE1126",
                 font: FONT_FAMILY,
-                size: 36, // 18pt
+                size: 44, // 22pt ตัวหนา
               }),
             ],
           }),
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { after: 200 },
+            spacing: { after: 200, line: 300 },
             children: [
               new TextRun({
                 text: "โครงการบูธกิจกรรม SWU PhotoBooth ในงานเปิดบ้าน มศว (SWU Open House 2026)\nภาควิชาวิศวกรรมคอมพิวเตอร์ คณะวิศวกรรมศาสตร์ มหาวิทยาลัยศรีนครินทรวิโรฒ",
                 bold: true,
                 color: "1E293B",
                 font: FONT_FAMILY,
-                size: 26, // 13pt
+                size: 34, // 17pt ตัวหนา
               }),
             ],
           }),
@@ -563,30 +581,30 @@ async function generateDocx() {
           // Metadata Card
           new Table({
             width: { size: CONTENT_WIDTH, type: WidthType.DXA },
-            columnWidths: [2200, 6826],
+            columnWidths: [2400, 6626],
             rows: [
               new TableRow({
                 children: [
-                  makeCell("รหัสเอกสารควบคุม:", 2200, AlignmentType.LEFT, true, "F1F5F9"),
-                  makeCell("CPE-OPH2026-DOC-004 (Rev. 2.0)", 6826, AlignmentType.LEFT, false, "F8FAFC"),
+                  makeCell("รหัสเอกสารควบคุม:", 2400, AlignmentType.LEFT, true, "F1F5F9", "1E293B", 32),
+                  makeCell("CPE-OPH2026-DOC-004 (Rev. 2.0 - มาตรฐาน TH Sarabun PSK)", 6626, AlignmentType.LEFT, false, "F8FAFC", "1E293B", 32),
                 ],
               }),
               new TableRow({
                 children: [
-                  makeCell("หน่วยงานที่รับผิดชอบ:", 2200, AlignmentType.LEFT, true, "F1F5F9"),
-                  makeCell("คณะทำงานเทคโนโลยีสารสนเทศและสื่อสารองค์กร CPE SWU", 6826, AlignmentType.LEFT, false, "F8FAFC"),
+                  makeCell("หน่วยงานที่รับผิดชอบ:", 2400, AlignmentType.LEFT, true, "F1F5F9", "1E293B", 32),
+                  makeCell("คณะทำงานเทคโนโลยีสารสนเทศและสื่อสารองค์กร CPE SWU", 6626, AlignmentType.LEFT, false, "F8FAFC", "1E293B", 32),
                 ],
               }),
               new TableRow({
                 children: [
-                  makeCell("วันและเวลาจัดกิจกรรม:", 2200, AlignmentType.LEFT, true, "F1F5F9"),
-                  makeCell("วันจัดกิจกรรม SWU Open House 2026 เวลา 08:30 – 17:30 น.", 6826, AlignmentType.LEFT, false, "F8FAFC"),
+                  makeCell("วันและเวลาจัดกิจกรรม:", 2400, AlignmentType.LEFT, true, "F1F5F9", "1E293B", 32),
+                  makeCell("วันจัดกิจกรรม SWU Open House 2026 เวลา 08:30 – 17:30 น.", 6626, AlignmentType.LEFT, false, "F8FAFC", "1E293B", 32),
                 ],
               }),
               new TableRow({
                 children: [
-                  makeCell("วัตถุประสงค์หลัก:", 2200, AlignmentType.LEFT, true, "F1F5F9"),
-                  makeCell("เพื่อเป็นคู่มือมาตรฐานการตรวจรับครุภัณฑ์-อุปกรณ์หน้างาน, กำหนดบทบาทสตาฟฟ์, จัดตารางผลัดเฝ้าบูธ และรับมือเหตุฉุกเฉิน", 6826, AlignmentType.LEFT, false, "F8FAFC"),
+                  makeCell("วัตถุประสงค์หลัก:", 2400, AlignmentType.LEFT, true, "F1F5F9", "1E293B", 32),
+                  makeCell("เพื่อเป็นคู่มือมาตรฐานการตรวจรับครุภัณฑ์-อุปกรณ์หน้างาน, กำหนดบทบาทสตาฟฟ์, จัดตารางผลัดเฝ้าบูธ และรับมือเหตุฉุกเฉิน", 6626, AlignmentType.LEFT, false, "F8FAFC", "1E293B", 32),
                 ],
               }),
             ],
@@ -626,33 +644,37 @@ async function generateDocx() {
 
           new Paragraph({
             numbering: { reference: "roles", level: 0 },
+            spacing: { line: 290, after: 120 },
             children: [
-              new TextRun({ text: "Role 1: ผู้กำกับหน้าตู้และแนะนำท่าทาง (Kiosk Pilot & Gesture Guide)", bold: true, color: "0F172A", font: FONT_FAMILY, size: 24 }),
-              new TextRun({ text: "\n• ยืนประจำข้างตู้ Kiosk คอยแนะนำจุดยืนบนสติกเกอร์ที่พื้น (ระยะ 1.8 เมตร)\n• แนะนำผู้เข้าร่วมงานให้แบมือ 5 นิ้วค้างไว้ 1.2 วินาทีเพื่อลั่นชัตเตอร์กล้อง MediaPipe AI\n• ทำสัญญาณมือแจ้งสตาฟฟ์ Admin ทันทีเมื่อกล้องมีปัญหา หรือผู้ใช้นั่งวีลแชร์ที่ระบบตรวจจับไม่ถึง\n• เช็ดทำความสะอาดหน้าเลนส์กล้องด้วยผ้าไมโครไฟเบอร์เมื่อเกิดคราบฝุ่น", font: FONT_FAMILY, size: 24 }),
+              new TextRun({ text: "Role 1: ผู้กำกับหน้าตู้และแนะนำท่าทาง (Kiosk Pilot & Gesture Guide)", bold: true, color: "0F172A", font: FONT_FAMILY, size: 32 }),
+              new TextRun({ text: "\n• ยืนประจำข้างตู้ Kiosk คอยแนะนำจุดยืนบนสติกเกอร์ที่พื้น (ระยะ 1.8 เมตร)\n• แนะนำผู้เข้าร่วมงานให้แบมือ 5 นิ้วค้างไว้ 1.2 วินาทีเพื่อลั่นชัตเตอร์กล้อง MediaPipe AI\n• ทำสัญญาณมือแจ้งสตาฟฟ์ Admin ทันทีเมื่อกล้องมีปัญหา หรือผู้ใช้นั่งวีลแชร์ที่ระบบตรวจจับไม่ถึง\n• เช็ดทำความสะอาดหน้าเลนส์กล้องด้วยผ้าไมโครไฟเบอร์เมื่อเกิดคราบฝุ่น", font: FONT_FAMILY, size: 32 }),
             ],
           }),
 
           new Paragraph({
             numbering: { reference: "roles", level: 0 },
+            spacing: { line: 290, after: 120 },
             children: [
-              new TextRun({ text: "Role 2: ผู้ควบคุมศูนย์บัญชาการ Admin และกำกับ PDPA (Mission Controller & PDPA Officer)", bold: true, color: "0F172A", font: FONT_FAMILY, size: 24 }),
-              new TextRun({ text: "\n• ประจำโต๊ะคอมพิวเตอร์หน้าเว็บ /admin เพื่อมอนิเตอร์สถานะระบบทั้ง 2 หน้าจอแบบเรียลไทม์\n• ใช้ปุ่มแท็กติกัลเพื่อแก้ปัญหาทันที: ถ่ายภาพฉุกเฉิน, ยกเลิกนับถอยหลัง, ข้ามพรีวิวเพื่อเร่งระบายแถว\n• เฝ้าระวังจอใหญ่: หากพบภาพหรือท่าทางที่ไม่เหมาะสม ให้กดปุ่ม 'เซ็นเซอร์จอใหญ่ฉุกเฉิน' (Panic Mute) ทันที\n• เปิด QR Code ขนาดใหญ่ให้น้องที่สแกนไม่ทัน และกดลบรูป (PDPA Purge) หากได้รับการร้องขอ", font: FONT_FAMILY, size: 24 }),
+              new TextRun({ text: "Role 2: ผู้ควบคุมศูนย์บัญชาการ Admin และกำกับ PDPA (Mission Controller & PDPA Officer)", bold: true, color: "0F172A", font: FONT_FAMILY, size: 32 }),
+              new TextRun({ text: "\n• ประจำโต๊ะคอมพิวเตอร์หน้าเว็บ /admin เพื่อมอนิเตอร์สถานะระบบทั้ง 2 หน้าจอแบบเรียลไทม์\n• ใช้ปุ่มแท็กติกัลเพื่อแก้ปัญหาทันที: ถ่ายภาพฉุกเฉิน, ยกเลิกนับถอยหลัง, ข้ามพรีวิวเพื่อเร่งระบายแถว\n• เฝ้าระวังจอใหญ่: หากพบภาพหรือท่าทางที่ไม่เหมาะสม ให้กดปุ่ม 'เซ็นเซอร์จอใหญ่ฉุกเฉิน' (Panic Mute) ทันที\n• เปิด QR Code ขนาดใหญ่ให้น้องที่สแกนไม่ทัน และกดลบรูป (PDPA Purge) หากได้รับการร้องขอ", font: FONT_FAMILY, size: 32 }),
             ],
           }),
 
           new Paragraph({
             numbering: { reference: "roles", level: 0 },
+            spacing: { line: 290, after: 120 },
             children: [
-              new TextRun({ text: "Role 3: ผู้จัดการแถวและดูแลบรรยากาศ (Queue Marshal & Crowd Controller)", bold: true, color: "0F172A", font: FONT_FAMILY, size: 24 }),
-              new TextRun({ text: "\n• จัดระเบียบแถวรอคิวด้านนอก ไม่ให้ล้นไปกีดขวางทางเดินหลักของอาคารเรียน\n• แจกพร็อพถ่ายรูปและบรีฟขั้นตอนการถ่ายภาพเบื้องต้นให้น้องในแถวล่วงหน้า เพื่อลดเวลาการยืนงงหน้าตู้\n• ป้องกันไม่ให้มีผู้เดินตัดหน้ากล้องระหว่างที่กำลังนับถอยหลังถ่ายภาพ", font: FONT_FAMILY, size: 24 }),
+              new TextRun({ text: "Role 3: ผู้จัดการแถวและดูแลบรรยากาศ (Queue Marshal & Crowd Controller)", bold: true, color: "0F172A", font: FONT_FAMILY, size: 32 }),
+              new TextRun({ text: "\n• จัดระเบียบแถวรอคิวด้านนอก ไม่ให้ล้นไปกีดขวางทางเดินหลักของอาคารเรียน\n• แจกพร็อพถ่ายรูปและบรีฟขั้นตอนการถ่ายภาพเบื้องต้นให้น้องในแถวล่วงหน้า เพื่อลดเวลาการยืนงงหน้าตู้\n• ป้องกันไม่ให้มีผู้เดินตัดหน้ากล้องระหว่างที่กำลังนับถอยหลังถ่ายภาพ", font: FONT_FAMILY, size: 32 }),
             ],
           }),
 
           new Paragraph({
             numbering: { reference: "roles", level: 0 },
+            spacing: { line: 290, after: 120 },
             children: [
-              new TextRun({ text: "Role 4: ผู้ช่วยดาวน์โหลดและแนะนำการแต่งรูป (Mobile & QR Download Helper)", bold: true, color: "0F172A", font: FONT_FAMILY, size: 24 }),
-              new TextRun({ text: "\n• ยืนประจำข้างจอใหญ่ Showcase คอยชี้ตำแหน่ง QR Code ให้น้องๆ สแกนหลังถ่ายเสร็จ\n• ให้คำแนะนำการแต่งรูป ใส่สติกเกอร์ และใส่ฟิลเตอร์บนมือถือผ่านหน้าเว็บ /p/[code]\n• อำนวยความสะดวกกรณีสัญญาณเน็ตมือถือน้องไม่ดี เช่น ช่วยแชร์ Hotspot หรือพาน้องมาสแกนที่โต๊ะ Admin", font: FONT_FAMILY, size: 24 }),
+              new TextRun({ text: "Role 4: ผู้ช่วยดาวน์โหลดและแนะนำการแต่งรูป (Mobile & QR Download Helper)", bold: true, color: "0F172A", font: FONT_FAMILY, size: 32 }),
+              new TextRun({ text: "\n• ยืนประจำข้างจอใหญ่ Showcase คอยชี้ตำแหน่ง QR Code ให้น้องๆ สแกนหลังถ่ายเสร็จ\n• ให้คำแนะนำการแต่งรูป ใส่สติกเกอร์ และใส่ฟิลเตอร์บนมือถือผ่านหน้าเว็บ /p/[code]\n• อำนวยความสะดวกกรณีสัญญาณเน็ตมือถือน้องไม่ดี เช่น ช่วยแชร์ Hotspot หรือพาน้องมาสแกนที่โต๊ะ Admin", font: FONT_FAMILY, size: 32 }),
             ],
           }),
 
@@ -699,26 +721,26 @@ async function generateDocx() {
           createParagraph("สตาฟฟ์หัวหน้าผลัดต้องทำการตรวจสอบรายการตามเช็กลิสต์ด้านล่างนี้ทุกเช้าและเย็น:"),
 
           createHeading2("☀️ รายการตรวจสอบความพร้อมรอบเช้า (08:00 – 08:30 น.)"),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "เสียบปลั๊กพ่วง ต่อไฟเลี้ยง Kiosk PC, ทีวีจอใหญ่ Showcase และเราเตอร์ 5G CPE เรียบร้อย", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "เปิดเราเตอร์ 5G CPE ยืนยันไฟสถานะ Internet เป็นสีฟ้า/เขียว พร้อมสัญญาณ Wi-Fi 5GHz ปล่อยปกติ", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "ติดสติกเกอร์ระบุจุดยืนถ่ายรูปบนพื้นห่างจากเลนส์กล้อง 1.8 เมตร", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "ยึดสายไฟและสาย LAN กับพื้นด้วยเทปผ้า Gaffer Tape อย่างแน่นหนา ไม่มีสายลอยให้สะดุด", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "เปิดเบราว์เซอร์ทั้ง 3 หน้าจอ: จอ 1 (/kiosk), จอ 2 (/display), จอ Admin (/admin)", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "กดปุ่ม 'Ping Bus' ในหน้า Admin เพื่อยืนยันว่าหน้าจอ Kiosk และ Showcase ซิงค์กัน (<1ms)", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "กดปุ่ม 'ทดสอบสปีด' ในการ์ดเครือข่าย ยืนยันว่า Latency ปกติและพร้อมให้บริการ", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "ทดลองถ่ายภาพทดสอบ 1 ภาพ: แบมือ 5 นิ้ว -> นับถอยหลัง -> ภาพขึ้นจอ 2 -> ใช้มือถือสแกนรับรูปได้จริง", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "กดปุ่มลบรูปภาพทดสอบออกจากระบบเพื่อเตรียมพร้อมรับผู้เข้าร่วมงานชุดแรก", font: FONT_FAMILY, size: 24 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "เสียบปลั๊กพ่วง ต่อไฟเลี้ยง Kiosk PC, ทีวีจอใหญ่ Showcase และเราเตอร์ 5G CPE เรียบร้อย", font: FONT_FAMILY, size: 32 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "เปิดเราเตอร์ 5G CPE ยืนยันไฟสถานะ Internet เป็นสีฟ้า/เขียว พร้อมสัญญาณ Wi-Fi 5GHz ปล่อยปกติ", font: FONT_FAMILY, size: 32 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "ติดสติกเกอร์ระบุจุดยืนถ่ายรูปบนพื้นห่างจากเลนส์กล้อง 1.8 เมตร", font: FONT_FAMILY, size: 32 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "ยึดสายไฟและสาย LAN กับพื้นด้วยเทปผ้า Gaffer Tape อย่างแน่นหนา ไม่มีสายลอยให้สะดุด", font: FONT_FAMILY, size: 32 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "เปิดเบราว์เซอร์ทั้ง 3 หน้าจอ: จอ 1 (/kiosk), จอ 2 (/display), จอ Admin (/admin)", font: FONT_FAMILY, size: 32 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "กดปุ่ม 'Ping Bus' ในหน้า Admin เพื่อยืนยันว่าหน้าจอ Kiosk และ Showcase ซิงค์กัน (<1ms)", font: FONT_FAMILY, size: 32 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "กดปุ่ม 'ทดสอบสปีด' ในการ์ดเครือข่าย ยืนยันว่า Latency ปกติและพร้อมให้บริการ", font: FONT_FAMILY, size: 32 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "ทดลองถ่ายภาพทดสอบ 1 ภาพ: แบมือ 5 นิ้ว -> นับถอยหลัง -> ภาพขึ้นจอ 2 -> ใช้มือถือสแกนรับรูปได้จริง", font: FONT_FAMILY, size: 32 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "กดปุ่มลบรูปภาพทดสอบออกจากระบบเพื่อเตรียมพร้อมรับผู้เข้าร่วมงานชุดแรก", font: FONT_FAMILY, size: 32 })] }),
 
           new Paragraph({ spacing: { after: 160 } }),
 
           createHeading2("🌙 รายการตรวจสอบการปิดบูธรอบเย็น (17:00 – 17:30 น.)"),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "กดปุ่ม 'พักบูธชั่วคราว' (Pause Booth) ในหน้า Admin เพื่อหยุดรับคิวถ่ายรูป", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "ตรวจสอบว่าไม่มีผู้เข้าร่วมงานตกค้างรอรับภาพ หรือต้องการขอความช่วยเหลือ", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "ปิดหน้าต่างเบราว์เซอร์ และสั่ง Shutdown คอมพิวเตอร์และจอทีวีอย่างปลอดภัย", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "ถอดปลั๊กไฟ ม้วนเก็บสายไฟ สาย HDMI และสาย LAN ให้เรียบร้อย", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "ลอกเทปผ้าออกจากพื้น เช็ดทำความสะอาดคราบกาวและพื้นที่โดยรอบ", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "เก็บพร็อพถ่ายรูป ป้าย X-Stand และอุปกรณ์ทำความสะอาดลงกล่องเก็บของ", font: FONT_FAMILY, size: 24 })] }),
-          new Paragraph({ numbering: { reference: "checklist", level: 0 }, children: [new TextRun({ text: "ตรวจนับจำนวนอุปกรณ์ตาม Master Equipment Checklist ในข้อ 1 ให้ครบถ้วนก่อนส่งมอบห้อง", font: FONT_FAMILY, size: 24 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "กดปุ่ม 'พักบูธชั่วคราว' (Pause Booth) ในหน้า Admin เพื่อหยุดรับคิวถ่ายรูป", font: FONT_FAMILY, size: 32 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "ตรวจสอบว่าไม่มีผู้เข้าร่วมงานตกค้างรอรับภาพ หรือต้องการขอความช่วยเหลือ", font: FONT_FAMILY, size: 32 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "ปิดหน้าต่างเบราว์เซอร์ และสั่ง Shutdown คอมพิวเตอร์และจอทีวีอย่างปลอดภัย", font: FONT_FAMILY, size: 32 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "ถอดปลั๊กไฟ ม้วนเก็บสายไฟ สาย HDMI และสาย LAN ให้เรียบร้อย", font: FONT_FAMILY, size: 32 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "ลอกเทปผ้าออกจากพื้น เช็ดทำความสะอาดคราบกาวและพื้นที่โดยรอบ", font: FONT_FAMILY, size: 32 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "เก็บพร็อพถ่ายรูป ป้าย X-Stand และอุปกรณ์ทำความสะอาดลงกล่องเก็บของ", font: FONT_FAMILY, size: 32 })] }),
+          new Paragraph({ numbering: { reference: "checklist", level: 0 }, spacing: { line: 280 }, children: [new TextRun({ text: "ตรวจนับจำนวนอุปกรณ์ตาม Master Equipment Checklist ในข้อ 1 ให้ครบถ้วนก่อนส่งมอบห้อง", font: FONT_FAMILY, size: 32 })] }),
 
           new Paragraph({ spacing: { after: 240 } }),
 
@@ -735,7 +757,7 @@ async function generateDocx() {
   const outputPath = path.join(__dirname, '..', 'docs', 'CPE_SWU_OPENHOUSE_ONSITE_OPERATIONS_MANUAL.docx');
   const buffer = await Packer.toBuffer(doc);
   fs.writeFileSync(outputPath, buffer);
-  console.log(`OFFICIAL_DOCX_GENERATED_SUCCESSFULLY: ${outputPath}`);
+  console.log(`OFFICIAL_DOCX_GENERATED_SUCCESSFULLY_WITH_TH_SARABUN_PSK: ${outputPath}`);
 }
 
 generateDocx().catch((err) => {
