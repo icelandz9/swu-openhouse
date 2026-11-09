@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/icelandz9/swu-openhouse#readme",
   "dependencies": {
+    "docx": "^9.15.3",
     "jsdom": "^31.0.0",
     "mermaid": "^12.3.0"
   }
