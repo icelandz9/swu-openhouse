@@ -1,7 +1,7 @@
 'use client';
 
 import React, { use, useState, useRef, useEffect, useCallback } from 'react';
-import { Download, Sparkles, Frame, Check, ShieldAlert, Sun, Sticker, Trash2, ShieldCheck, Lock, Maximize2, X } from 'lucide-react';
+import { Download, Sparkles, Frame, Check, ShieldAlert, Sun, Sticker, Trash2, ShieldCheck, Lock, Maximize2, X, ChevronLeft } from 'lucide-react';
 import { FilterPresetId } from '@/lib/contracts';
 import { applyColorFilter } from '@/lib/mobile/colorFilters';
 import { FRAME_TEMPLATES, NO_FRAME_ID, FrameTemplate, PHOTO_ONLY_SIZE, drawPhotoCover } from '@/lib/mobile/frameTemplates';
@@ -87,6 +87,7 @@ export default function MobilePhotoEditorPage({
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [photoLoaded, setPhotoLoaded] = useState<boolean>(false);
   const [stickerSheetOpen, setStickerSheetOpen] = useState<boolean>(false);
+  const [openStickerGroup, setOpenStickerGroup] = useState<string | null>(null);
   const [filterThumbs, setFilterThumbs] = useState<Partial<Record<FilterPresetId, string>>>({});
   const [frameImages, setFrameImages] = useState<Record<string, HTMLImageElement>>({});
 
@@ -569,7 +570,10 @@ export default function MobilePhotoEditorPage({
       {stickerSheetOpen && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => setStickerSheetOpen(false)}
+          onClick={() => {
+            setStickerSheetOpen(false);
+            setOpenStickerGroup(null);
+          }}
           role="dialog"
           aria-modal="true"
           aria-label="สติกเกอร์ทั้งหมด"
@@ -578,46 +582,93 @@ export default function MobilePhotoEditorPage({
             className="flex max-h-[80dvh] w-full max-w-md flex-col rounded-t-2xl border border-white/10 bg-[#0E131D] shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-              <div>
-                <h2 className="text-sm font-bold text-white">สติกเกอร์ทั้งหมด</h2>
-                <p className="text-[11px] text-slate-400">แตะเพื่อวางบนรูป</p>
-              </div>
-              <button
-                onClick={() => setStickerSheetOpen(false)}
-                aria-label="ปิด"
-                className="flex size-9 items-center justify-center rounded-full bg-white/5 text-slate-300 hover:bg-white/10"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-            <div className="space-y-5 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              {groupStickers(stickerCatalog).map((group) => (
-                <section key={group.id} aria-label={group.title}>
-                  <h3 className="mb-2.5 flex items-center gap-2 text-sm font-bold text-white">
-                    {group.title}
-                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
-                      {group.stickers.length}
-                    </span>
-                  </h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    {group.stickers.map((s) => (
-                      <button
-                        key={s.src}
-                        onClick={() => {
-                          addSticker(s);
-                          setStickerSheetOpen(false);
-                        }}
-                        className="flex aspect-square items-center justify-center rounded-xl border border-white/5 bg-white/5 p-2.5 transition-colors hover:bg-white/10 active:scale-95"
-                        title={s.src.split('/').pop() || 'sticker'}
-                      >
-                        <img src={s.src} alt="" className="max-h-full max-w-full object-contain" draggable={false} loading="lazy" />
-                      </button>
-                    ))}
+            {(() => {
+              const groups = groupStickers(stickerCatalog);
+              const hearts = groups.find((g) => g.id === 'hearts');
+              const others = groups.find((g) => g.id === 'others')?.stickers ?? [];
+              const inHearts = openStickerGroup === 'hearts' && hearts;
+              const closeSheet = () => {
+                setStickerSheetOpen(false);
+                setOpenStickerGroup(null);
+              };
+              const tile = 'flex aspect-square items-center justify-center rounded-xl border border-white/5 bg-white/5 p-2.5 transition-colors hover:bg-white/10 active:scale-95';
+              const stickerButton = (st: StickerAsset) => (
+                <button
+                  key={st.src}
+                  onClick={() => {
+                    addSticker(st);
+                    closeSheet();
+                  }}
+                  className={tile}
+                  title={st.src.split('/').pop() || 'sticker'}
+                >
+                  <img src={st.src} alt="" className="max-h-full max-w-full object-contain" draggable={false} loading="lazy" />
+                </button>
+              );
+              return (
+                <>
+                  <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {inHearts && (
+                        <button
+                          onClick={() => setOpenStickerGroup(null)}
+                          aria-label="กลับ"
+                          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-slate-300 hover:bg-white/10"
+                        >
+                          <ChevronLeft className="size-5" />
+                        </button>
+                      )}
+                      <div className="min-w-0">
+                        <h2 className="truncate text-sm font-bold text-white">{inHearts ? hearts.title : 'สติกเกอร์ทั้งหมด'}</h2>
+                        <p className="text-[11px] text-slate-400">
+                          {inHearts ? `${hearts.stickers.length} แบบ · แตะเพื่อวางบนรูป` : 'แตะเพื่อวางบนรูป'}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={closeSheet}
+                      aria-label="ปิด"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-slate-300 hover:bg-white/10"
+                    >
+                      <X className="size-5" />
+                    </button>
                   </div>
-                </section>
-              ))}
-            </div>
+                  <div className="grid grid-cols-3 gap-3 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                    {inHearts ? (
+                      hearts.stickers.map(stickerButton)
+                    ) : (
+                      <>
+                        {hearts && (
+                          // Folder: all the "วิศวะรัก..." hearts live inside this one tile
+                          <button
+                            onClick={() => setOpenStickerGroup('hearts')}
+                            className="relative flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-[#CE1126]/50 bg-[#CE1126]/10 p-2 transition-colors hover:bg-[#CE1126]/20 active:scale-95"
+                          >
+                            <span className="relative block h-[58%] w-[70%]">
+                              {hearts.stickers.slice(0, 3).map((st, i) => (
+                                <img
+                                  key={st.src}
+                                  src={st.src}
+                                  alt=""
+                                  draggable={false}
+                                  className="absolute inset-0 h-full w-full object-contain"
+                                  style={{ transform: `translate(${(i - 1) * 14}%, ${i === 1 ? -4 : 4}%) rotate(${(i - 1) * 10}deg)`, zIndex: i === 1 ? 2 : 1 }}
+                                />
+                              ))}
+                            </span>
+                            <span className="text-[12px] font-bold text-white">{hearts.title}</span>
+                            <span className="absolute right-1.5 top-1.5 rounded-full bg-[#CE1126] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                              {hearts.stickers.length}
+                            </span>
+                          </button>
+                        )}
+                        {others.map(stickerButton)}
+                      </>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
