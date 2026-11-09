@@ -47,6 +47,16 @@ export interface HandMeshProps {
   videoDimensions?: { width: number; height: number };
 }
 
+/**
+ * HandMesh Component - SWU CPE Tactical Crimson HUD Edition
+ * 
+ * Styled specifically to match the Kiosk camera screen:
+ * - CPE Crimson (#CE1126) & Pure White (#FFFFFF) dual-rail laser bones
+ * - Tactical military reticles with crosshairs and diamond centers
+ * - Circular tactical azimuth dial on palm center with hold percentage
+ * - Mil-spec corner brackets with alignment anchors
+ * - Real-time animated top-to-bottom crimson laser scanner
+ */
 export function HandMesh({
   active = true,
   landmarks,
@@ -108,7 +118,8 @@ export function HandMesh({
     const strokeDashoffset = circumference - (holdProgress / 100) * circumference;
 
     const isHolding = holdProgress > 0;
-    const mainColor = isForeground ? '#06B6D4' : '#F59E0B';
+    const themeCrimson = '#CE1126';
+    const mainColor = isForeground ? themeCrimson : '#F59E0B';
 
     // Top-to-Bottom laser scanning position based on hold progress
     const scanPad = 3.2;
@@ -127,35 +138,28 @@ export function HandMesh({
         aria-hidden="true"
       >
         <defs>
-          <filter id="meshGlow" x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow dx="0" dy="0" stdDeviation="0.45" floodColor="#06B6D4" floodOpacity="0.85" />
+          <filter id="cpeCrimsonGlow" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="0" stdDeviation="0.6" floodColor="#CE1126" floodOpacity="0.9" />
           </filter>
-          <filter id="laserGlow" x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow dx="0" dy="0" stdDeviation="0.6" floodColor="#22D3EE" floodOpacity="1" />
+          <filter id="cpeLaserGlow" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="0" stdDeviation="0.75" floodColor="#CE1126" floodOpacity="1" />
+            <feDropShadow dx="0" dy="0" stdDeviation="0.3" floodColor="#FFFFFF" floodOpacity="0.9" />
           </filter>
 
-          {/* Vertical gradient from fingertips (top) to wrist (bottom) */}
-          <linearGradient id="handGradientVertical" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.95" />
-            <stop offset="35%" stopColor="#38BDF8" stopOpacity="0.9" />
-            <stop offset="70%" stopColor="#FB7185" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#CE1126" stopOpacity="0.95" />
-          </linearGradient>
-
-          {/* Horizontal laser scanline beam */}
-          <linearGradient id="laserBeamGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#06B6D4" stopOpacity="0" />
-            <stop offset="15%" stopColor="#22D3EE" stopOpacity="0.8" />
+          {/* Horizontal laser scanline beam with high-contrast white core */}
+          <linearGradient id="cpeLaserBeamGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#CE1126" stopOpacity="0" />
+            <stop offset="25%" stopColor="#CE1126" stopOpacity="0.9" />
             <stop offset="50%" stopColor="#FFFFFF" stopOpacity="1" />
-            <stop offset="85%" stopColor="#22D3EE" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="#06B6D4" stopOpacity="0" />
+            <stop offset="75%" stopColor="#CE1126" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#CE1126" stopOpacity="0" />
           </linearGradient>
 
-          {/* Top-to-bottom trailing energy sweep */}
-          <linearGradient id="laserSweepTrail" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#06B6D4" stopOpacity="0" />
-            <stop offset="65%" stopColor="#06B6D4" stopOpacity="0.12" />
-            <stop offset="100%" stopColor="#22D3EE" stopOpacity="0.35" />
+          {/* Top-to-bottom trailing energy sweep in CPE crimson */}
+          <linearGradient id="cpeLaserSweepTrail" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#CE1126" stopOpacity="0" />
+            <stop offset="65%" stopColor="#CE1126" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#CE1126" stopOpacity="0.35" />
           </linearGradient>
         </defs>
 
@@ -168,7 +172,7 @@ export function HandMesh({
               y={minY}
               width={scanWidth}
               height={Math.max(0, scanY - minY)}
-              fill="url(#laserSweepTrail)"
+              fill="url(#cpeLaserSweepTrail)"
             />
 
             {/* Glowing horizontal laser line sweeping from top to bottom */}
@@ -177,10 +181,10 @@ export function HandMesh({
               y1={scanY}
               x2={scanRight}
               y2={scanY}
-              stroke="url(#laserBeamGrad)"
+              stroke="url(#cpeLaserBeamGrad)"
               strokeWidth="1.2"
               strokeLinecap="round"
-              filter="url(#laserGlow)"
+              filter="url(#cpeLaserGlow)"
             />
             <line
               x1={scanLeft + 1}
@@ -188,27 +192,45 @@ export function HandMesh({
               x2={scanRight - 1}
               y2={scanY}
               stroke="#FFFFFF"
-              strokeWidth="0.5"
+              strokeWidth="0.45"
               strokeLinecap="round"
             />
 
-            {/* Left and right optical tracking beacons */}
-            <circle cx={scanLeft} cy={scanY} r="0.9" fill="#22D3EE" filter="url(#laserGlow)" />
-            <circle cx={scanRight} cy={scanY} r="0.9" fill="#22D3EE" filter="url(#laserGlow)" />
+            {/* Left and right tactical optical tracking beacons */}
+            <circle cx={scanLeft} cy={scanY} r="0.95" fill="#CE1126" filter="url(#cpeLaserGlow)" />
+            <circle cx={scanLeft} cy={scanY} r="0.4" fill="#FFFFFF" />
+            <circle cx={scanRight} cy={scanY} r="0.95" fill="#CE1126" filter="url(#cpeLaserGlow)" />
+            <circle cx={scanRight} cy={scanY} r="0.4" fill="#FFFFFF" />
           </g>
         )}
 
-        {/* 2. Connecting Bones with Top-to-Bottom Gradient */}
+        {/* 2. Tactical Dual-Rail Connecting Bones (Crimson Rail + White Laser Core) */}
         <g
-          stroke={isHolding ? 'url(#handGradientVertical)' : mainColor}
-          strokeWidth="0.65"
+          stroke={mainColor}
+          strokeWidth="1.15"
           strokeLinecap="round"
-          strokeOpacity={isHolding ? 0.95 : 0.85}
-          filter="url(#meshGlow)"
+          strokeOpacity={0.95}
+          filter="url(#cpeCrimsonGlow)"
         >
           {BONES.map(([start, end], i) => (
             <line
-              key={`b-${i}`}
+              key={`b-crimson-${i}`}
+              x1={points[start]?.[0] ?? 0}
+              y1={points[start]?.[1] ?? 0}
+              x2={points[end]?.[0] ?? 0}
+              y2={points[end]?.[1] ?? 0}
+            />
+          ))}
+        </g>
+        <g
+          stroke="#FFFFFF"
+          strokeWidth="0.32"
+          strokeLinecap="round"
+          strokeOpacity={0.9}
+        >
+          {BONES.map(([start, end], i) => (
+            <line
+              key={`b-core-${i}`}
               x1={points[start]?.[0] ?? 0}
               y1={points[start]?.[1] ?? 0}
               x2={points[end]?.[0] ?? 0}
@@ -217,68 +239,140 @@ export function HandMesh({
           ))}
         </g>
 
-        {/* 3. Landmark Joints (Circles) with vertical color harmony */}
+        {/* 3. Tactical Reticle Joints & Crosshairs */}
         {points.map(([x, y], i) => {
           const isFingertip = i === 4 || i === 8 || i === 12 || i === 16 || i === 20;
           const isWrist = i === 0;
 
-          // Color shifts based on vertical landmark position
-          let jointColor = mainColor;
-          if (isHolding) {
-            if (isWrist) jointColor = '#CE1126';
-            else if (isFingertip) jointColor = '#FFFFFF';
-            else if (y < 40) jointColor = '#22D3EE';
-            else if (y < 65) jointColor = '#38BDF8';
-            else jointColor = '#FB7185';
+          if (isWrist) {
+            return (
+              <g key={`c-wrist-${i}`} transform={`translate(${x}, ${y})`}>
+                <polygon
+                  points="0,-2.4 2.4,0 0,2.4 -2.4,0"
+                  fill={mainColor}
+                  stroke="#FFFFFF"
+                  strokeWidth="0.4"
+                  filter="url(#cpeCrimsonGlow)"
+                />
+                <circle cx="0" cy="0" r="0.8" fill="#FFFFFF" />
+              </g>
+            );
           }
 
           return (
-            <circle
-              key={`c-${i}`}
-              cx={x}
-              cy={y}
-              r={isWrist ? 1.4 : isFingertip ? 1.15 : 0.75}
-              fill={isFingertip ? '#FFFFFF' : jointColor}
-              stroke={jointColor}
-              strokeWidth="0.3"
-              filter="url(#meshGlow)"
-            />
+            <g key={`c-${i}`} transform={`translate(${x}, ${y})`}>
+              {/* Tactical Crosshair Lines */}
+              <line x1="-1.4" y1="0" x2="1.4" y2="0" stroke="#FFFFFF" strokeWidth="0.3" strokeOpacity="0.85" />
+              <line x1="0" y1="-1.4" x2="0" y2="1.4" stroke="#FFFFFF" strokeWidth="0.3" strokeOpacity="0.85" />
+              {/* Joint Beacon */}
+              <circle
+                cx="0"
+                cy="0"
+                r={isFingertip ? 1.35 : 0.8}
+                fill={isFingertip ? '#FFFFFF' : mainColor}
+                stroke={mainColor}
+                strokeWidth="0.35"
+                filter="url(#cpeCrimsonGlow)"
+              />
+              {isFingertip && (
+                <circle
+                  cx="0"
+                  cy="0"
+                  r="2.1"
+                  fill="none"
+                  stroke={mainColor}
+                  strokeWidth="0.3"
+                  strokeDasharray="0.8 0.8"
+                />
+              )}
+            </g>
           );
         })}
 
-        {/* 4. Circular Hold Progress Meter centered on Palm */}
+        {/* 4. Tactical Azimuth Dial & Circular Hold Progress Meter centered on Palm */}
         {isHolding && (
-          <g>
-            {/* Background ring */}
+          <g transform={`translate(${palmCenterX}, ${palmCenterY})`}>
+            {/* Outer dashed calibration ring */}
             <circle
-              cx={palmCenterX}
-              cy={palmCenterY}
-              r={ringRadius}
+              cx="0"
+              cy="0"
+              r={ringRadius * 1.25}
               fill="none"
-              stroke="#06B6D4"
-              strokeWidth="0.8"
-              strokeOpacity="0.35"
+              stroke={mainColor}
+              strokeWidth="0.35"
+              strokeDasharray="1.2 1.2"
+              opacity="0.6"
             />
-            {/* Active progress arc */}
+            {/* Background guide ring */}
             <circle
-              cx={palmCenterX}
-              cy={palmCenterY}
+              cx="0"
+              cy="0"
               r={ringRadius}
               fill="none"
-              stroke="#22D3EE"
-              strokeWidth="1.3"
+              stroke={mainColor}
+              strokeWidth="0.6"
+              strokeOpacity="0.3"
+            />
+            {/* 4 Quadrant Tactical Brackets */}
+            <path
+              d={`M ${-ringRadius} 0 A ${ringRadius} ${ringRadius} 0 0 1 0 ${-ringRadius}`}
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="0.6"
+              opacity="0.8"
+            />
+            <path
+              d={`M 0 ${ringRadius} A ${ringRadius} ${ringRadius} 0 0 1 ${ringRadius} 0`}
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="0.6"
+              opacity="0.8"
+            />
+            {/* Active progress arc in CPE Crimson */}
+            <circle
+              cx="0"
+              cy="0"
+              r={ringRadius}
+              fill="none"
+              stroke={mainColor}
+              strokeWidth="1.35"
               strokeDasharray={circumference}
               strokeDashoffset={strokeDashoffset}
               strokeLinecap="round"
-              transform={`rotate(-90 ${palmCenterX} ${palmCenterY})`}
-              filter="url(#laserGlow)"
+              transform="rotate(-90)"
+              filter="url(#cpeLaserGlow)"
             />
+            {/* Center Core HUD readout */}
+            <circle cx="0" cy="0" r={ringRadius * 0.45} fill="rgba(206,17,38,0.3)" stroke={mainColor} strokeWidth="0.4" />
+            <text
+              x="0"
+              y="0.8"
+              fill="#FFFFFF"
+              fontSize={Math.max(1.8, ringRadius * 0.42)}
+              fontWeight="bold"
+              fontFamily="monospace"
+              textAnchor="middle"
+            >
+              {Math.round(holdProgress)}%
+            </text>
+            <text
+              x="0"
+              y={ringRadius * 1.6}
+              fill={mainColor}
+              fontSize="1.6"
+              fontWeight="bold"
+              fontFamily="monospace"
+              textAnchor="middle"
+              letterSpacing="0.1em"
+            >
+              CPE-LOCK
+            </text>
           </g>
         )}
 
-        {/* 5. Sci-Fi Corner Brackets around Bounding Box */}
+        {/* 5. Mil-Spec Corner Brackets around Bounding Box */}
         {(() => {
-          const pad = 1.2;
+          const pad = 1.4;
           const bx = Math.max(0, minX - pad);
           const by = Math.max(0, minY - pad);
           const bw = Math.min(100 - bx, maxX - minX + pad * 2);
@@ -287,19 +381,23 @@ export function HandMesh({
 
           return (
             <g
-              stroke={isHolding ? '#22D3EE' : mainColor}
-              strokeWidth="0.4"
+              stroke={mainColor}
+              strokeWidth="0.5"
               fill="none"
-              opacity={isHolding ? 0.85 : 0.6}
+              opacity={isHolding ? 0.95 : 0.75}
             >
               {/* Top-Left */}
               <path d={`M ${bx} ${by + arm} L ${bx} ${by} L ${bx + arm} ${by}`} />
+              <rect x={bx - 0.4} y={by - 0.4} width="0.8" height="0.8" fill={mainColor} />
               {/* Top-Right */}
               <path d={`M ${bx + bw - arm} ${by} L ${bx + bw} ${by} L ${bx + bw} ${by + arm}`} />
+              <rect x={bx + bw - 0.4} y={by - 0.4} width="0.8" height="0.8" fill={mainColor} />
               {/* Bottom-Left */}
               <path d={`M ${bx} ${by + bh - arm} L ${bx} ${by + bh} L ${bx + arm} ${by + bh}`} />
+              <rect x={bx - 0.4} y={by + bh - 0.4} width="0.8" height="0.8" fill={mainColor} />
               {/* Bottom-Right */}
               <path d={`M ${bx + bw - arm} ${by + bh} L ${bx + bw} ${by + bh} L ${bx + bw} ${by + bh - arm}`} />
+              <rect x={bx + bw - 0.4} y={by + bh - 0.4} width="0.8" height="0.8" fill={mainColor} />
             </g>
           );
         })()}
@@ -336,15 +434,26 @@ export function HandMesh({
       aria-hidden="true"
     >
       <defs>
-        <filter id="meshGlowSmall" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="0" stdDeviation="0.4" floodColor="#06B6D4" floodOpacity="0.8" />
+        <filter id="meshGlowCrimsonSmall" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="0" stdDeviation="0.4" floodColor="#CE1126" floodOpacity="0.85" />
         </filter>
       </defs>
 
-      <g stroke="#06B6D4" strokeWidth="0.8" strokeLinecap="round" strokeOpacity="0.85" filter="url(#meshGlowSmall)">
+      <g stroke="#CE1126" strokeWidth="1" strokeLinecap="round" strokeOpacity="0.9" filter="url(#meshGlowCrimsonSmall)">
         {BONES.map(([start, end], i) => (
           <line
             key={`b-${i}`}
+            x1={points[start]?.[0] ?? 0}
+            y1={points[start]?.[1] ?? 0}
+            x2={points[end]?.[0] ?? 0}
+            y2={points[end]?.[1] ?? 0}
+          />
+        ))}
+      </g>
+      <g stroke="#FFFFFF" strokeWidth="0.3" strokeLinecap="round" strokeOpacity="0.9">
+        {BONES.map(([start, end], i) => (
+          <line
+            key={`b-white-${i}`}
             x1={points[start]?.[0] ?? 0}
             y1={points[start]?.[1] ?? 0}
             x2={points[end]?.[0] ?? 0}
@@ -361,11 +470,11 @@ export function HandMesh({
             key={`c-${i}`}
             cx={x}
             cy={y}
-            r={isWrist ? 1.8 : isFingertip ? 1.5 : 1}
-            fill={isFingertip ? '#FFFFFF' : '#06B6D4'}
-            stroke="#06B6D4"
-            strokeWidth="0.4"
-            filter="url(#meshGlowSmall)"
+            r={isWrist ? 1.8 : isFingertip ? 1.5 : 0.9}
+            fill={isFingertip ? '#FFFFFF' : '#CE1126'}
+            stroke="#FFFFFF"
+            strokeWidth="0.3"
+            filter="url(#meshGlowCrimsonSmall)"
           />
         );
       })}
