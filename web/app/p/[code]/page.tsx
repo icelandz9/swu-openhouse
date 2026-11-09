@@ -28,6 +28,38 @@ const FILTER_LIST: { id: FilterPresetId; label: string; thai: string }[] = [
 type Tab = 'frames' | 'filters' | 'stickers';
 type AuthStatus = 'checking' | 'authorized' | 'forbidden' | 'not_found';
 
+// Demo code for trying the editor (home page card). The kiosk never issues it: its codes skip "1".
+const DEMO_CODE = 'OPH-SWU1';
+
+// A drawn placeholder instead of a stock photo of a real person (PDPA).
+function makeDemoPhoto(): Promise<HTMLImageElement | null> {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1440;
+  canvas.height = 1080;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return Promise.resolve(null);
+  const bg = ctx.createLinearGradient(0, 0, 1440, 1080);
+  bg.addColorStop(0, '#38BDF8');
+  bg.addColorStop(0.5, '#F472B6');
+  bg.addColorStop(1, '#FBBF24');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 1440, 1080);
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.beginPath();
+  ctx.arc(720, 470, 190, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(720, 1000, 360, 280, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 96px sans-serif';
+  ctx.fillText('รูปตัวอย่าง', 720, 200);
+  ctx.font = '48px sans-serif';
+  ctx.fillText('CPE SWU Open House', 720, 270);
+  return loadImage(canvas.toDataURL('image/jpeg', 0.9));
+}
+
 function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -88,6 +120,14 @@ export default function MobilePhotoEditorPage({
 
       // Direct access allowed - bypass 403 blocking
       if (!cancelled) setAuthStatus('authorized');
+
+      if (normalizedCode === DEMO_CODE) {
+        const demo = await makeDemoPhoto();
+        if (cancelled || !demo) return;
+        baseImageRef.current = demo;
+        setPhotoLoaded(true);
+        return;
+      }
 
       // 3. Resolve candidate photo URL
       let candidateSrc = `/api/photos/${normalizedCode}/file${token ? `?t=${encodeURIComponent(token)}` : ''}`;
