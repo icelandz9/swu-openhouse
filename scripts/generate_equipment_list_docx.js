@@ -5,81 +5,13 @@ const {
   Packer,
   Paragraph,
   TextRun,
-  Table,
-  TableRow,
-  TableCell,
   Header,
   Footer,
   AlignmentType,
-  BorderStyle,
-  WidthType,
-  ShadingType,
-  VerticalAlign,
   PageNumber,
 } = require('docx');
 
-// Dimensions in DXA (1440 DXA = 1 inch)
-// A4 = 11906 x 16838 DXA. Margins = 1440 DXA. Content Width = 9026 DXA.
-const CONTENT_WIDTH = 9026;
-const THIN_BORDER = { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" };
-const TABLE_BORDERS = {
-  top: THIN_BORDER,
-  bottom: THIN_BORDER,
-  left: THIN_BORDER,
-  right: THIN_BORDER,
-};
-
 const FONT_FAMILY = "TH Sarabun PSK";
-
-function makeHeaderCell(text, width) {
-  return new TableCell({
-    width: { size: width, type: WidthType.DXA },
-    shading: { fill: "CE1126", type: ShadingType.CLEAR },
-    verticalAlign: VerticalAlign.CENTER,
-    borders: TABLE_BORDERS,
-    margins: { top: 140, bottom: 140, left: 140, right: 140 },
-    children: [
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { line: 280 },
-        children: [
-          new TextRun({
-            text,
-            bold: true,
-            color: "FFFFFF",
-            font: FONT_FAMILY,
-            size: 32, // 16pt
-          }),
-        ],
-      }),
-    ],
-  });
-}
-
-function makeCell(text, width, align = AlignmentType.LEFT, bold = false, fill = "FFFFFF") {
-  return new TableCell({
-    width: { size: width, type: WidthType.DXA },
-    shading: { fill, type: ShadingType.CLEAR },
-    verticalAlign: VerticalAlign.CENTER,
-    borders: TABLE_BORDERS,
-    margins: { top: 120, bottom: 120, left: 160, right: 160 },
-    children: [
-      new Paragraph({
-        alignment: align,
-        spacing: { line: 280 },
-        children: [
-          new TextRun({
-            text,
-            bold,
-            color: "1E293B",
-            font: FONT_FAMILY,
-            size: 32, // 16pt
-          }),
-        ],
-      }),
-    ],
-  });
-}
 
 const equipmentData = [
   ["1", "คอมพิวเตอร์ / โน้ตบุ๊ก Kiosk (Screen 1)", "1 เครื่อง"],
@@ -107,69 +39,35 @@ const equipmentData = [
   ["23", "ชุดทำความสะอาด (ผ้าเช็ดเลนส์ / แอลกอฮอล์)", "1 ชุด"],
 ];
 
-function buildEquipmentTable() {
-  const colWidths = [1200, 5826, 2000];
-  const headerRow = new TableRow({
-    children: [
-      makeHeaderCell("ลำดับ", colWidths[0]),
-      makeHeaderCell("รายการอุปกรณ์", colWidths[1]),
-      makeHeaderCell("จำนวน", colWidths[2]),
-    ],
-  });
-
-  const bodyRows = equipmentData.map((row, idx) => {
-    const fill = idx % 2 === 1 ? "F8FAFC" : "FFFFFF";
-    return new TableRow({
+async function generateDocx() {
+  const listParagraphs = equipmentData.map((row) => {
+    return new Paragraph({
+      spacing: { line: 300, before: 60, after: 60 },
       children: [
-        makeCell(row[0], colWidths[0], AlignmentType.CENTER, false, fill),
-        makeCell(row[1], colWidths[1], AlignmentType.LEFT, true, fill),
-        makeCell(row[2], colWidths[2], AlignmentType.CENTER, false, fill),
+        new TextRun({
+          text: `${row[0]}. ${row[1]}`,
+          font: FONT_FAMILY,
+          size: 32, // 16pt
+          color: "0F172A",
+        }),
+        new TextRun({
+          text: "  :  ",
+          font: FONT_FAMILY,
+          size: 32,
+          bold: true,
+          color: "64748B",
+        }),
+        new TextRun({
+          text: row[2],
+          font: FONT_FAMILY,
+          size: 32,
+          bold: true,
+          color: "CE1126",
+        }),
       ],
     });
   });
 
-  return new Table({
-    width: { size: CONTENT_WIDTH, type: WidthType.DXA },
-    columnWidths: colWidths,
-    rows: [headerRow, ...bodyRows],
-  });
-}
-
-function buildSignatureTable() {
-  const colWidths = [4513, 4513];
-  const row = new TableRow({
-    children: [
-      new TableCell({
-        width: { size: colWidths[0], type: WidthType.DXA },
-        borders: TABLE_BORDERS,
-        margins: { top: 160, bottom: 160, left: 140, right: 140 },
-        children: [
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "ลงชื่อ........................................................ผู้จัดเตรียม", font: FONT_FAMILY, size: 30 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "(........................................................)", font: FONT_FAMILY, size: 30 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "วันที่ ...... / ...... / 2569", font: FONT_FAMILY, size: 26, color: "64748B" })] }),
-        ],
-      }),
-      new TableCell({
-        width: { size: colWidths[1], type: WidthType.DXA },
-        borders: TABLE_BORDERS,
-        margins: { top: 160, bottom: 160, left: 140, right: 140 },
-        children: [
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "ลงชื่อ........................................................ผู้ตรวจรับ", font: FONT_FAMILY, size: 30 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "(........................................................)", font: FONT_FAMILY, size: 30 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 280 }, children: [new TextRun({ text: "วันที่ ...... / ...... / 2569", font: FONT_FAMILY, size: 26, color: "64748B" })] }),
-        ],
-      }),
-    ],
-  });
-
-  return new Table({
-    width: { size: CONTENT_WIDTH, type: WidthType.DXA },
-    columnWidths: colWidths,
-    rows: [row],
-  });
-}
-
-async function generateDocx() {
   const doc = new Document({
     styles: {
       default: {
@@ -177,7 +75,7 @@ async function generateDocx() {
           run: {
             font: FONT_FAMILY,
             size: 32, // 16pt default body
-            color: "1E293B",
+            color: "0F172A",
           },
           paragraph: {
             spacing: { line: 290, after: 120 },
@@ -227,7 +125,7 @@ async function generateDocx() {
                 spacing: { line: 240 },
                 children: [
                   new TextRun({
-                    text: "ใบรายการอุปกรณ์และครุภัณฑ์หน้างาน (ฟอนต์ TH Sarabun PSK 16pt) | หน้า ",
+                    text: "รายการอุปกรณ์และจำนวนหน้างาน (ฟอนต์ TH Sarabun PSK 16pt) | หน้า ",
                     font: FONT_FAMILY,
                     size: 24,
                     color: "64748B",
@@ -250,7 +148,7 @@ async function generateDocx() {
             spacing: { before: 100, after: 80, line: 320 },
             children: [
               new TextRun({
-                text: "ใบรายการอุปกรณ์และจำนวนที่ต้องใช้หน้างาน",
+                text: "รายการอุปกรณ์และจำนวนที่ต้องใช้หน้างาน",
                 bold: true,
                 color: "CE1126",
                 font: FONT_FAMILY,
@@ -272,13 +170,48 @@ async function generateDocx() {
             ],
           }),
 
-          // Equipment Table (Name & Quantity only)
-          buildEquipmentTable(),
+          // Thin decorative separator
+          new Paragraph({
+            border: {
+              bottom: {
+                style: "single",
+                size: 6,
+                color: "CE1126",
+                space: 1,
+              },
+            },
+            spacing: { after: 200 },
+          }),
 
-          new Paragraph({ spacing: { before: 240, after: 120 } }),
+          // Equipment List Items (No Table)
+          ...listParagraphs,
 
-          // Signatures
-          buildSignatureTable(),
+          new Paragraph({
+            spacing: { before: 360, after: 120 },
+          }),
+
+          // Signatures (No Table)
+          new Paragraph({
+            alignment: AlignmentType.LEFT,
+            spacing: { line: 280, before: 120, after: 60 },
+            children: [
+              new TextRun({ text: "ลงชื่อ....................................................................ผู้จัดเตรียม           ลงชื่อ....................................................................ผู้ตรวจรับ", font: FONT_FAMILY, size: 30 }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.LEFT,
+            spacing: { line: 280, before: 40, after: 60 },
+            children: [
+              new TextRun({ text: "    (....................................................................)                       (....................................................................)", font: FONT_FAMILY, size: 30 }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.LEFT,
+            spacing: { line: 280, before: 40, after: 60 },
+            children: [
+              new TextRun({ text: "วันที่ ...... / ...... / 2569                                                       วันที่ ...... / ...... / 2569", font: FONT_FAMILY, size: 28, color: "64748B" }),
+            ],
+          }),
         ],
       },
     ],
@@ -287,7 +220,7 @@ async function generateDocx() {
   const outputPath = path.join(__dirname, '..', 'docs', 'CPE_SWU_OPENHOUSE_EQUIPMENT_LIST.docx');
   const buffer = await Packer.toBuffer(doc);
   fs.writeFileSync(outputPath, buffer);
-  console.log(`EQUIPMENT_LIST_DOCX_GENERATED: ${outputPath}`);
+  console.log(`EQUIPMENT_LIST_NO_TABLE_DOCX_GENERATED: ${outputPath}`);
 }
 
 generateDocx().catch((err) => {
