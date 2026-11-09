@@ -644,18 +644,12 @@ export default function MobilePhotoEditorPage({
                             onClick={() => setOpenStickerGroup('hearts')}
                             className="relative flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-[#CE1126]/50 bg-[#CE1126]/10 p-2 transition-colors hover:bg-[#CE1126]/20 active:scale-95"
                           >
-                            <span className="relative block h-[58%] w-[70%]">
-                              {hearts.stickers.slice(0, 3).map((st, i) => (
-                                <img
-                                  key={st.src}
-                                  src={st.src}
-                                  alt=""
-                                  draggable={false}
-                                  className="absolute inset-0 h-full w-full object-contain"
-                                  style={{ transform: `translate(${(i - 1) * 14}%, ${i === 1 ? -4 : 4}%) rotate(${(i - 1) * 10}deg)`, zIndex: i === 1 ? 2 : 1 }}
-                                />
-                              ))}
-                            </span>
+                            <img
+                              src={hearts.cover.src}
+                              alt=""
+                              draggable={false}
+                              className="h-[62%] w-[80%] object-contain"
+                            />
                             <span className="text-[12px] font-bold text-white">{hearts.title}</span>
                             <span className="absolute right-1.5 top-1.5 rounded-full bg-[#CE1126] px-1.5 py-0.5 text-[10px] font-bold text-white">
                               {hearts.stickers.length}

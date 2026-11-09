@@ -60,16 +60,29 @@ export interface StickerGroup {
   id: string;
   title: string;
   stickers: StickerAsset[];
+  /** Picture on the folder tile; also listed first inside the folder. */
+  cover: StickerAsset;
 }
 
 // heart_*.png, pixelheart_*.png and the original heart sheet (sheet4-*.png)
 const HEART_STICKER = /\/(heart|pixelheart)_[^/]*$|\/sheet4-[^/]*$/i;
 
+// "วิศวะรัก เภสัช" (smooth heart) is the folder cover and the first heart inside.
+const HEART_COVER = /\/sheet4-02\.png$/i;
+
+function withCoverFirst(stickers: StickerAsset[], cover: RegExp): StickerAsset[] {
+  const i = stickers.findIndex((s) => cover.test(decodeURIComponent(s.src)));
+  return i <= 0 ? stickers : [stickers[i], ...stickers.slice(0, i), ...stickers.slice(i + 1)];
+}
+
 export function groupStickers(catalog: StickerAsset[]): StickerGroup[] {
-  const hearts = catalog.filter((s) => HEART_STICKER.test(decodeURIComponent(s.src)));
+  const hearts = withCoverFirst(
+    catalog.filter((s) => HEART_STICKER.test(decodeURIComponent(s.src))),
+    HEART_COVER
+  );
   const others = catalog.filter((s) => !HEART_STICKER.test(decodeURIComponent(s.src)));
-  return [
-    { id: 'hearts', title: 'วิศวะรัก...', stickers: hearts },
-    { id: 'others', title: 'สติกเกอร์อื่น ๆ', stickers: others },
-  ].filter((g) => g.stickers.length > 0);
+  const groups: StickerGroup[] = [];
+  if (hearts.length) groups.push({ id: 'hearts', title: 'วิศวะรัก...', stickers: hearts, cover: hearts[0] });
+  if (others.length) groups.push({ id: 'others', title: 'สติกเกอร์อื่น ๆ', stickers: others, cover: others[0] });
+  return groups;
 }
