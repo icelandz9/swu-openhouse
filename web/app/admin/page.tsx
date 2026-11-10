@@ -1581,9 +1581,9 @@ function StaffAdminScreen() {
                 </div>
               </div>
 
-              {/* Minimal Tuners (Clean, Compact) */}
+              {/* Minimal Tuners (Clean, Compact 3-Column) */}
               <div className="border-t border-slate-800/40 pt-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   {/* Tuner 1: Sensitivity */}
                   <div className={`p-3.5 rounded-xl border space-y-2 ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                     <div className="flex justify-between text-xs">
@@ -1636,31 +1636,7 @@ function StaffAdminScreen() {
                     </div>
                   </div>
 
-                  {/* Tuner 3: Public Domain */}
-                  <div className={`p-3.5 rounded-xl border space-y-2 ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                    <div className="text-xs font-semibold text-slate-400">Public Domain / Tunnel</div>
-                    <div className="flex gap-1.5">
-                      <input
-                        type="text"
-                        placeholder="https://..."
-                        value={publicDomain}
-                        onChange={(e) => setPublicDomain(e.target.value)}
-                        className={`flex-1 rounded-lg border px-2 py-1 text-xs outline-none font-mono ${themeClasses.inputBg}`}
-                      />
-                      <button
-                        onClick={() => {
-                          const clean = publicDomain.trim().replace(/\/+$/, '');
-                          if (typeof window !== 'undefined') localStorage.setItem('swu_booth_host', clean);
-                          sendCommand('SET_PUBLIC_DOMAIN', 'อัปเดตโดเมนแล้ว', clean);
-                        }}
-                        className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-2.5 py-1 text-xs font-bold text-white transition-colors cursor-pointer"
-                      >
-                        บันทึก
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Tuner 4: Purge by Code */}
+                  {/* Tuner 3: Purge by Code */}
                   <div className={`p-3.5 rounded-xl border space-y-2 ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                     <div className="text-xs font-semibold text-slate-400">ลบรูปด่วน (PDPA)</div>
                     <div className="flex gap-1.5">
@@ -1775,6 +1751,38 @@ function StaffAdminScreen() {
                   <div className="text-slate-200 text-sm font-bold">{photos.length} รูปในระบบ</div>
                   <div className="text-slate-500 text-[11px]">ลบแล้ว {deletedCodes.length} รูป</div>
                 </div>
+              </div>
+            </section>
+
+            {/* Network & Public Domain Tunnel Gateway (Moved from Controls for ultra-clean UI) */}
+            <section className={`rounded-2xl border p-6 space-y-3 ${themeClasses.cardBg}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-bold text-slate-300">Public Domain / Tunnel Gateway</div>
+                  <div className="text-xs text-slate-500 mt-0.5">โดเมนสาธารณะสำหรับสร้าง QR Code ให้ผู้เข้างานเปิดด้วย 4G/5G</div>
+                </div>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  QR ENDPOINT
+                </span>
+              </div>
+              <div className="flex gap-2 max-w-xl">
+                <input
+                  type="text"
+                  placeholder="https://..."
+                  value={publicDomain}
+                  onChange={(e) => setPublicDomain(e.target.value)}
+                  className={`flex-1 rounded-xl border px-3 py-2 text-xs outline-none font-mono ${themeClasses.inputBg}`}
+                />
+                <button
+                  onClick={() => {
+                    const clean = publicDomain.trim().replace(/\/+$/, '');
+                    if (typeof window !== 'undefined') localStorage.setItem('swu_booth_host', clean);
+                    sendCommand('SET_PUBLIC_DOMAIN', 'อัปเดตโดเมนแล้ว', clean);
+                  }}
+                  className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white transition-colors cursor-pointer"
+                >
+                  บันทึก
+                </button>
               </div>
             </section>
           </div>
