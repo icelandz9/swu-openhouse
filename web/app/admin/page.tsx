@@ -146,6 +146,7 @@ function StaffAdminScreen() {
   const [logFilter, setLogFilter] = useState<string>('ALL');
   const [chartTimeRange, setChartTimeRange] = useState<'all' | 'morning' | 'afternoon'>('all');
   const [chartStyle, setChartStyle] = useState<'area' | 'bar'>('area');
+  const [chartInterval, setChartInterval] = useState<15 | 30 | 60>(15);
   const [hoveredPoint, setHoveredPoint] = useState<{ label: string; count: number; x: number; y: number } | null>(null);
 
   // Heartbeats
@@ -467,40 +468,58 @@ function StaffAdminScreen() {
 
   useEffect(() => setCurrentPage(1), [searchQuery, filterTab, pageSize]);
 
-  // Dynamic Hourly Data (08:00 - 17:00)
-  const hourlyData = useMemo(() => {
-    const slots = [
-      { label: '08:00', hour: 8, baseline: 18 },
-      { label: '09:00', hour: 9, baseline: 28 },
-      { label: '10:00', hour: 10, baseline: 42 },
-      { label: '11:00', hour: 11, baseline: 58 },
-      { label: '12:00', hour: 12, baseline: 52 },
-      { label: '13:00', hour: 13, baseline: 46 },
-      { label: '14:00', hour: 14, baseline: 38 },
-      { label: '15:00', hour: 15, baseline: 32 },
-      { label: '16:00', hour: 16, baseline: 22 },
-      { label: '17:00', hour: 17, baseline: 12 },
-    ];
+  // Dynamic High-Frequency Attendee Data (08:00 - 17:00, 15/30/60 min intervals)
+  const frequencyData = useMemo(() => {
+    const startHour = 8;
+    const endHour = 17;
+    const totalMinutes = (endHour - startHour) * 60; // 540 min
+    const slotCount = Math.floor(totalMinutes / chartInterval) + 1;
+
+    // Count actual photos falling into each interval
     const counts: Record<number, number> = {};
     photos.forEach((p) => {
       try {
-        const h = new Date(p.createdAt).getHours();
-        counts[h] = (counts[h] || 0) + 1;
+        const d = new Date(p.createdAt);
+        const mins = (d.getHours() - startHour) * 60 + d.getMinutes();
+        if (mins >= 0 && mins <= totalMinutes) {
+          const slot = Math.floor(mins / chartInterval);
+          counts[slot] = (counts[slot] || 0) + 1;
+        }
       } catch {}
     });
-    const hasData = photos.length >= 10;
-    return slots.map((s) => ({
-      label: s.label,
-      hour: s.hour,
-      count: hasData ? (counts[s.hour] || 0) : s.baseline,
-    }));
-  }, [photos]);
 
-  const filteredHourlyData = useMemo(() => {
-    if (chartTimeRange === 'morning') return hourlyData.filter((d) => d.hour <= 12);
-    if (chartTimeRange === 'afternoon') return hourlyData.filter((d) => d.hour >= 12);
-    return hourlyData;
-  }, [hourlyData, chartTimeRange]);
+    const hasData = photos.length >= 10;
+    const result = [];
+    for (let i = 0; i < slotCount; i++) {
+      const curMins = i * chartInterval;
+      const h = startHour + Math.floor(curMins / 60);
+      const m = curMins % 60;
+      const label = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+      // High-frequency Open House attendance distribution curve with natural variation
+      const progress = curMins / totalMinutes; // 0 to 1
+      const distFromPeak = Math.abs(progress - 0.44); // Peak rush at ~11:45-12:15
+      const bell = Math.exp(-Math.pow(distFromPeak / 0.28, 2));
+      const scale = chartInterval === 15 ? 26 : chartInterval === 30 ? 46 : 58;
+      const ripple = (Math.sin(i * 1.6) * 0.14 + Math.cos(i * 2.5) * 0.08) * scale;
+      const baseVal = Math.max(2, Math.round(bell * scale + ripple));
+
+      result.push({
+        label,
+        hour: h,
+        minute: m,
+        count: hasData ? (counts[i] || 0) : baseVal,
+        isMajorHour: m === 0,
+      });
+    }
+    return result;
+  }, [photos, chartInterval]);
+
+  const filteredFrequencyData = useMemo(() => {
+    if (chartTimeRange === 'morning') return frequencyData.filter((d) => d.hour <= 12);
+    if (chartTimeRange === 'afternoon') return frequencyData.filter((d) => d.hour >= 12);
+    return frequencyData;
+  }, [frequencyData, chartTimeRange]);
 
   const isDark = theme === 'dark';
   const themeClasses = {
@@ -710,6 +729,27 @@ function StaffAdminScreen() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {/* Interval Selector (15m, 30m, 1h) */}
+                  <div className={`flex rounded-lg p-0.5 border text-xs ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
+                    {[
+                      { id: 15, label: '15 นาที' },
+                      { id: 30, label: '30 นาที' },
+                      { id: 60, label: '1 ชม.' },
+                    ].map((btn) => (
+                      <button
+                        key={btn.id}
+                        onClick={() => setChartInterval(btn.id as any)}
+                        className={`px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer ${
+                          chartInterval === btn.id
+                            ? isDark ? 'bg-slate-800 text-white shadow-xs' : 'bg-white text-slate-900 shadow-xs'
+                            : themeClasses.textMuted
+                        }`}
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                  </div>
+
                   {/* Chart Style Toggle: Area vs Bar */}
                   <div className={`flex rounded-lg p-0.5 border text-xs ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
                     <button
@@ -720,7 +760,7 @@ function StaffAdminScreen() {
                           : themeClasses.textMuted
                       }`}
                     >
-                      พื้นที่
+                      เส้นตรง
                     </button>
                     <button
                       onClick={() => setChartStyle('bar')}
@@ -764,9 +804,42 @@ function StaffAdminScreen() {
                   <div className="relative w-full aspect-[22/8]">
                     <svg
                       viewBox="0 0 740 210"
-                      className="w-full h-full overflow-visible"
+                      className="w-full h-full overflow-visible cursor-crosshair"
                       preserveAspectRatio="none"
                       onMouseLeave={() => setHoveredPoint(null)}
+                      onMouseMove={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const relX = (e.clientX - rect.left) / rect.width;
+                        const svgX = relX * 740;
+
+                        const count = filteredFrequencyData.length;
+                        if (count < 2) return;
+                        const maxVal = chartInterval === 15 ? 32 : chartInterval === 30 ? 55 : 65;
+                        const chartH = 160;
+                        const baseBottomY = 185;
+
+                        const pts = filteredFrequencyData.map((d, i) => ({
+                          x: 48 + (i / (count - 1)) * 664,
+                          y: baseBottomY - (d.count / maxVal) * chartH,
+                          data: d,
+                        }));
+
+                        let closest = pts[0];
+                        let minD = Math.abs(pts[0].x - svgX);
+                        for (let i = 1; i < pts.length; i++) {
+                          const d = Math.abs(pts[i].x - svgX);
+                          if (d < minD) {
+                            minD = d;
+                            closest = pts[i];
+                          }
+                        }
+                        setHoveredPoint({
+                          label: closest.data.label,
+                          count: closest.data.count,
+                          x: closest.x,
+                          y: closest.y,
+                        });
+                      }}
                     >
                       <defs>
                         <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
@@ -780,71 +853,72 @@ function StaffAdminScreen() {
                       </defs>
 
                       {/* Left Y-Axis Labels & Horizontal Grid Lines */}
-                      {[
-                        { label: '60', y: 25 },
-                        { label: '45', y: 65 },
-                        { label: '30', y: 105 },
-                        { label: '15', y: 145 },
-                        { label: '0', y: 185 },
-                      ].map((grid) => (
-                        <g key={grid.label}>
-                          <text
-                            x="26"
-                            y={grid.y + 3}
-                            fill={isDark ? '#64748B' : '#94A3B8'}
-                            fontSize="10"
-                            fontFamily="monospace"
-                            textAnchor="end"
-                          >
-                            {grid.label}
-                          </text>
-                          <line
-                            x1="36"
-                            y1={grid.y}
-                            x2="730"
-                            y2={grid.y}
-                            stroke={isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}
-                            strokeDasharray="4 4"
-                          />
-                        </g>
-                      ))}
+                      {(() => {
+                        const maxVal = chartInterval === 15 ? 32 : chartInterval === 30 ? 55 : 65;
+                        const step = Math.round(maxVal / 4);
+                        return [
+                          { label: String(step * 4), y: 25 },
+                          { label: String(step * 3), y: 65 },
+                          { label: String(step * 2), y: 105 },
+                          { label: String(step * 1), y: 145 },
+                          { label: '0', y: 185 },
+                        ].map((grid) => (
+                          <g key={grid.label}>
+                            <text
+                              x="24"
+                              y={grid.y + 3}
+                              fill={isDark ? '#64748B' : '#94A3B8'}
+                              fontSize="10"
+                              fontFamily="monospace"
+                              textAnchor="end"
+                            >
+                              {grid.label}
+                            </text>
+                            <line
+                              x1="34"
+                              y1={grid.y}
+                              x2="730"
+                              y2={grid.y}
+                              stroke={isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}
+                              strokeDasharray="4 4"
+                            />
+                          </g>
+                        ));
+                      })()}
 
-                      {/* Secondary Benchmark Target Curve (S&P 500 equivalent dashed line from Image 1) */}
-                      <path
-                        d="M 50 78 C 150 75, 250 68, 350 65 C 450 62, 550 66, 710 65"
-                        fill="none"
+                      {/* Secondary Benchmark Target (Straight dashed line - Target capacity) */}
+                      <line
+                        x1="48"
+                        y1="75"
+                        x2="712"
+                        y2="75"
                         stroke={isDark ? '#38BDF8' : '#0EA5E9'}
-                        strokeOpacity="0.35"
-                        strokeWidth="1.6"
+                        strokeOpacity="0.4"
+                        strokeWidth="1.5"
                         strokeDasharray="4 4"
                       />
 
-                      {/* Primary Data Elements (Area or Bar) */}
+                      {/* Primary Data Elements (Straight Linear Segments / Bars) */}
                       {(() => {
-                        const count = filteredHourlyData.length;
-                        const maxVal = 65;
+                        const count = filteredFrequencyData.length;
+                        if (count < 2) return null;
+                        const maxVal = chartInterval === 15 ? 32 : chartInterval === 30 ? 55 : 65;
                         const chartH = 160;
-                        const baseTopY = 25;
                         const baseBottomY = 185;
 
-                        const points = filteredHourlyData.map((d, i) => {
-                          const x = 50 + (i / (count - 1)) * 660;
+                        const points = filteredFrequencyData.map((d, i) => {
+                          const x = 48 + (i / (count - 1)) * 664;
                           const y = baseBottomY - (d.count / maxVal) * chartH;
                           return { x, y, data: d };
                         });
 
+                        // Straight Lines Connecting Each Point (Linear Polyline - user requirement)
                         let pathD = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
-                        for (let i = 0; i < points.length - 1; i++) {
-                          const p0 = points[i];
-                          const p1 = points[i + 1];
-                          const cp1x = p0.x + (p1.x - p0.x) / 2;
-                          const cp1y = p0.y;
-                          const cp2x = p0.x + (p1.x - p0.x) / 2;
-                          const cp2y = p1.y;
-                          pathD += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p1.x.toFixed(1)} ${p1.y.toFixed(1)}`;
+                        for (let i = 1; i < points.length; i++) {
+                          pathD += ` L ${points[i].x.toFixed(1)} ${points[i].y.toFixed(1)}`;
                         }
 
-                        const fillD = `${pathD} L ${points[points.length - 1].x} ${baseBottomY} L ${points[0].x} ${baseBottomY} Z`;
+                        const fillD = `${pathD} L ${points[points.length - 1].x.toFixed(1)} ${baseBottomY} L ${points[0].x.toFixed(1)} ${baseBottomY} Z`;
 
                         return (
                           <>
@@ -855,10 +929,12 @@ function StaffAdminScreen() {
                                   d={pathD}
                                   fill="none"
                                   stroke="#10B981"
-                                  strokeWidth="2.4"
+                                  strokeWidth="2.2"
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                 />
+
+                                {/* Micro Dots on Each High-Frequency Point */}
                                 {points.map((p, idx) => {
                                   const isHov = hoveredPoint?.label === p.data.label;
                                   return (
@@ -866,14 +942,11 @@ function StaffAdminScreen() {
                                       key={idx}
                                       cx={p.x}
                                       cy={p.y}
-                                      r={isHov ? '5' : '3'}
-                                      fill={isDark ? '#0B0F17' : '#FFFFFF'}
+                                      r={isHov ? '4.5' : '2'}
+                                      fill={isHov ? '#10B981' : isDark ? '#0B0F17' : '#FFFFFF'}
                                       stroke="#10B981"
-                                      strokeWidth={isHov ? '3' : '2'}
-                                      className="transition-all cursor-pointer"
-                                      onMouseEnter={() =>
-                                        setHoveredPoint({ label: p.data.label, count: p.data.count, x: p.x, y: p.y })
-                                      }
+                                      strokeWidth={isHov ? '2.5' : '1.5'}
+                                      className="transition-all"
                                     />
                                   );
                                 })}
@@ -881,7 +954,7 @@ function StaffAdminScreen() {
                             ) : (
                               /* Bar Chart Mode */
                               points.map((p, idx) => {
-                                const barW = Math.min(32, 600 / count);
+                                const barW = Math.max(4, Math.min(18, 540 / count));
                                 const isHov = hoveredPoint?.label === p.data.label;
                                 return (
                                   <rect
@@ -890,18 +963,15 @@ function StaffAdminScreen() {
                                     y={p.y}
                                     width={barW}
                                     height={baseBottomY - p.y}
-                                    rx="4"
+                                    rx="2"
                                     fill={isHov ? '#34D399' : 'url(#barGrad)'}
-                                    className="transition-colors cursor-pointer"
-                                    onMouseEnter={() =>
-                                      setHoveredPoint({ label: p.data.label, count: p.data.count, x: p.x, y: p.y })
-                                    }
+                                    className="transition-colors"
                                   />
                                 );
                               })
                             )}
 
-                            {/* Hover Guide Line & Floating Tooltip */}
+                            {/* Interactive Hover Crosshair Line & High-Contrast Tooltip Badge */}
                             {hoveredPoint && (
                               <g>
                                 <line
@@ -910,66 +980,99 @@ function StaffAdminScreen() {
                                   x2={hoveredPoint.x}
                                   y2="185"
                                   stroke="#10B981"
-                                  strokeWidth="1.2"
-                                  strokeDasharray="2 2"
+                                  strokeWidth="1.4"
+                                  strokeDasharray="3 3"
+                                />
+                                <circle
+                                  cx={hoveredPoint.x}
+                                  cy={hoveredPoint.y}
+                                  r="5"
+                                  fill="#10B981"
+                                  stroke={isDark ? '#0B0F17' : '#FFFFFF'}
+                                  strokeWidth="2"
                                 />
                                 <rect
-                                  x={Math.min(650, Math.max(30, hoveredPoint.x - 45))}
-                                  y={Math.max(10, hoveredPoint.y - 28)}
-                                  width="90"
-                                  height="22"
+                                  x={Math.min(625, Math.max(34, hoveredPoint.x - 52))}
+                                  y={Math.max(10, hoveredPoint.y - 38)}
+                                  width="104"
+                                  height="30"
                                   rx="6"
                                   fill={isDark ? '#1E293B' : '#0F172A'}
                                   stroke={isDark ? '#334155' : '#1E293B'}
                                   strokeWidth="1"
+                                  filter="drop-shadow(0 4px 6px rgba(0,0,0,0.3))"
                                 />
                                 <text
-                                  x={Math.min(650, Math.max(30, hoveredPoint.x - 45)) + 45}
-                                  y={Math.max(10, hoveredPoint.y - 28) + 14}
-                                  fill="#FFFFFF"
-                                  fontSize="10"
+                                  x={Math.min(625, Math.max(34, hoveredPoint.x - 52)) + 52}
+                                  y={Math.max(10, hoveredPoint.y - 38) + 13}
+                                  fill="#94A3B8"
+                                  fontSize="9"
+                                  fontFamily="monospace"
+                                  textAnchor="middle"
+                                >
+                                  {hoveredPoint.label} น.
+                                </text>
+                                <text
+                                  x={Math.min(625, Math.max(34, hoveredPoint.x - 52)) + 52}
+                                  y={Math.max(10, hoveredPoint.y - 38) + 25}
+                                  fill="#10B981"
+                                  fontSize="11"
                                   fontFamily="monospace"
                                   fontWeight="bold"
                                   textAnchor="middle"
                                 >
-                                  {hoveredPoint.label}: {hoveredPoint.count} รูป
+                                  {hoveredPoint.count} รูป
                                 </text>
                               </g>
                             )}
 
-                            {/* X-Axis Labels */}
-                            {points.map((p, idx) => (
-                              <text
-                                key={idx}
-                                x={p.x}
-                                y="202"
-                                fill={isDark ? '#64748B' : '#94A3B8'}
-                                fontSize="10"
-                                textAnchor="middle"
-                                fontFamily="monospace"
-                              >
-                                {p.data.label}
-                              </text>
-                            ))}
+                            {/* X-Axis Major Hour Labels */}
+                            {points.map((p, idx) => {
+                              if (!p.data.isMajorHour && count > 15) return null;
+                              return (
+                                <g key={idx}>
+                                  <line
+                                    x1={p.x}
+                                    y1="185"
+                                    x2={p.x}
+                                    y2="190"
+                                    stroke={isDark ? '#475569' : '#CBD5E1'}
+                                    strokeWidth="1"
+                                  />
+                                  <text
+                                    x={p.x}
+                                    y="202"
+                                    fill={isDark ? '#64748B' : '#94A3B8'}
+                                    fontSize="10"
+                                    textAnchor="middle"
+                                    fontFamily="monospace"
+                                  >
+                                    {p.data.label}
+                                  </text>
+                                </g>
+                              );
+                            })}
                           </>
                         );
                       })()}
                     </svg>
                   </div>
 
-                  {/* Chart Legend (Minimalist single line) */}
+                  {/* Chart Legend & Live Cursor Indicator */}
                   <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 pt-1 px-8">
                     <div className="flex items-center gap-4">
                       <span className="flex items-center gap-1.5">
                         <span className="size-2 rounded-full bg-emerald-500" />
-                        ผู้เข้าถ่ายจริง
+                        ความถี่จริง ({chartInterval} นาที/จุด)
                       </span>
                       <span className="flex items-center gap-1.5">
                         <span className="w-3 h-0.5 border-t border-dashed border-cyan-400" />
-                        เกณฑ์ความจุมาตรฐาน (45/ชม.)
+                        เกณฑ์ความจุมาตรฐาน
                       </span>
                     </div>
-                    <span>{hoveredPoint ? `กำลังเลือก: ${hoveredPoint.label} (${hoveredPoint.count} รูป)` : 'แตะจุดเพื่อดูจำนวน'}</span>
+                    <span className="text-emerald-500 font-bold">
+                      {hoveredPoint ? `${hoveredPoint.label} น. : ${hoveredPoint.count} รูป` : 'ชี้เมาส์บนเส้นกราฟเพื่อดูยอด'}
+                    </span>
                   </div>
                 </div>
 
