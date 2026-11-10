@@ -83,6 +83,14 @@ export default function KioskCapturePage() {
   const animFrameRef = useRef<number | null>(null);
   const lastVideoTimeRef = useRef<number>(-1);
 
+  // Real-time FPS & AI latency tracking (zero overhead, in-memory refs)
+  const fpsCounterRef = useRef<{ frames: number; lastTime: number; currentFps: number }>({
+    frames: 0,
+    lastTime: typeof performance !== 'undefined' ? performance.now() : 0,
+    currentFps: 60,
+  });
+  const lastAiLatencyRef = useRef<number>(11);
+
   // Sound synthesizer (reusable singleton context to prevent Chrome audio context limits)
   const audioCtxRef = useRef<AudioContext | null>(null);
   const playBeep = useCallback((frequency: number) => {
@@ -174,14 +182,20 @@ export default function KioskCapturePage() {
           }
         }
       } else if (data.type === 'HEARTBEAT_PING') {
+        const video = videoRef.current;
+        const resText = video && video.videoWidth > 0 ? `${video.videoWidth}x${video.videoHeight}` : '1080p';
         channelRef.current?.postMessage({
           type: 'HEARTBEAT_PONG',
           sender: 'KIOSK',
           timestamp: Date.now(),
+          pingTimestamp: data.timestamp,
           status: {
             state: state,
             isPaused,
             cameraActive,
+            fps: fpsCounterRef.current.currentFps || 60,
+            resolution: resText,
+            aiLatencyMs: lastAiLatencyRef.current || 11,
             threshold: handAreaThreshold,
           },
         });
@@ -505,11 +519,24 @@ export default function KioskCapturePage() {
       const video = videoRef.current;
       const landmarker = landmarkerRef.current;
 
+      const nowPerf = performance.now();
+      fpsCounterRef.current.frames++;
+      if (nowPerf - fpsCounterRef.current.lastTime >= 1000) {
+        fpsCounterRef.current.currentFps = Math.max(
+          1,
+          Math.round((fpsCounterRef.current.frames * 1000) / (nowPerf - fpsCounterRef.current.lastTime))
+        );
+        fpsCounterRef.current.frames = 0;
+        fpsCounterRef.current.lastTime = nowPerf;
+      }
+
       if (video && video.readyState >= 2 && landmarker && !isPaused) {
         if (video.currentTime !== lastVideoTimeRef.current) {
           lastVideoTimeRef.current = video.currentTime;
           try {
-            const results = landmarker.detectForVideo(video, performance.now());
+            const tStart = performance.now();
+            const results = landmarker.detectForVideo(video, tStart);
+            lastAiLatencyRef.current = Math.max(1, Math.round(performance.now() - tStart));
             if (results && results.landmarks && results.landmarks.length > 0) {
               const primaryHand = results.landmarks[0];
               const worldHand = results.worldLandmarks?.[0];

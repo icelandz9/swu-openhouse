@@ -68,7 +68,8 @@ export type ScreenSyncEvent =
   | {
       type: "HEARTBEAT_PONG";
       sender: "KIOSK" | "DISPLAY";
-      timestamp: number;
+      timestamp: number;
+      pingTimestamp?: number;
       status?: Record<string, any>;
     }
   | {

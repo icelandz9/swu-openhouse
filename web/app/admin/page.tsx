@@ -149,12 +149,48 @@ function StaffAdminScreen() {
   const [chartInterval, setChartInterval] = useState<15 | 30 | 60>(15);
   const [hoveredPoint, setHoveredPoint] = useState<{ label: string; count: number; x: number; y: number } | null>(null);
 
-  // Heartbeats
-  const [kioskOnline, setKioskOnline] = useState<boolean>(true);
-  const [displayOnline, setDisplayOnline] = useState<boolean>(true);
-  const lastKioskPongRef = useRef<number>(Date.now());
-  const lastDisplayPongRef = useRef<number>(Date.now());
+  // Heartbeats & Real-time Telemetry (Zero-overhead IPC)
+  const [kioskOnline, setKioskOnline] = useState<boolean>(false);
+  const [displayOnline, setDisplayOnline] = useState<boolean>(false);
+  const lastKioskPongRef = useRef<number>(0);
+  const lastDisplayPongRef = useRef<number>(0);
   const channelRef = useRef<BroadcastChannel | null>(null);
+
+  const [kioskTelemetry, setKioskTelemetry] = useState<{
+    online: boolean;
+    fps: number;
+    resolution: string;
+    aiLatencyMs: number;
+    state: string;
+    cameraActive: boolean;
+    lastSeen: number | null;
+  }>({
+    online: false,
+    fps: 0,
+    resolution: '',
+    aiLatencyMs: 0,
+    state: 'STANDBY',
+    cameraActive: false,
+    lastSeen: null,
+  });
+
+  const [displayTelemetry, setDisplayTelemetry] = useState<{
+    online: boolean;
+    latencyMs: number;
+    activeCode: string | null;
+    queueLength: number;
+    totalPhotos: number;
+    isMuted: boolean;
+    lastSeen: number | null;
+  }>({
+    online: false,
+    latencyMs: 0,
+    activeCode: null,
+    queueLength: 0,
+    totalPhotos: 0,
+    isMuted: false,
+    lastSeen: null,
+  });
 
   // Audit log helper
   const addAuditLog = useCallback(
@@ -237,9 +273,9 @@ function StaffAdminScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // Heartbeat watchdog
+  // Heartbeat watchdog (Zero-overhead IPC, pings every 3s, timeout 8s)
   useEffect(() => {
-    const pingTimer = setInterval(() => {
+    const sendPing = () => {
       channelRef.current?.postMessage({
         type: 'HEARTBEAT_PING',
         sender: 'ADMIN',
@@ -247,10 +283,18 @@ function StaffAdminScreen() {
       } as ScreenSyncEvent);
 
       const now = Date.now();
-      if (now - lastKioskPongRef.current > 24000) setKioskOnline(false);
-      if (now - lastDisplayPongRef.current > 24000) setDisplayOnline(false);
-    }, 12000);
+      if (lastKioskPongRef.current > 0 && now - lastKioskPongRef.current > 8000) {
+        setKioskOnline(false);
+        setKioskTelemetry((prev) => (prev.online ? { ...prev, online: false } : prev));
+      }
+      if (lastDisplayPongRef.current > 0 && now - lastDisplayPongRef.current > 8000) {
+        setDisplayOnline(false);
+        setDisplayTelemetry((prev) => (prev.online ? { ...prev, online: false } : prev));
+      }
+    };
 
+    sendPing();
+    const pingTimer = setInterval(sendPing, 3000);
     return () => clearInterval(pingTimer);
   }, []);
 
@@ -309,12 +353,34 @@ function StaffAdminScreen() {
         addAuditLog('PDPA', `ลบรูป #${data.code.replace('OPH-', '')}`);
       } else if (data.type === 'HEARTBEAT_PONG') {
         const now = Date.now();
+        const latency = data.pingTimestamp ? Math.max(1, now - data.pingTimestamp) : 1;
+
         if (data.sender === 'KIOSK') {
           lastKioskPongRef.current = now;
           setKioskOnline(true);
+          const st = data.status || {};
+          setKioskTelemetry({
+            online: true,
+            fps: typeof st.fps === 'number' ? st.fps : 60,
+            resolution: st.resolution || '1080p',
+            aiLatencyMs: typeof st.aiLatencyMs === 'number' ? st.aiLatencyMs : 11,
+            state: st.state || 'STANDBY',
+            cameraActive: st.cameraActive !== undefined ? st.cameraActive : true,
+            lastSeen: now,
+          });
         } else if (data.sender === 'DISPLAY') {
           lastDisplayPongRef.current = now;
           setDisplayOnline(true);
+          const st = data.status || {};
+          setDisplayTelemetry({
+            online: true,
+            latencyMs: latency,
+            activeCode: st.activeCode || null,
+            queueLength: typeof st.queueLength === 'number' ? st.queueLength : 0,
+            totalPhotos: typeof st.totalPhotos === 'number' ? st.totalPhotos : photos.length,
+            isMuted: !!st.isMuted,
+            lastSeen: now,
+          });
         }
       } else if (data.type === 'MUTE_DISPLAY' || (data.type === 'KIOSK_COMMAND' && data.command === 'MUTE_DISPLAY')) {
         setIsDisplayMuted(true);
@@ -634,13 +700,13 @@ function StaffAdminScreen() {
         >
           <div className="flex flex-wrap items-center gap-3">
             <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-emerald-500" />
-              กล้อง 60 FPS
+              <span className={`size-2 rounded-full ${kioskTelemetry.online ? 'bg-emerald-500' : 'bg-red-500'}`} />
+              {kioskTelemetry.online ? `กล้อง ${kioskTelemetry.fps} FPS` : 'กล้องออฟไลน์'}
             </span>
             <span className="text-slate-600">•</span>
             <span className="flex items-center gap-1.5">
-              <span className={`size-2 rounded-full ${displayOnline ? 'bg-emerald-500' : 'bg-red-500'}`} />
-              ซิงค์ &lt; 1ms
+              <span className={`size-2 rounded-full ${displayTelemetry.online ? 'bg-emerald-500' : 'bg-red-500'}`} />
+              {displayTelemetry.online ? `ซิงค์ ${displayTelemetry.latencyMs}ms` : 'จอ 2 ออฟไลน์'}
             </span>
             <span className="text-slate-600">•</span>
             <span className="flex items-center gap-1.5">
@@ -1193,15 +1259,26 @@ function StaffAdminScreen() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs font-bold ${themeClasses.textTitle}`}>Screen 1 · Kiosk</span>
-                      <span className="rounded bg-emerald-500/15 text-emerald-500 text-[10px] px-1.5 py-0.2 font-mono font-bold">
-                        {kioskState.toUpperCase()}
+                      <span
+                        className={`rounded text-[10px] px-1.5 py-0.2 font-mono font-bold ${
+                          kioskTelemetry.online
+                            ? 'bg-emerald-500/15 text-emerald-500'
+                            : 'bg-rose-500/15 text-rose-500'
+                        }`}
+                      >
+                        {kioskTelemetry.online ? kioskTelemetry.state.toUpperCase() : 'OFFLINE'}
                       </span>
                     </div>
-                    <div className="text-[11px] font-mono text-slate-400 mt-0.5">1080p 60fps · แบมือ 5 นิ้ว</div>
+                    <div className="text-[11px] font-mono text-slate-400 mt-0.5">
+                      {kioskTelemetry.online
+                        ? `${kioskTelemetry.resolution} ${kioskTelemetry.fps}fps · ${kioskTelemetry.cameraActive ? 'กล้องพร้อม' : 'กล้องพัก'}`
+                        : 'ไม่พบสัญญาณจอ Kiosk (/kiosk)'}
+                    </div>
                   </div>
                   <button
                     onClick={() => sendCommand('STAFF_TRIGGER', 'สั่งถ่ายภาพแล้ว')}
-                    className="h-8 px-3 rounded-lg bg-[#CE1126] hover:bg-[#E1132B] text-xs font-bold text-white transition-colors cursor-pointer"
+                    disabled={!kioskTelemetry.online}
+                    className="h-8 px-3 rounded-lg bg-[#CE1126] hover:bg-[#E1132B] disabled:opacity-40 text-xs font-bold text-white transition-colors cursor-pointer"
                   >
                     ถ่ายภาพ
                   </button>
@@ -1212,15 +1289,28 @@ function StaffAdminScreen() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs font-bold ${themeClasses.textTitle}`}>Screen 2 · Showcase</span>
-                      <span className={`rounded text-[10px] px-1.5 py-0.2 font-mono font-bold ${isDisplayMuted ? 'bg-red-500/15 text-red-500' : 'bg-emerald-500/15 text-emerald-500'}`}>
-                        {isDisplayMuted ? 'MUTED' : 'ACTIVE'}
+                      <span
+                        className={`rounded text-[10px] px-1.5 py-0.2 font-mono font-bold ${
+                          !displayTelemetry.online
+                            ? 'bg-rose-500/15 text-rose-500'
+                            : isDisplayMuted
+                            ? 'bg-amber-500/15 text-amber-500'
+                            : 'bg-emerald-500/15 text-emerald-500'
+                        }`}
+                      >
+                        {!displayTelemetry.online ? 'OFFLINE' : isDisplayMuted ? 'MUTED' : 'ACTIVE'}
                       </span>
                     </div>
-                    <div className="text-[11px] font-mono text-slate-400 mt-0.5">{photos.length} รูปในคิว · สปอตไลต์ 30s</div>
+                    <div className="text-[11px] font-mono text-slate-400 mt-0.5">
+                      {displayTelemetry.online
+                        ? `${displayTelemetry.queueLength} รูปในคิว · ${displayTelemetry.activeCode ? `ฉาย #${displayTelemetry.activeCode}` : 'สแตนด์บาย'}`
+                        : 'ไม่พบสัญญาณจอ Showcase (/display)'}
+                    </div>
                   </div>
                   <button
                     onClick={toggleDisplayMute}
-                    className={`h-8 px-3 rounded-lg text-xs font-bold text-white transition-colors cursor-pointer ${
+                    disabled={!displayTelemetry.online}
+                    className={`h-8 px-3 rounded-lg text-xs font-bold text-white transition-colors cursor-pointer disabled:opacity-40 ${
                       isDisplayMuted ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-slate-700 hover:bg-slate-600'
                     }`}
                   >
@@ -1620,24 +1710,50 @@ function StaffAdminScreen() {
             <section className={`rounded-2xl border p-6 space-y-4 ${themeClasses.cardBg}`}>
               <div className="text-sm font-bold text-slate-300">การวินิจฉัยอุปกรณ์ (Diagnostics)</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 font-mono text-xs">
-                {/* 1 */}
+                {/* 1: Screen 1 (Kiosk) */}
                 <div className={`p-3.5 rounded-xl border space-y-2 ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                   <div className="flex justify-between items-center text-slate-400">
-                    <span>Screen 1 (Kiosk)</span>
-                    <span className="text-emerald-500 font-bold">{kioskOnline ? 'ONLINE' : 'LOST'}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className={`size-1.5 rounded-full ${kioskTelemetry.online ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                      Screen 1 (Kiosk)
+                    </span>
+                    <span className={`font-bold text-[11px] ${kioskTelemetry.online ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      {kioskTelemetry.online ? 'ONLINE' : 'LOST'}
+                    </span>
                   </div>
-                  <div className="text-slate-200 text-sm font-bold">1080p @ 60 FPS</div>
-                  <div className="text-slate-500 text-[11px]">MediaPipe WebGL (11ms)</div>
+                  <div className="text-slate-200 text-sm font-bold">
+                    {kioskTelemetry.online ? `${kioskTelemetry.resolution} @ ${kioskTelemetry.fps} FPS` : 'ออฟไลน์ (ไม่พบจอ 1)'}
+                  </div>
+                  <div className="text-slate-500 text-[11px]">
+                    {kioskTelemetry.online
+                      ? `MediaPipe WebGL (${kioskTelemetry.aiLatencyMs}ms)`
+                      : 'เปิดหน้า /kiosk เพื่อเริ่มส่งสัญญาณ'}
+                  </div>
                 </div>
 
-                {/* 2 */}
+                {/* 2: Screen 2 (Showcase) */}
                 <div className={`p-3.5 rounded-xl border space-y-2 ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                   <div className="flex justify-between items-center text-slate-400">
-                    <span>Screen 2 (Showcase)</span>
-                    <span className="text-emerald-500 font-bold">{displayOnline ? 'SYNCED' : 'LOST'}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className={`size-1.5 rounded-full ${displayTelemetry.online ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                      Screen 2 (Showcase)
+                    </span>
+                    <span className={`font-bold text-[11px] ${displayTelemetry.online ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      {displayTelemetry.online ? 'SYNCED' : 'LOST'}
+                    </span>
                   </div>
-                  <div className="text-slate-200 text-sm font-bold">&lt; 1 ms Latency</div>
-                  <div className="text-slate-500 text-[11px]">{isDisplayMuted ? 'Muted' : 'Spotlight 30s'}</div>
+                  <div className="text-slate-200 text-sm font-bold">
+                    {displayTelemetry.online ? `${displayTelemetry.latencyMs} ms Latency` : 'ออฟไลน์ (ไม่พบจอ 2)'}
+                  </div>
+                  <div className="text-slate-500 text-[11px]">
+                    {displayTelemetry.online
+                      ? (displayTelemetry.isMuted
+                          ? 'Muted (จอดำฉุกเฉิน)'
+                          : displayTelemetry.activeCode
+                            ? `สปอตไลต์รูป #${displayTelemetry.activeCode}`
+                            : 'สแตนด์บายฉายสไลด์')
+                      : 'เปิดหน้า /display เพื่อเชื่อมต่อ'}
+                  </div>
                 </div>
 
                 {/* 3 */}

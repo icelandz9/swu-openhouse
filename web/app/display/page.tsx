@@ -226,9 +226,11 @@ export default function ShowcaseDisplayScreen() {
           type: 'HEARTBEAT_PONG',
           sender: 'DISPLAY',
           timestamp: Date.now(),
+          pingTimestamp: data.timestamp,
           status: {
             activeCode: activePhoto?.code || null,
             totalPhotos: photos.length,
+            queueLength: activePhoto ? 1 : 0,
             isMuted,
           },
         });
