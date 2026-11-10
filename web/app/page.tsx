@@ -1,77 +1,128 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Camera,
   Monitor,
   Sliders,
   Smartphone,
-  ArrowRight,
-  ShieldCheck,
-  Sparkles,
+  ArrowUpRight,
+  Sun,
+  Moon,
+  Activity,
+  CheckCircle2,
 } from 'lucide-react';
 import { CpeLogo } from '@/components/CpeLogo';
+import { SCREEN_SYNC_CHANNEL, ScreenSyncEvent } from '@/lib/contracts';
 
-interface ModuleCardProps {
+interface LaunchModule {
   id: string;
   hotkey: string;
   route: string;
   badge: string;
+  badgeColor: string;
   title: string;
+  desc: string;
+  tag: string;
   icon: React.ReactNode;
-  accentColor: 'red' | 'cyan' | 'blue' | 'amber';
-  specs: string[];
   ctaText: string;
-  onLaunch: () => void;
 }
 
-const ACCENT_STYLES = {
-  red: {
-    badgeBg: 'bg-red-500/10 text-red-400 border-red-500/30',
-    iconBg: 'bg-red-500/10 text-red-500 border-red-500/20',
-    hoverBorder: 'hover:border-red-500/50',
-    glow: 'group-hover:shadow-[0_0_35px_rgba(229,9,20,0.22)]',
-    ctaText: 'text-red-400 group-hover:text-red-300',
-    ctaBg: 'bg-red-500/10 group-hover:bg-red-500/20',
-  },
-  cyan: {
-    badgeBg: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
-    iconBg: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-    hoverBorder: 'hover:border-cyan-500/50',
-    glow: 'group-hover:shadow-[0_0_35px_rgba(0,242,254,0.22)]',
-    ctaText: 'text-cyan-400 group-hover:text-cyan-300',
-    ctaBg: 'bg-cyan-500/10 group-hover:bg-cyan-500/20',
-  },
-  blue: {
-    badgeBg: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-    iconBg: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    hoverBorder: 'hover:border-blue-500/50',
-    glow: 'group-hover:shadow-[0_0_35px_rgba(59,130,246,0.22)]',
-    ctaText: 'text-blue-400 group-hover:text-blue-300',
-    ctaBg: 'bg-blue-500/10 group-hover:bg-blue-500/20',
-  },
-  amber: {
-    badgeBg: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-    iconBg: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    hoverBorder: 'hover:border-amber-500/50',
-    glow: 'group-hover:shadow-[0_0_35px_rgba(245,158,11,0.22)]',
-    ctaText: 'text-amber-400 group-hover:text-amber-300',
-    ctaBg: 'bg-amber-500/10 group-hover:bg-amber-500/20',
-  },
-};
-
 export default function MasterHub() {
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [kioskOnline, setKioskOnline] = useState<boolean>(false);
+  const [displayOnline, setDisplayOnline] = useState<boolean>(false);
+  const [isNetOnline, setIsNetOnline] = useState<boolean>(true);
+  const lastKioskPongRef = useRef<number>(0);
+  const lastDisplayPongRef = useRef<number>(0);
+  const channelRef = useRef<BroadcastChannel | null>(null);
+
+  // Sync theme with admin preference and URL param
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const themeParam = urlParams.get('theme') as 'dark' | 'light';
+      if (themeParam === 'light' || themeParam === 'dark') {
+        setTheme(themeParam);
+      } else {
+        const saved = localStorage.getItem('swu_admin_theme') as 'dark' | 'light';
+        if (saved === 'light' || saved === 'dark') {
+          setTheme(saved);
+        }
+      }
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('swu_admin_theme', next);
+    }
+  };
+
+  // Heartbeat monitoring (In-memory zero overhead)
+  useEffect(() => {
+    const channel = new BroadcastChannel(SCREEN_SYNC_CHANNEL);
+    channelRef.current = channel;
+
+    channel.onmessage = (event: MessageEvent<ScreenSyncEvent>) => {
+      const data = event.data;
+      if (!data) return;
+      if (data.type === 'HEARTBEAT_PONG') {
+        const now = Date.now();
+        if (data.sender === 'KIOSK') {
+          lastKioskPongRef.current = now;
+          setKioskOnline(true);
+        } else if (data.sender === 'DISPLAY') {
+          lastDisplayPongRef.current = now;
+          setDisplayOnline(true);
+        }
+      }
+    };
+
+    const sendPing = () => {
+      channel.postMessage({
+        type: 'HEARTBEAT_PING',
+        sender: 'ADMIN',
+        timestamp: Date.now(),
+      } as ScreenSyncEvent);
+
+      const now = Date.now();
+      if (lastKioskPongRef.current > 0 && now - lastKioskPongRef.current > 8000) {
+        setKioskOnline(false);
+      }
+      if (lastDisplayPongRef.current > 0 && now - lastDisplayPongRef.current > 8000) {
+        setDisplayOnline(false);
+      }
+    };
+
+    sendPing();
+    const interval = setInterval(sendPing, 3000);
+    return () => {
+      clearInterval(interval);
+      channel.close();
+    };
+  }, []);
+
+  // Network listener
+  useEffect(() => {
+    const onOnline = () => setIsNetOnline(true);
+    const onOffline = () => setIsNetOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
+
   // Physical Keyboard shortcut routing [1-4]
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Avoid firing when typing in an input or textarea
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
-
       if (['1', '2', '3', '4'].includes(e.key)) {
         e.preventDefault();
         const routes: Record<string, string> = {
@@ -87,209 +138,238 @@ export default function MasterHub() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  return (
-    <div className="relative min-h-screen bg-[#07080B] text-slate-100 flex flex-col justify-between overflow-hidden font-['Prompt'] select-none">
-      {/* Engineering Background Grid */}
-      <div className="absolute inset-0 bg-[radial-gradient(#ffffff08_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-red-600/10 blur-[140px] pointer-events-none rounded-full" />
+  const isDark = theme === 'dark';
+  const themeClasses = {
+    bg: isDark ? 'bg-[#0B0F19]' : 'bg-[#F8FAFC]',
+    textTitle: isDark ? 'text-slate-100' : 'text-slate-900',
+    textMuted: isDark ? 'text-slate-400' : 'text-slate-600',
+    headerBg: isDark ? 'bg-[#0B0F19]/90 border-slate-800/80' : 'bg-white/90 border-slate-200/90',
+    cardBg: isDark ? 'bg-slate-900/50 border-slate-800/80 hover:bg-slate-900/80 hover:border-slate-700' : 'bg-white border-slate-200/90 hover:bg-slate-50 hover:border-slate-300 shadow-xs',
+    statusBg: isDark ? 'bg-[#121824] border-slate-800/80 text-slate-400' : 'bg-white border-slate-200/90 text-slate-600 shadow-xs',
+  };
 
-      {/* Top Bar */}
-      <header className="relative z-10 w-full max-w-7xl mx-auto px-6 py-5 flex items-center justify-between border-b border-white/[0.06]">
-        <div className="flex items-center gap-3.5">
-          <CpeLogo className="h-10" />
-          <div className="border-l border-white/10 pl-3.5">
-            <div className="text-[10px] font-['JetBrains_Mono'] tracking-widest text-slate-400 uppercase font-semibold">
-              SRINAKHARINWIROT UNIVERSITY • FACULTY OF ENGINEERING
+  const modules: LaunchModule[] = [
+    {
+      id: 'kiosk',
+      hotkey: '1',
+      route: '/kiosk',
+      badge: 'SCREEN 1',
+      badgeColor: isDark ? 'bg-[#CE1126]/15 text-rose-400 border-rose-500/20' : 'bg-rose-50 text-rose-700 border-rose-200',
+      title: 'ตู้ถ่ายรูปไร้สัมผัส',
+      desc: 'ระบบถ่ายภาพอัตโนมัติด้วย AI แบมือ ตรวจจับโครงกระดูกมือ 60 FPS และส่งภาพขึ้นจอใหญ่',
+      tag: 'Touchless MediaPipe AI',
+      icon: <Camera className="w-5 h-5 text-rose-500" />,
+      ctaText: 'เปิดตู้ถ่ายรูป',
+    },
+    {
+      id: 'display',
+      hotkey: '2',
+      route: '/display',
+      badge: 'SCREEN 2',
+      badgeColor: isDark ? 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20' : 'bg-cyan-50 text-cyan-700 border-cyan-200',
+      title: 'จอแสดงผล & QR Code',
+      desc: 'ฉาย Spotlight รูปถ่ายความละเอียดสูง 30 วินาที พร้อม Dynamic QR Code สำหรับดาวน์โหลด',
+      tag: 'Dual Fleet Showcase',
+      icon: <Monitor className="w-5 h-5 text-cyan-500" />,
+      ctaText: 'เปิดจอแสดงผล',
+    },
+    {
+      id: 'admin',
+      hotkey: '3',
+      route: '/admin',
+      badge: 'STAFF ONLY',
+      badgeColor: isDark ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      title: 'แดชบอร์ดสตาฟ',
+      desc: 'ศูนย์ควบคุมกลาง กราฟสถิติสด มอนิเตอร์ฮาร์ดแวร์ คำสั่งฉุกเฉิน และจัดการข้อมูลตาม PDPA',
+      tag: 'Mission Control Suite',
+      icon: <Sliders className="w-5 h-5 text-emerald-500" />,
+      ctaText: 'เปิดแดชบอร์ด',
+    },
+    {
+      id: 'mobile',
+      hotkey: '4',
+      route: '/p/[code]',
+      badge: 'MOBILE 4G/5G',
+      badgeColor: isDark ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' : 'bg-amber-50 text-amber-700 border-amber-200',
+      title: 'เว็บแต่งรูปบนมือถือ',
+      desc: 'หน้าจอบนสมาร์ทโฟนของน้อง ใส่กรอบ มศว ปรับแต่งโทนสี 6 สไตล์ และแปะสติกเกอร์วิศวะ',
+      tag: 'Attendee Canvas Editor',
+      icon: <Smartphone className="w-5 h-5 text-amber-500" />,
+      ctaText: 'ทดสอบเว็บบนมือถือ',
+    },
+  ];
+
+  return (
+    <div className={`min-h-screen ${themeClasses.bg} ${themeClasses.textTitle} flex flex-col justify-between font-['Prompt'] transition-colors duration-200`}>
+      {/* Top Header (Clean, quiet, matching Admin) */}
+      <header className={`sticky top-0 z-40 border-b backdrop-blur-md ${themeClasses.headerBg}`}>
+        <div className="mx-auto max-w-[1600px] px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center py-1 px-1.5 rounded-lg transition-colors ${!isDark ? 'bg-slate-900 shadow-xs' : ''}`}>
+              <CpeLogo className="h-8" />
             </div>
-            <div className="text-sm font-semibold tracking-wide text-white">
-              CPE PhotoBooth <span className="text-[#E50914]">•</span> Open House 2026
+            <div className="border-l border-slate-700/50 pl-3">
+              <div className="flex items-center gap-2">
+                <span className="font-['Kanit'] font-bold text-base tracking-tight">PhotoBooth</span>
+                <span className="rounded bg-rose-500/10 text-rose-500 text-[10px] font-mono px-1.5 py-0.5 font-bold">
+                  LAUNCHPAD
+                </span>
+              </div>
+              <div className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
+                SWU Open House 2026
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Live Hardware Telemetry Pill */}
-        <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-['JetBrains_Mono'] font-medium backdrop-blur-md">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-          </span>
-          <span>SYSTEM READY</span>
-          <span className="text-slate-600">|</span>
-          <span className="text-emerald-300">DUAL-SCREEN SYNCED</span>
+          {/* Right Actions: Hardware Pill & Theme Toggle */}
+          <div className="flex items-center gap-3">
+            {/* Live Fleet Badge */}
+            <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-mono ${
+              isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+            }`}>
+              <span className="flex items-center gap-1.5">
+                <span className={`size-1.5 rounded-full ${kioskOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
+                <span className={kioskOnline ? 'text-emerald-500 font-bold' : 'text-slate-500'}>
+                  {kioskOnline ? 'KIOSK ONLINE' : 'KIOSK IDLE'}
+                </span>
+              </span>
+              <span className="text-slate-600">•</span>
+              <span className="flex items-center gap-1.5">
+                <span className={`size-1.5 rounded-full ${displayOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
+                <span className={displayOnline ? 'text-emerald-500 font-bold' : 'text-slate-500'}>
+                  {displayOnline ? 'SHOWCASE SYNCED' : 'SHOWCASE IDLE'}
+                </span>
+              </span>
+            </div>
+
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                isDark ? 'border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 shadow-xs'
+              }`}
+              title="สลับธีม สว่าง / มืด"
+            >
+              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Main Hero Section */}
-      <main className="relative z-10 w-full max-w-7xl mx-auto px-6 py-8 flex-1 flex flex-col justify-center">
-        <div className="text-center max-w-3xl mx-auto mb-10">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/[0.04] border border-white/10 text-cyan-400 text-xs font-['JetBrains_Mono'] mb-4 tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" />
-            TOUCHLESS AI VISION CONTROL SUITE
+      {/* Main Container */}
+      <main className="mx-auto max-w-[1600px] w-full px-6 py-8 flex-1 flex flex-col justify-center space-y-7">
+        {/* Status Strip (Matching Admin glanceable aesthetic) */}
+        <section
+          className={`rounded-2xl border px-4 py-2.5 flex flex-wrap items-center justify-between text-xs font-mono ${themeClasses.statusBg}`}
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="flex items-center gap-1.5">
+              <span className={`size-2 rounded-full ${kioskOnline ? 'bg-emerald-500' : 'bg-slate-500'}`} />
+              {kioskOnline ? 'กล้อง 60 FPS' : 'กล้องสแตนด์บาย'}
+            </span>
+            <span className="text-slate-600">•</span>
+            <span className="flex items-center gap-1.5">
+              <span className={`size-2 rounded-full ${displayOnline ? 'bg-emerald-500' : 'bg-slate-500'}`} />
+              {displayOnline ? 'ซิงค์ &lt; 1ms' : 'รอจอ Showcase'}
+            </span>
+            <span className="text-slate-600">•</span>
+            <span className="flex items-center gap-1.5">
+              <span className={`size-2 rounded-full ${isNetOnline ? 'bg-emerald-500' : 'bg-red-500'}`} />
+              เน็ต {isNetOnline ? '5GHz OK' : 'ออฟไลน์'}
+            </span>
+            <span className="text-slate-600">•</span>
+            <span>BroadcastChannel IPC</span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight font-['Kanit'] bg-gradient-to-b from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
-            CPE Central Mission Launchpad
+          <div className="text-[11px] text-slate-500 hidden md:block">
+            กดปุ่ม [1] [2] [3] [4] เพื่อเปิดหน้าต่างทันที
+          </div>
+        </section>
+
+        {/* Hero Title */}
+        <div className="space-y-2 text-left">
+          <div className="text-[11px] font-mono tracking-widest uppercase text-slate-500 font-bold">
+            Department of Computer Engineering • Srinakharinwirot University
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold font-['Kanit'] tracking-tight">
+            ศูนย์ควบคุมระบบ PhotoBooth
           </h1>
-          <p className="mt-3 text-sm md:text-base text-slate-400 leading-relaxed max-w-2xl mx-auto">
-            1 Laptop ควบคุม 2 จอแสดงผลแบบไร้สัมผัส เชื่อมต่อ Real-time Inter-window ผ่าน{' '}
-            <code className="text-slate-200 bg-white/5 px-2 py-0.5 rounded font-['JetBrains_Mono'] text-xs border border-white/10">
-              BroadcastChannel API
-            </code>
+          <p className="text-sm text-slate-400 max-w-2xl leading-relaxed">
+            เปิดหน้าต่างควบคุม 2 จอแสดงผลแบบไร้สัมผัส เชื่อมโยงข้อมูลผ่าน Local IPC ตอบสนองทันทีโดยไม่ต้องผ่านเซิร์ฟเวอร์ภายนอก
           </p>
         </div>
 
-        {/* Bento Grid: 4 Target Modules */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          <ModuleCard
-            id="kiosk"
-            hotkey="1"
-            route="/kiosk"
-            badge="DISPLAY 1"
-            title="ตู้ถ่ายรูปไร้สัมผัส"
-            icon={<Camera className="w-5 h-5" />}
-            accentColor="red"
-            specs={[
-              'สัดส่วน 16:9 ไกด์ 4:3',
-              'AI Gesture แบมือ 1.5s',
-              'Flash 150ms + Preview 10s',
-            ]}
-            ctaText="เปิดหน้าตู้ถ่ายรูป"
-            onLaunch={() => window.open('/kiosk', '_blank')}
-          />
-          <ModuleCard
-            id="display"
-            hotkey="2"
-            route="/display"
-            badge="DISPLAY 2"
-            title="Showcase & QR"
-            icon={<Monitor className="w-5 h-5" />}
-            accentColor="cyan"
-            specs={[
-              'สัดส่วนแบ่ง 30:70',
-              'ซ้าย: Dynamic QR Code',
-              'ขวา: Live Photo Wall',
-            ]}
-            ctaText="เปิดหน้า Showcase"
-            onLaunch={() => window.open('/display', '_blank')}
-          />
-          <ModuleCard
-            id="admin"
-            hotkey="3"
-            route="/admin"
-            badge="STAFF CONSOLE"
-            title="แดชบอร์ดสตาฟ"
-            icon={<Sliders className="w-5 h-5" />}
-            accentColor="blue"
-            specs={[
-              'Zero-Latency Mission Control',
-              'ลบรูปตาม PDPA 1-Click',
-              'Kiosk Emergency Reset',
-            ]}
-            ctaText="เปิดแดชบอร์ดสตาฟ"
-            onLaunch={() => window.open('/admin', '_blank')}
-          />
-          <ModuleCard
-            id="mobile"
-            hotkey="4"
-            route="/p/[code]"
-            badge="MOBILE WEB"
-            title="เว็บดาวน์โหลด & แต่งรูป"
-            icon={<Smartphone className="w-5 h-5" />}
-            accentColor="amber"
-            specs={[
-              'Canvas Editor 4G/5G',
-              '6 Presets + สติกเกอร์วิศวะ',
-              'บันทึกลง Camera Roll ทันที',
-            ]}
-            ctaText="ทดสอบเว็บบนมือถือ"
-            onLaunch={() => window.open('/p/demo-code', '_blank')}
-          />
-        </div>
-      </main>
-
-      {/* Footer Info */}
-      <footer className="relative z-10 w-full max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 border-t border-white/[0.06] font-['JetBrains_Mono']">
-        <div>Department of Computer Engineering, Srinakharinwirot University</div>
-        <div className="flex items-center gap-4">
-          <span className="hidden md:inline">Shortcuts: Press [1] [2] [3] [4] to open directly</span>
-          <span className="rounded bg-white/5 px-2 py-0.5 border border-white/10 text-slate-400">
-            v2.6-Production
-          </span>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-function ModuleCard({
-  hotkey,
-  route,
-  badge,
-  title,
-  icon,
-  accentColor,
-  specs,
-  ctaText,
-  onLaunch,
-}: ModuleCardProps) {
-  const styles = ACCENT_STYLES[accentColor];
-
-  return (
-    <div
-      onClick={onLaunch}
-      className={`group relative flex flex-col justify-between p-5 rounded-2xl bg-[#0E1017]/90 border border-white/[0.08] backdrop-blur-md transition-all duration-300 hover:scale-[1.018] cursor-pointer ${styles.hoverBorder} ${styles.glow}`}
-    >
-      <div>
-        {/* Card Header: Icon & Hotkey Pill */}
-        <div className="flex items-center justify-between mb-4">
-          <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-transform duration-300 group-hover:scale-110 ${styles.iconBg}`}
-          >
-            {icon}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-['JetBrains_Mono'] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400 group-hover:border-white/25">
-              Key [{hotkey}]
-            </span>
-            <span
-              className={`text-[10px] font-bold font-['JetBrains_Mono'] px-2 py-0.5 rounded-full border tracking-wide uppercase ${styles.badgeBg}`}
+        {/* Bento Grid: 4 Modules */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {modules.map((m) => (
+            <div
+              key={m.id}
+              onClick={() => {
+                const target = m.id === 'mobile' ? '/p/demo-code' : m.route;
+                window.open(target, '_blank');
+              }}
+              className={`group rounded-2xl border p-5 flex flex-col justify-between transition-all duration-150 cursor-pointer ${themeClasses.cardBg}`}
             >
-              {badge}
-            </span>
-          </div>
-        </div>
+              <div className="space-y-4">
+                {/* Card Top: Icon & Hotkey Pill */}
+                <div className="flex items-center justify-between">
+                  <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    {m.icon}
+                  </div>
+                  <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                    <span className={`px-2 py-0.5 rounded-md border font-bold ${
+                      isDark ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'
+                    }`}>
+                      [{m.hotkey}]
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-md border font-bold ${m.badgeColor}`}>
+                      {m.badge}
+                    </span>
+                  </div>
+                </div>
 
-        {/* Route & Title */}
-        <div className="font-['JetBrains_Mono'] text-xs text-slate-500 mb-1">
-          {route}
-        </div>
-        <h3 className="text-lg font-bold font-['Kanit'] text-white group-hover:text-slate-100 transition-colors">
-          {title}
-        </h3>
+                {/* Card Details */}
+                <div className="space-y-1.5">
+                  <div className="text-[11px] font-mono text-slate-500">
+                    {m.route}
+                  </div>
+                  <h3 className="text-base font-bold font-['Kanit'] group-hover:text-rose-500 transition-colors">
+                    {m.title}
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed min-h-[48px]">
+                    {m.desc}
+                  </p>
+                </div>
+              </div>
 
-        {/* Spec Chips */}
-        <div className="mt-3.5 space-y-1.5">
-          {specs.map((spec, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs text-slate-400">
-              <span className="w-1 h-1 rounded-full bg-slate-600 group-hover:bg-slate-400 transition-colors" />
-              <span>{spec}</span>
+              {/* Card Footer: Subtle Tag & Crisp Button */}
+              <div className="pt-4 border-t border-slate-800/40 mt-4 flex items-center justify-between">
+                <span className="text-[10px] font-mono text-slate-500">
+                  {m.tag}
+                </span>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-500 group-hover:translate-x-0.5 transition-transform">
+                  <span>{m.ctaText}</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </span>
+              </div>
             </div>
           ))}
         </div>
-      </div>
+      </main>
 
-      {/* Integrated Action Button */}
-      <div className="mt-6 pt-3.5 border-t border-white/[0.06] flex items-center justify-between">
-        <span
-          className={`text-xs font-semibold font-['Kanit'] tracking-wide transition-colors ${styles.ctaText}`}
-        >
-          {ctaText}
-        </span>
-        <div
-          className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:translate-x-1 ${styles.ctaBg} ${styles.ctaText}`}
-        >
-          <ArrowRight className="w-3.5 h-3.5" />
+      {/* Footer Info (Matching Admin clean bottom) */}
+      <footer className={`border-t py-4 px-6 text-xs font-mono ${
+        isDark ? 'border-slate-800/80 text-slate-500' : 'border-slate-200 text-slate-600'
+      }`}>
+        <div className="mx-auto max-w-[1600px] flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div>Department of Computer Engineering, Srinakharinwirot University</div>
+          <div className="flex items-center gap-4">
+            <span className="hidden sm:inline">Shortcuts: Press [1] [2] [3] [4] to launch</span>
+            <span className="px-2 py-0.5 rounded border border-slate-800/60 text-[10px] text-slate-400">
+              v2.6-Production
+            </span>
+          </div>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }
