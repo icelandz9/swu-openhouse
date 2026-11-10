@@ -59,7 +59,11 @@ export default function ShowcaseDisplayScreen() {
   useEffect(() => {
     setIsMounted(true);
     if (typeof window !== 'undefined') {
-      const customHost = localStorage.getItem('swu_booth_host');
+      let customHost = localStorage.getItem('swu_booth_host');
+      if (customHost && customHost.includes('swu-openhouse.vercel.app')) {
+        customHost = DEFAULT_PRODUCTION_APP_URL;
+        localStorage.setItem('swu_booth_host', DEFAULT_PRODUCTION_APP_URL);
+      }
       const envAppUrl = process.env.NEXT_PUBLIC_APP_URL;
       const isLocal = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1');
       const fallbackOrigin = isLocal ? DEFAULT_PRODUCTION_APP_URL : window.location.origin;

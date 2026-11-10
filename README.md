@@ -32,7 +32,7 @@ npm run setup
 npm run dev
 ```
 
-ระบบจะเชื่อมต่อไปยัง Cloudflare R2 ('cpe-swu-photobooth') และโดเมน Production (https://swu-openhouse.vercel.app) ให้อัตโนมัติในตัวโค้ด โดยไม่ต้องกังวลเรื่องไฟล์ .env.local ทำให้ผู้ร่วมงานที่สแกน QR Code บนมือถือเปิดดูและดาวน์โหลดรูปจาก Vercel ได้ทันที
+ระบบจะเชื่อมต่อไปยัง Cloudflare R2 ('cpe-swu-photobooth') และโดเมน Production (https://cpe-swu-openhouse.vercel.app) ให้อัตโนมัติในตัวโค้ด โดยไม่ต้องกังวลเรื่องไฟล์ .env.local ทำให้ผู้ร่วมงานที่สแกน QR Code บนมือถือเปิดดูและดาวน์โหลดรูปจาก Vercel ได้ทันที
 
 ---
 

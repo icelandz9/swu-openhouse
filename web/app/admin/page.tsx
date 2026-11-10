@@ -436,7 +436,12 @@ function StaffAdminScreen() {
         if (raw) initialDeleted = JSON.parse(raw);
       } catch {}
       setDeletedCodes(initialDeleted);
-      setPublicDomain(localStorage.getItem('swu_booth_host') || process.env.NEXT_PUBLIC_APP_URL || '');
+      let domain = localStorage.getItem('swu_booth_host') || process.env.NEXT_PUBLIC_APP_URL || DEFAULT_PRODUCTION_APP_URL;
+      if (domain.includes('swu-openhouse.vercel.app')) {
+        domain = DEFAULT_PRODUCTION_APP_URL;
+        localStorage.setItem('swu_booth_host', DEFAULT_PRODUCTION_APP_URL);
+      }
+      setPublicDomain(domain);
     }
     loadPhotos(initialDeleted);
   }, []);

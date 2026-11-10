@@ -291,7 +291,11 @@ export default function KioskCapturePage() {
       let hasCustomHost = false;
       let configuredHost = '';
       if (typeof window !== 'undefined') {
-        const rawHost = localStorage.getItem('swu_booth_host');
+        let rawHost = localStorage.getItem('swu_booth_host');
+        if (rawHost && rawHost.includes('swu-openhouse.vercel.app')) {
+          rawHost = DEFAULT_PRODUCTION_APP_URL;
+          localStorage.setItem('swu_booth_host', DEFAULT_PRODUCTION_APP_URL);
+        }
         if (rawHost && rawHost.trim()) {
           configuredHost = rawHost.trim().replace(/\/+$/, '');
           const baseHost = /^https?:\/\//i.test(configuredHost)

@@ -26,7 +26,7 @@ export const KIOSK_TIMING = {
 } as const;
 
 // Default production URL for QR code generation when phones scan from 4G/5G
-export const DEFAULT_PRODUCTION_APP_URL = 'https://swu-openhouse.vercel.app';
+export const DEFAULT_PRODUCTION_APP_URL = 'https://cpe-swu-openhouse.vercel.app';
 
 // Inter-Screen Event Bus Contract (BroadcastChannel: 'swu_photobooth_bus')
 export const SCREEN_SYNC_CHANNEL = "swu_photobooth_bus" as const;
