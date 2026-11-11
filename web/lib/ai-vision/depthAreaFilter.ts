@@ -1,14 +1,10 @@
 import { LandmarkPoint } from './gestureRules';
 
 /**
- * Filter hand bounding box area to reject background people walking past
- * Hands of visitors standing in front of the kiosk should occupy >= 3.5% of frame area
+ * Calculate the bounding box area of hand landmarks relative to frame area [0..1]
  */
-export function isHandInForeground(
-  landmarks: LandmarkPoint[],
-  minAreaRatio: number = 0.035
-): boolean {
-  if (!landmarks || landmarks.length < 21) return false;
+export function calculateHandAreaRatio(landmarks: LandmarkPoint[]): number {
+  if (!landmarks || landmarks.length < 21) return 0;
 
   let minX = 1;
   let maxX = 0;
@@ -24,7 +20,21 @@ export function isHandInForeground(
 
   const width = Math.max(0, maxX - minX);
   const height = Math.max(0, maxY - minY);
-  const areaRatio = width * height;
+  return width * height;
+}
 
-  return areaRatio >= minAreaRatio;
+/**
+ * Filter hand bounding box area to reject background people walking past.
+ * Calibrated distance guidelines:
+ * - Close distance (< 1.2m): occupies ~4.0% - 7.0%+
+ * - Standard distance (1.2m - 1.8m): occupies ~2.2% - 3.5%
+ * - Long / Group distance (1.8m - 3.0m): occupies ~1.0% - 2.0%
+ * Default threshold set to 0.025 (2.5%) for responsive detection up to ~2m.
+ */
+export function isHandInForeground(
+  landmarks: LandmarkPoint[],
+  minAreaRatio: number = 0.025
+): boolean {
+  const area = calculateHandAreaRatio(landmarks);
+  return area >= minAreaRatio;
 }

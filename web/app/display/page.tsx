@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
 import { CpeLogo } from '@/components/CpeLogo';
+import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
 import { ConsoleCaps, GameMenu, PixelSkyline } from '@/components/PixelScene';
 
 interface GalleryItem {
@@ -33,7 +34,7 @@ function formatPhotoDate(iso: string) {
 // Wait a moment after a new photo arrives (so the upload has finished) before reloading.
 const RELOAD_AFTER_PHOTO_MS = 1500;
 
-export default function ShowcaseDisplayScreen() {
+function ShowcaseDisplayScreenContent() {
   const [photos, setPhotos] = useState<GalleryItem[]>(DEFAULT_SEEDS);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [activePhoto, setActivePhoto] = useState<GalleryItem | null>(null);
@@ -227,18 +228,20 @@ export default function ShowcaseDisplayScreen() {
         setNewestCode(pushItem.code);
         showPhotoInQueue(pushItem);
       } else if (data.type === 'HEARTBEAT_PING') {
-        channelRef.current?.postMessage({
-          type: 'HEARTBEAT_PONG',
-          sender: 'DISPLAY',
-          timestamp: Date.now(),
-          pingTimestamp: data.timestamp,
-          status: {
-            activeCode: activePhoto?.code || null,
-            totalPhotos: photos.length,
-            queueLength: activePhoto ? 1 : 0,
-            isMuted,
-          },
-        });
+        try {
+          channelRef.current?.postMessage({
+            type: 'HEARTBEAT_PONG',
+            sender: 'DISPLAY',
+            timestamp: Date.now(),
+            pingTimestamp: data.timestamp,
+            status: {
+              activeCode: activePhoto?.code || null,
+              totalPhotos: photos.length,
+              queueLength: activePhoto ? 1 : 0,
+              isMuted,
+            },
+          });
+        } catch {}
       } else if (data.type === 'PHOTO_DELETED') {
         const deletedCode = data.code;
 
@@ -278,7 +281,12 @@ export default function ShowcaseDisplayScreen() {
     };
 
     return () => {
-      channel.close();
+      try {
+        channel.close();
+      } catch {}
+      if (channelRef.current === channel) {
+        channelRef.current = null;
+      }
       if (queueTimerRef.current) {
         clearTimeout(queueTimerRef.current);
       }
@@ -518,5 +526,13 @@ export default function ShowcaseDisplayScreen() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function ShowcaseDisplayScreen() {
+  return (
+    <SafeErrorBoundary fallbackTitle="หน้าจอแสดงผล Display พบข้อขัดข้องชั่วคราว">
+      <ShowcaseDisplayScreenContent />
+    </SafeErrorBoundary>
   );
 }

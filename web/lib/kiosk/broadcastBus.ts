@@ -14,15 +14,25 @@ export function openScreenBus() {
 
   return {
     post(event: ScreenSyncEvent) {
-      channel.postMessage(event);
+      try {
+        channel.postMessage(event);
+      } catch {
+        // Channel may be closed or page unmounted
+      }
     },
     subscribe(handler: (event: ScreenSyncEvent) => void) {
       const listener = (e: MessageEvent<ScreenSyncEvent>) => handler(e.data);
       channel.addEventListener('message', listener);
-      return () => channel.removeEventListener('message', listener);
+      return () => {
+        try {
+          channel.removeEventListener('message', listener);
+        } catch {}
+      };
     },
     close() {
-      channel.close();
+      try {
+        channel.close();
+      } catch {}
     },
   };
 }

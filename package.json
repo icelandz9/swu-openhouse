@@ -8,7 +8,11 @@
     "build": "npm run build --prefix web",
     "start": "npm run start --prefix web",
     "lint": "npm run lint --prefix web",
-    "setup": "npm install --prefix web"
+    "setup": "npm install --prefix web",
+    "doctor": "npm run doctor --prefix web",
+    "doctor:fix": "npm run doctor:fix --prefix web",
+    "kill-port": "npm run kill-port --prefix web",
+    "typecheck": "npm run typecheck --prefix web"
   },
   "repository": {
     "type": "git",
