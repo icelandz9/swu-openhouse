@@ -18,14 +18,45 @@ import {
   Heart,
 } from 'lucide-react';
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
-import { ScreenSyncEvent, CROP_DIMENSIONS_4_3, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
+import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL, PHOTO_ASPECT_RATIO, PhotoRatio, toPhotoRatio, FRAME_PHOTO_ASPECT, CROP_DIMENSIONS_FRAME } from '@/lib/contracts';
 import { generateShortCode } from '@/lib/mobile/shortCodeGenerator';
 import { classifyGesture, LandmarkPoint } from '@/lib/ai-vision/gestureRules';
 import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
-import { calculate43Crop } from '@/lib/kiosk/centerCropper';
+import { calculateCrop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
 import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
+
+/** Camera picked by default when several are plugged in. Override with ?cam=<part of the name>. */
+const DEFAULT_CAMERA_NAME = 'c922';
+
+/**
+ * Finds the camera whose name contains ?cam= (default "c922") and returns its deviceId,
+ * or undefined so the browser uses its default camera.
+ */
+async function findPreferredCamera(): Promise<string | undefined> {
+  try {
+    const wanted = (new URLSearchParams(window.location.search).get('cam') || DEFAULT_CAMERA_NAME).toLowerCase();
+    const listCameras = async () =>
+      (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput');
+
+    let cams = await listCameras();
+    // Camera names stay hidden until the page has camera permission, so ask once and list again.
+    if (cams.length > 0 && cams.every((d) => !d.label)) {
+      const probe = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      probe.getTracks().forEach((t) => t.stop());
+      cams = await listCameras();
+    }
+
+    console.info('[kiosk] cameras:', cams.map((d) => d.label));
+    const camId = cams.find((d) => d.label.toLowerCase().includes(wanted))?.deviceId;
+    console.info('[kiosk] want:', wanted, '→', camId ? 'found' : 'not found, using default');
+    return camId;
+  } catch (err) {
+    console.warn('[kiosk] could not list cameras, using default:', err);
+    return undefined;
+  }
+}
 import { GameMenu, PixelSkyline } from '@/components/PixelScene';
 
 function KioskCapturePageContent() {
@@ -53,6 +84,8 @@ function KioskCapturePageContent() {
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number }>({ width: 16, height: 9 });
   const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.025);
+  // 'frame' (default: the CPE frames' photo shape, 986x1080) or 4:3 landscape (wide, for groups); staff switch it in /admin
+  const [photoRatio, setPhotoRatio] = useState<PhotoRatio>(PHOTO_ASPECT_RATIO);
   const currentStreamRef = useRef<MediaStream | null>(null);
 
   // Gesture detection & tracking
@@ -140,6 +173,9 @@ function KioskCapturePageContent() {
             setHandAreaThreshold(parsed);
           }
         }
+        const savedRatio = localStorage.getItem('swu_photo_ratio');
+        const ratio = toPhotoRatio(savedRatio);
+        if (ratio) setPhotoRatio(ratio);
       } catch {}
     }
 
@@ -191,6 +227,14 @@ function KioskCapturePageContent() {
               try { localStorage.setItem('swu_hand_threshold', data.value.toString()); } catch {}
             }
           }
+        } else if (data.command === 'SET_PHOTO_RATIO') {
+          const ratio = toPhotoRatio(data.value);
+          if (ratio) {
+            setPhotoRatio(ratio);
+            if (typeof window !== 'undefined') {
+              try { localStorage.setItem('swu_photo_ratio', ratio); } catch {}
+            }
+          }
         } else if (data.command === 'SET_PUBLIC_DOMAIN') {
           if (typeof window !== 'undefined') {
             const val = typeof data.value === 'string' ? data.value.trim() : '';
@@ -234,18 +278,22 @@ function KioskCapturePageContent() {
     };
   }, [send, isPreviewing]);
 
-  // Snapshot capture function (1440x1080 center-crop of 16:9 video feed)
+  // Snapshot: centre crop of the camera feed at the current ratio (1440x1080 or 1080x1440)
   const takeCenterCropSnapshot = useCallback(() => {
     try {
       const canvas = offscreenCanvasRef.current || document.createElement('canvas');
-      canvas.width = CROP_DIMENSIONS_4_3.width;
-      canvas.height = CROP_DIMENSIONS_4_3.height;
+      const video = videoRef.current;
+      const crop = calculateCrop(
+        video && video.videoWidth > 0 ? video.videoWidth : 1920,
+        video && video.videoHeight > 0 ? video.videoHeight : 1080,
+        photoRatio
+      );
+      canvas.width = crop.dWidth;
+      canvas.height = crop.dHeight;
       const ctx = canvas.getContext('2d');
 
       if (ctx) {
-        if (videoRef.current && cameraActive && videoRef.current.videoWidth > 0) {
-          const video = videoRef.current;
-          const crop = calculate43Crop(video.videoWidth, video.videoHeight);
+        if (video && cameraActive && video.videoWidth > 0) {
 
           // Mirror horizontally for natural selfie perspective
           ctx.translate(canvas.width, 0);
@@ -294,7 +342,7 @@ function KioskCapturePageContent() {
       console.error('Error taking snapshot:', err);
     }
     return capturedPhotoUrl;
-  }, [cameraActive, capturedPhotoUrl]);
+  }, [cameraActive, capturedPhotoUrl, photoRatio]);
 
   // Confirm photo, post to API, broadcast to Screen 2, and reset
   const handleConfirmUpload = useCallback(async () => {
@@ -437,22 +485,23 @@ function KioskCapturePageContent() {
         throw new Error('WebRTC not supported');
       }
 
+      const camId = await findPreferredCamera();
+
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             width: { ideal: 1920 },
             height: { ideal: 1080 },
-            facingMode: 'user',
+            ...(camId ? { deviceId: { exact: camId } } : { facingMode: 'user' }),
           },
           audio: false,
         });
       } catch (firstErr) {
         console.warn('1080p camera constraint failed, attempting basic video constraint:', firstErr);
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false,
-        });
+        stream = await navigator.mediaDevices
+          .getUserMedia({ video: camId ? { deviceId: { exact: camId } } : true, audio: false })
+          .catch(() => navigator.mediaDevices.getUserMedia({ video: true, audio: false }));
       }
 
       currentStreamRef.current = stream;
@@ -836,7 +885,9 @@ function KioskCapturePageContent() {
           </div>
 
           {/* Screen bezel */}
-          <div className="kc-bezel absolute left-1/2 top-1/2 flex w-[65.5cqw] -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] pb-[.8cqw] pt-[.8cqw]">
+          <div
+            style={{ width: photoRatio === 'frame' ? '52cqw' : '65.5cqw' }}
+            className="kc-bezel absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] pb-[.8cqw] pt-[.8cqw]">
             <p className="font-pixel mb-[.45cqw] text-[.78cqw] text-[#b9b9c2]">
               SWU OPEN HOUSE <span className="text-[var(--px-red-hi)]">2026</span> · 14-15 NOV
             </p>
@@ -855,7 +906,7 @@ function KioskCapturePageContent() {
             </div>
 
             {/* The 4:3 screen = exactly what gets captured */}
-            <div className="kc-screen relative aspect-[4/3] w-full overflow-hidden">
+            <div className={`kc-screen relative w-full overflow-hidden ${photoRatio === 'frame' ? 'aspect-square' : 'aspect-[4/3]'}`}>
               <video
                 ref={videoRef}
                 muted
@@ -870,7 +921,7 @@ function KioskCapturePageContent() {
                 <div className="absolute inset-0 z-10 flex items-center justify-center">
                   <PixelSkyline className="opacity-80" />
                   <div className="relative flex flex-col items-center px-[2cqw] text-center">
-                    <h3 className="px-title text-[4.4cqw]">ENGINEERING</h3>
+                    <h3 className={`px-title ${photoRatio === 'frame' ? 'text-[3.4cqw]' : 'text-[4.4cqw]'}`}>ENGINEERING</h3>
                     <p className="font-pixel px-menu-item mt-[1cqw] -rotate-2 text-[1.3cqw]">BUILD YOUR OWN FUTURE</p>
                     <GameMenu className="mt-[2cqw] text-[1cqw]" />
                     <p className="mt-[1.8cqw] text-[1.05cqw] font-semibold text-white [text-shadow:2px_2px_0_#1a0306]">
@@ -893,7 +944,7 @@ function KioskCapturePageContent() {
 
               {/* Captured photo while reviewing / sending */}
               {!showLiveFeed && (
-                <img src={capturedPhotoUrl} alt="ภาพถ่ายตัวอย่าง" className="absolute inset-0 z-10 h-full w-full object-cover" />
+                <img src={capturedPhotoUrl} alt="ภาพถ่ายตัวอย่าง" className="absolute inset-0 z-10 h-full w-full bg-black object-contain" />
               )}
 
               {/* Hand skeleton, mapped to this 4:3 screen */}
@@ -907,7 +958,7 @@ function KioskCapturePageContent() {
                   isForeground={isForeground}
                   gestureText={detectedGestureText}
                   videoDimensions={videoDimensions}
-                  containerAspect={4 / 3}
+                  containerAspect={photoRatio === 'frame' ? 1 : 4 / 3}
                 />
               )}
 
@@ -926,7 +977,26 @@ function KioskCapturePageContent() {
                     <span className="size-[.65cqw] animate-pulse bg-[var(--px-red-hi)]" />
                     LIVE
                   </div>
-                  <div className="kc-brackets pointer-events-none absolute inset-x-[3cqw] bottom-[9.5cqw] top-[4cqw] z-20" aria-hidden />
+                  {photoRatio === 'frame' ? (
+                    <>
+                      {/* Capture area. The square screen shows the camera's centre square; the frame-shaped crop
+                          (934:1023) is 91.3% of its width, centred (4.35% each side). */}
+                      <div style={{ width: `${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}%` }} className="pointer-events-none absolute inset-y-0 left-0 z-20 bg-black/55" aria-hidden />
+                      <div style={{ width: `${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}%` }} className="pointer-events-none absolute inset-y-0 right-0 z-20 bg-black/55" aria-hidden />
+                      <div
+                        style={{ left: `${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}%`, width: `${FRAME_PHOTO_ASPECT * 100}%` }}
+                        className="pointer-events-none absolute inset-y-0 z-20 shadow-[inset_0_0_0_.25cqw_rgba(255,255,255,.9)]"
+                        aria-hidden
+                      >
+                        <div className="kc-brackets absolute inset-[1.2cqw]" />
+                        <span className="font-pixel absolute bottom-[9.6cqw] left-1/2 -translate-x-1/2 whitespace-nowrap bg-black/60 px-[.6cqw] py-[.3cqw] text-[.7cqw] text-white">
+                          พื้นที่ถ่าย · พอดีกรอบ {CROP_DIMENSIONS_FRAME.width}×{CROP_DIMENSIONS_FRAME.height}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="kc-brackets pointer-events-none absolute inset-x-[3cqw] bottom-[9.5cqw] top-[4cqw] z-20" aria-hidden />
+                  )}
                 </>
               )}
 

@@ -4,7 +4,7 @@ import React, { use, useState, useRef, useEffect, useCallback } from 'react';
 import { Download, Sparkles, Frame, Check, ShieldAlert, Sun, Sticker, Trash2, ShieldCheck, Lock, Maximize2, X, ChevronLeft } from 'lucide-react';
 import { FilterPresetId } from '@/lib/contracts';
 import { applyColorFilter } from '@/lib/mobile/colorFilters';
-import { FRAME_GROUPS, FRAME_TEMPLATES, NO_FRAME_ID, FrameTemplate, PHOTO_ONLY_SIZE, drawPhotoCover } from '@/lib/mobile/frameTemplates';
+import { FRAME_GROUPS, FRAME_TEMPLATES, NO_FRAME_ID, FrameTemplate, PHOTO_ONLY_SIZE, drawPhotoContain, drawPhotoCover } from '@/lib/mobile/frameTemplates';
 import {
   PlacedSticker,
   StickerAsset,
@@ -105,8 +105,12 @@ export default function MobilePhotoEditorPage({
   const frameImage = frame ? frameImages[frame.id] : undefined;
   // A frame whose PNG failed to load falls back to the plain photo
   const activeFrame = frame && frameImage ? frame : null;
-  const outWidth = activeFrame ? activeFrame.width : PHOTO_ONLY_SIZE.width;
-  const outHeight = activeFrame ? activeFrame.height : PHOTO_ONLY_SIZE.height;
+  // Without a frame the output is the photo itself: 1440x1080 (4:3) or 986x1080 (frame shape), whichever the kiosk took.
+  // photoLoaded re-renders once the image is in, so the ref has its real size here.
+  const photoW = (photoLoaded && baseImageRef.current?.naturalWidth) || PHOTO_ONLY_SIZE.width;
+  const photoH = (photoLoaded && baseImageRef.current?.naturalHeight) || PHOTO_ONLY_SIZE.height;
+  const outWidth = activeFrame ? activeFrame.width : photoW;
+  const outHeight = activeFrame ? activeFrame.height : photoH;
 
   // Verify Scan Token / Claim and Load Photo
   useEffect(() => {
@@ -212,7 +216,14 @@ export default function MobilePhotoEditorPage({
 
     const win = activeFrame ? activeFrame.window : { x: 0, y: 0, w: outWidth, h: outHeight };
 
-    drawPhotoCover(ctx, photo, win);
+    // Portrait "frame mode" shots (986x1080) fill every frame window: no filler bands. In the CPE frames
+    // that trims at most ~3% per side; in the square / landscape pixel windows it trims top and bottom.
+    // A photo whose shape is within 6% of the window is treated the same way.
+    // Wide 4:3 group shots keep the whole photo so nobody at the edge gets cut off.
+    const photoAspect = (photo.naturalWidth || photo.width) / (photo.naturalHeight || photo.height);
+    const closeFit = Math.abs(photoAspect / (win.w / win.h) - 1) <= 0.06;
+    if (closeFit || photoAspect < 1) drawPhotoCover(ctx, photo, win);
+    else drawPhotoContain(ctx, photo, win);
     applyColorFilter(ctx, win, selectedFilter, brightness);
 
     if (activeFrame && frameImage) {
@@ -451,6 +462,19 @@ export default function MobilePhotoEditorPage({
         {/* Frames Tab */}
         {activeTab === 'frames' && (
           <div className="space-y-2">
+            {/* No frame: the original 4:3 photo, edge to edge */}
+            <button
+              onClick={() => setSelectedFrameId(NO_FRAME_ID)}
+              aria-pressed={selectedFrameId === NO_FRAME_ID}
+              className={`px-corners flex w-full items-center justify-between px-3 py-2 text-xs font-bold transition-colors ${
+                selectedFrameId === NO_FRAME_ID ? 'bg-[var(--px-red)] text-white' : 'px-card text-[var(--px-muted)] hover:text-white'
+              }`}
+            >
+              <span>ไม่ใส่กรอบ · รูปเต็ม</span>
+              <span className="font-pixel-sm text-[10px]">
+                {photoW}×{photoH}
+              </span>
+            </button>
             {FRAME_GROUPS.map((group) => {
               const frames = FRAME_TEMPLATES.filter((f) => f.group === group.id);
               if (!frames.length) return null;
