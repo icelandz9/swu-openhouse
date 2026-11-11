@@ -5,6 +5,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
 import { CpeLogo } from '@/components/CpeLogo';
 import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
+import { PixelFxAnimation } from '@/components/PixelFxAnimation';
+import { ChassisScrews, PixelEngineerSeal, PixelMechaBadge, RetroEventHeader } from '@/components/RetroConsoleDecor';
 
 interface GalleryItem {
   code: string;
@@ -41,6 +43,7 @@ function ShowcaseDisplayScreenContent() {
   const [newestCode, setNewestCode] = useState<string>('');
   const [isMounted, setIsMounted] = useState<boolean>(false);
   const [hostOrigin, setHostOrigin] = useState<string>('');
+  const [showConfetti, setShowConfetti] = useState<boolean>(false);
   const channelRef = useRef<BroadcastChannel | null>(null);
   const queueTimerRef = useRef<NodeJS.Timeout | null>(null);
   const reloadTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -71,6 +74,15 @@ function ShowcaseDisplayScreenContent() {
       setHostOrigin(customHost || envAppUrl || fallbackOrigin);
     }
   }, []);
+
+  // Trigger celebratory confetti when a new active photo appears
+  useEffect(() => {
+    if (activePhoto?.code) {
+      setShowConfetti(true);
+      const timer = setTimeout(() => setShowConfetti(false), 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [activePhoto?.code]);
 
   // Live time ticker
   useEffect(() => {
@@ -319,38 +331,60 @@ function ShowcaseDisplayScreenContent() {
 
   return (
     <main className="display-shell grid h-dvh w-screen place-items-center overflow-hidden bg-black select-none">
-      <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-black">
+      <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-[#0A0D14]">
+        {/* Chassis Corner Screws */}
+        <ChassisScrews />
+
+        {/* Retro CRT Scanline Atmosphere */}
+        <div className="crt-overlay pointer-events-none absolute inset-0 z-35 opacity-25" />
+
+        {/* PixelFx Confetti Celebration when New Photo Arrives */}
+        {showConfetti && (
+          <div className="pointer-events-none absolute inset-x-0 top-2 z-40 flex justify-center">
+            <PixelFxAnimation
+              sheetSrc="/pixelfx/ui/confetti/confetti.png"
+              jsonSrc="/pixelfx/ui/confetti/confetti.json"
+              width={420}
+              height={290}
+              loop={false}
+              speed={1.0}
+              className="drop-shadow-[0_0_20px_rgba(206,17,38,0.7)]"
+            />
+          </div>
+        )}
+
         {isMuted && (
           <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md text-white select-none animate-in fade-in">
             <CpeLogo className="h-16 text-white opacity-40 mb-4" />
             <div className="rounded-full bg-red-500/20 border border-red-500/40 px-4 py-1 text-xs font-mono text-red-400 mb-2">
               EMERGENCY PRIVACY SHIELD ACTIVE
             </div>
-            <h2 className="text-xl font-bold text-white">จอแสดงผลอยู่ในโหมดพักการแสดงภาพชั่วคราว</h2>
+            <h2 className="text-xl font-bold text-white font-pixel-text">จอแสดงผลอยู่ในโหมดพักการแสดงภาพชั่วคราว</h2>
             <p className="text-xs text-slate-400 mt-1">เจ้าหน้าที่กำลังจัดเตรียมระบบ กรุณารอสักครู่</p>
           </div>
         )}
-        {/* Left Section (30%): Live Polaroid Showcase & Centered White QR Station */}
-        <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col border-r border-[#1C1C1C] px-[1.2%] py-[1.2vw] justify-between">
+
+        {/* Left Section (30%): Live Polaroid Showcase & Retro Cartridge QR Station */}
+        <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col border-r border-[#1C1C1C] px-[1.2%] py-[1.2vw] justify-between bg-[rgba(10,13,20,0.95)]">
           <div>
             {/* Live Indicator Banner */}
-            <div className="mono flex items-center justify-between text-[clamp(.48rem,.62vw,.74rem)]">
+            <div className="font-pixel flex items-center justify-between text-[clamp(.44rem,.56vw,.68rem)]">
               {activePhoto ? (
-                <span className="flex items-center gap-2 tracking-[.16em] text-[#CE1126] font-bold">
+                <span className="flex items-center gap-2 tracking-[.14em] text-[#CE1126] font-bold">
                   <span className="size-2 rounded-full bg-[#10B981] animate-pulse shadow-[0_0_12px_#10B981]" />
-                  LATEST SHOT
+                  ▶ STAGE CLEAR
                 </span>
               ) : (
-                <span className="flex items-center gap-2 tracking-[.16em] text-slate-300 font-bold">
+                <span className="flex items-center gap-2 tracking-[.14em] text-slate-300 font-bold">
                   <span className="size-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_12px_#22D3EE]" />
-                  STANDBY · พร้อมถ่ายภาพ
+                  ▶ READY TO PLAY
                 </span>
               )}
               <span className="text-slate-400 font-bold" suppressHydrationWarning>{currentTime}</span>
             </div>
 
-            <h1 className="mt-[0.6vw] text-[clamp(1.3rem,1.8vw,2.2rem)] font-extrabold tracking-[-.035em] text-white">
-              {activePhoto ? 'รูปล่าสุด' : 'ยินดีต้อนรับ'}
+            <h1 className="mt-[0.6vw] text-[clamp(1.2rem,1.7vw,2.1rem)] font-extrabold tracking-[-.035em] text-white font-pixel-text">
+              {activePhoto ? 'ภาพถ่ายล่าสุด' : 'ยินดีต้อนรับ'}
             </h1>
 
             {/* Polaroid Frame Card tilted -2deg */}
@@ -419,12 +453,12 @@ function ShowcaseDisplayScreenContent() {
 
           {/* White QR Card - Perfectly Centered in Lower Section, Elevated from Bottom */}
           <div className="flex-1 flex flex-col items-center justify-center my-auto pt-[0.6vw] pb-[0.2vw]">
-            <div className="qr-card flex flex-col items-center justify-center rounded-[1vw] bg-white px-[1.4vw] pb-[1.3vw] pt-[1.0vw] shadow-2xl shrink-0 w-fit text-center">
+            <div className="qr-card flex flex-col items-center justify-center rounded-[1vw] bg-white px-[1.4vw] pb-[1.3vw] pt-[1.0vw] shadow-[0_12px_40px_rgba(206,17,38,0.3)] border-2 border-slate-200 shrink-0 w-fit text-center">
               {activePhoto ? (
                 // Active Photo Scan QR
                 <>
-                  <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
-                    สแกนรับ<span className="text-[#CE1126]">รูป</span>
+                  <div className="text-[#0F172A] text-[clamp(.9rem,1.2vw,1.5rem)] font-extrabold tracking-[-.02em] mb-[0.5vw] font-pixel-text">
+                    🎮 สแกนรับ<span className="text-[#CE1126]">รูปภาพ</span>
                   </div>
                   <div className="aspect-square w-[clamp(145px,12.5vw,230px)] bg-white flex items-center justify-center">
                     {isMounted ? (
@@ -442,11 +476,14 @@ function ShowcaseDisplayScreenContent() {
                       </div>
                     )}
                   </div>
+                  <div className="font-pixel text-[clamp(.36rem,.44vw,.52rem)] text-slate-500 mt-2">
+                    CLAIM LOOT · #{activePhoto.code.replace('OPH-', '')}
+                  </div>
                 </>
               ) : (
                 // Standby Follow Us (Instagram) QR
                 <>
-                  <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
+                  <div className="text-[#0F172A] text-[clamp(.9rem,1.2vw,1.5rem)] font-extrabold tracking-[-.02em] mb-[0.5vw] font-pixel-text">
                     ติดตาม<span className="text-[#CE1126]">เรา</span>
                   </div>
                   <div className="aspect-square w-[clamp(145px,12.5vw,230px)] bg-white flex items-center justify-center p-1">
@@ -456,6 +493,9 @@ function ShowcaseDisplayScreenContent() {
                       className="h-full w-full object-contain"
                     />
                   </div>
+                  <div className="font-pixel text-[clamp(.36rem,.44vw,.52rem)] text-slate-500 mt-2">
+                    IG: @CPE_SWU · @SMOEG.SWU
+                  </div>
                 </>
               )}
             </div>
@@ -463,20 +503,30 @@ function ShowcaseDisplayScreenContent() {
         </section>
 
         {/* Right Section (70%): Live Photo Wall / Gallery (Never contains black standby cards) */}
-        <section className="absolute inset-y-0 right-0 flex w-[70%] flex-col bg-black px-[2.45vw] py-[.75vw]">
+        <section className="absolute inset-y-0 right-0 flex w-[70%] flex-col bg-[#07090E] px-[2.45vw] py-[.75vw]">
           <header className="flex items-center justify-between border-b border-white/10 pb-3">
-            <h2 className="flex items-center gap-[.3em] text-[clamp(1.55rem,2.5vw,3rem)] font-extrabold tracking-[-.05em]">
-              <CpeLogo className="h-[1em]" />
-              <span className="text-white">OPEN HOUSE</span>
-            </h2>
-            <div className="text-[clamp(.5rem,.68vw,.82rem)] font-medium text-slate-400">
-              ถ่ายไปแล้ว <span className="mono text-white font-bold">{photos.length}</span> รูป
+            <div className="flex items-center gap-3">
+              <CpeLogo className="h-8" />
+              <div>
+                <h2 className="text-[clamp(1.3rem,2.0vw,2.5rem)] font-extrabold tracking-tight text-white font-pixel-text">
+                  SWU ENGINEERING
+                </h2>
+                <div className="font-pixel text-[clamp(.38rem,.46vw,.55rem)] text-amber-400">
+                  BUILD YOUR OWN FUTURE · OPEN HOUSE 2026
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-[#161922] border border-slate-800 px-3 py-1.5 rounded-lg shadow-sm">
+              <PixelMechaBadge className="w-5 h-5" />
+              <div className="font-pixel text-[clamp(.42rem,.52vw,.62rem)] text-slate-300">
+                HEROES: <span className="text-white font-bold">{photos.length}</span>
+              </div>
             </div>
           </header>
 
           <div className="mt-[1.8vw] flex min-h-0 flex-1 flex-col">
-            <div className="text-[clamp(.45rem,.58vw,.7rem)] font-bold tracking-[.18em] text-[#CE1126] uppercase">
-              ประวัติการถ่ายภาพทั้งหมด (Live Photo Wall)
+            <div className="font-pixel text-[clamp(.42rem,.54vw,.66rem)] font-bold tracking-[.18em] text-[#CE1126] uppercase">
+              ▶ HALL OF FAME · นิทรรศการภาพถ่ายผู้เข้าร่วมงาน
             </div>
 
             <div className="photo-wall-scroll mt-[1vw] min-h-0 flex-1 overflow-y-auto pr-[.5vw]">

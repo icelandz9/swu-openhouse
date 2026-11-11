@@ -27,6 +27,8 @@ fivepalm_capture_*.jpg
 !web/public/stickers/*.jpeg
 !web/public/logo/
 !web/public/logo/*.png
+!web/public/pixelfx/
+!web/public/pixelfx/**
 !web/public/cpe-ig-qr.png
 !web/app/icon.png
 

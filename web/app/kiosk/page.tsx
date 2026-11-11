@@ -23,6 +23,8 @@ import { calculateCrop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
 import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
+import { PixelFxAnimation } from '@/components/PixelFxAnimation';
+import { ChassisScrews, PixelEngineerSeal, PixelMechaBadge } from '@/components/RetroConsoleDecor';
 
 function KioskCapturePageContent() {
   const {
@@ -802,6 +804,9 @@ function KioskCapturePageContent() {
           }`}
         />
 
+        {/* Retro CRT Scanlines & Screen Glass Effect */}
+        <div className="crt-overlay pointer-events-none absolute inset-0 z-25 opacity-35" />
+
         {/* Fallback Simulation View if camera not open */}
         {!cameraActive && showLiveFeed && (
           <div className="absolute inset-0 h-full w-full bg-black flex items-center justify-center z-10">
@@ -853,7 +858,10 @@ function KioskCapturePageContent() {
           </div>
         )}
 
-        {/* Capture Zone Overlay & Bracket Boundaries */}
+        {/* Chassis Industrial Screws */}
+        <ChassisScrews />
+
+        {/* Capture Zone Overlay & Retro Pixel Bracket Boundaries */}
         <div
           style={
             photoRatio === '3:4'
@@ -861,58 +869,79 @@ function KioskCapturePageContent() {
               : { left: '12.5%', width: '75%' }
           }
           className="kiosk-capture-zone pointer-events-none absolute inset-y-0 z-20 border-x-[2px] border-[#CE1126]/70 transition-all duration-300"
-        />
-        <div className="mono pointer-events-none absolute left-1/2 top-[1.4%] z-30 -translate-x-1/2 border border-[#CE1126]/50 bg-black/90 px-[.9vw] py-[.38vw] text-[clamp(.38rem,.48vw,.58rem)] tracking-[.14em] text-white/90 backdrop-blur rounded-full shadow-lg">
+        >
+          {/* Retro Pixel Corner Crosshairs */}
+          <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-[#CE1126]" />
+          <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-[#CE1126]" />
+          <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-[#CE1126]" />
+          <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-[#CE1126]" />
+          {/* Center Tactical Crosshair */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 border border-white/20 rounded-full flex items-center justify-center">
+            <div className="w-1.5 h-1.5 bg-[#CE1126] rounded-full" />
+          </div>
+        </div>
+        <div className="font-pixel pointer-events-none absolute left-1/2 top-[1.4%] z-30 -translate-x-1/2 border border-[#CE1126]/60 bg-black/90 px-[1vw] py-[.4vw] text-[clamp(.36rem,.46vw,.56rem)] tracking-[.14em] text-white/95 backdrop-blur rounded-full shadow-[0_0_15px_rgba(206,17,38,0.4)]">
           {photoRatio === '3:4'
-            ? '3:4 PORTRAIT ZONE · 1080×1440 (FITS FRAME)'
-            : '4:3 LANDSCAPE ZONE · 1440×1080 RAW'}
+            ? '▶ 3:4 PORTRAIT ZONE · 1080×1440 (FITS FRAME)'
+            : '▶ 4:3 LANDSCAPE ZONE · 1440×1080 RAW'}
         </div>
 
-        {/* Left Pillar (12.5%): Branding & Telemetry */}
-        <aside className="kiosk-pillar absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col justify-between border-r border-white/10 bg-[rgba(0,0,0,0.92)] p-[1.65%] backdrop-blur-md">
+        {/* Left Pillar (12.5%): Retro Gaming Console Telemetry & Mascots */}
+        <aside className="kiosk-pillar absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col justify-between border-r border-white/10 bg-[rgba(10,12,16,0.94)] p-[1.65%] backdrop-blur-md">
           <div>
             <div className="flex items-center gap-2">
               <CpeLogo className="h-[clamp(1.4rem,2.2vw,2.6rem)] max-w-full" />
               <div className="h-px flex-1 bg-[#CE1126]/60" />
             </div>
-            <p className="mt-[2.2vw] text-[clamp(.55rem,.76vw,.92rem)] font-bold leading-[1.45] tracking-[-.02em] text-white">
-              SWU Computer
+            <p className="mt-[1.8vw] text-[clamp(.55rem,.76vw,.92rem)] font-bold leading-[1.45] tracking-[-.02em] text-white font-pixel-text">
+              SWU COMPUTER
               <br />
-              Engineering
+              ENGINEERING
             </p>
-            <p className="mt-2 text-[clamp(.46rem,.57vw,.68rem)] font-semibold leading-relaxed tracking-[.08em] text-slate-400">
-              OPEN HOUSE 2026
-            </p>
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className="font-pixel text-[clamp(.36rem,.44vw,.52rem)] text-amber-400 bg-amber-950/60 px-1.5 py-0.5 rounded-xs border border-amber-500/30">
+                P1 ONLINE
+              </span>
+            </div>
+
+            {/* Pixel Engineer Mascot */}
+            <div className="mt-3 flex items-center gap-2 bg-black/60 p-2 rounded-xl border border-white/5">
+              <PixelEngineerSeal className="w-9 h-9 shrink-0 drop-shadow-md" />
+              <div className="text-[10px] leading-tight">
+                <div className="font-pixel text-[8px] text-white">MASCOT</div>
+                <div className="text-[9px] text-slate-400 font-pixel-text">น้องวิศวะ มศว</div>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-[1.2vw]">
-            <div className="border-l border-cyan-400/50 pl-[.7vw]">
-              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-cyan-300">
+            <div className="border-l-2 border-cyan-400/70 pl-[.7vw]">
+              <div className="font-pixel text-[clamp(.38rem,.5vw,.6rem)] text-cyan-300">
                 {photoRatio === '3:4' ? '1080×1440' : '1440×1080'}
               </div>
-              <div className="mt-1 text-[clamp(.38rem,.45vw,.54rem)] font-bold tracking-[.12em] text-slate-500">
+              <div className="mt-0.5 text-[clamp(.36rem,.42vw,.5rem)] font-bold tracking-[.12em] text-slate-400 font-pixel-text">
                 {photoRatio === '3:4' ? 'FRAME · 3:4' : 'RAW · 4:3'}
               </div>
             </div>
-            <div className="border-l border-emerald-400/50 pl-[.7vw]">
-              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-emerald-300">
+            <div className="border-l-2 border-emerald-400/70 pl-[.7vw]">
+              <div className="font-pixel text-[clamp(.38rem,.5vw,.6rem)] text-emerald-300">
                 {cameraActive ? '60 FPS' : 'STANDBY'}
               </div>
-              <div className="mt-1 text-[clamp(.38rem,.45vw,.54rem)] font-bold tracking-[.08em] text-slate-500">
+              <div className="mt-0.5 text-[clamp(.36rem,.42vw,.5rem)] font-bold tracking-[.08em] text-slate-400 font-pixel-text">
                 VISION READY
               </div>
             </div>
-            <div className="border-l border-cyan-400/50 pl-[.7vw]">
-              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-cyan-300 uppercase">
+            <div className="border-l-2 border-cyan-400/70 pl-[.7vw]">
+              <div className="font-pixel text-[clamp(.38rem,.5vw,.6rem)] text-cyan-300 uppercase truncate">
                 {detectedGestureText}
               </div>
-              <div className="mt-1 text-[clamp(.36rem,.43vw,.51rem)] font-bold tracking-[.08em] text-slate-500">
-                AI MODEL ACTIVE
+              <div className="mt-0.5 text-[clamp(.34rem,.4vw,.48rem)] font-bold tracking-[.08em] text-slate-400 font-pixel-text">
+                GESTURE SENSOR
               </div>
             </div>
-            <div className="mono flex items-center gap-2 text-[clamp(.38rem,.46vw,.55rem)] text-slate-400">
-              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              BUS READY · 0ms
+            <div className="font-pixel flex items-center gap-2 text-[clamp(.34rem,.42vw,.5rem)] text-slate-400">
+              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10B981]" />
+              BUS: ACTIVE
             </div>
           </div>
         </aside>
@@ -988,16 +1017,26 @@ function KioskCapturePageContent() {
           </div>
         )}
 
-        {/* Countdown Active State (3..2..1) */}
+        {/* Countdown Active State with PixelFx VFX & Retro Typography */}
         {isCountingDown && (
           <div className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center">
-            <div className="countdown-rings relative flex h-44 w-44 items-center justify-center rounded-full bg-black/85 border-2 border-white/20 backdrop-blur-md">
-              <span className="mono text-7xl font-black text-white tabular-nums">
+            <div className="relative flex flex-col items-center justify-center">
+              {/* Real PixelFx Countdown Sprite Animation */}
+              <PixelFxAnimation
+                sheetSrc="/pixelfx/ui/countdown/countdown.png"
+                jsonSrc="/pixelfx/ui/countdown/countdown.json"
+                width={260}
+                height={232}
+                loop={true}
+                speed={1.1}
+                className="drop-shadow-[0_0_30px_rgba(206,17,38,0.85)]"
+              />
+              <div className="font-pixel text-6xl font-black text-white tabular-nums drop-shadow-[0_4px_16px_rgba(0,0,0,1)] tracking-widest -mt-6">
                 {countdown}
-              </span>
-            </div>
-            <div className="mt-6 rounded-full bg-black/85 border border-white/10 px-6 py-2 text-sm font-bold text-white backdrop-blur">
-              โพสท่าอิสระได้เลย!
+              </div>
+              <div className="mt-4 rounded-xl bg-black/90 border-2 border-[#CE1126] px-6 py-2 text-sm font-bold text-white backdrop-blur shadow-[0_0_20px_rgba(206,17,38,0.5)] font-pixel-text">
+                🎮 โพสท่าอิสระได้เลย! (SMILE!)
+              </div>
             </div>
           </div>
         )}
