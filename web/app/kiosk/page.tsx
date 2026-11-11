@@ -965,16 +965,23 @@ function KioskCapturePageContent() {
               {/* HUD: player + lives, LIVE, viewfinder corners */}
               {showLiveFeed && cameraActive && (
                 <>
-                  <div className="font-pixel pointer-events-none absolute left-[1.2cqw] top-[1.1cqw] z-20 flex items-center gap-[.6cqw] bg-black/55 px-[.7cqw] py-[.45cqw] text-[.85cqw] text-white">
+                  {/* Smaller badges; in frame mode they sit inside the white box, between its corner brackets */}
+                  <div
+                    style={photoRatio === 'frame' ? { left: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 4.4cqw)`, top: '1.5cqw' } : { left: '1.2cqw', top: '1.1cqw' }}
+                    className="font-pixel pointer-events-none absolute z-30 flex items-center gap-[.4cqw] bg-black/55 px-[.5cqw] py-[.3cqw] text-[.62cqw] text-white"
+                  >
                     PLAYER 1
-                    <span className="flex gap-[.2cqw] text-[var(--px-red-hi)]">
+                    <span className="flex gap-[.15cqw] text-[var(--px-red-hi)]">
                       {[0, 1, 2].map((i) => (
-                        <Heart key={i} className="size-[.9cqw]" fill="currentColor" strokeWidth={0} />
+                        <Heart key={i} className="size-[.65cqw]" fill="currentColor" strokeWidth={0} />
                       ))}
                     </span>
                   </div>
-                  <div className="font-pixel pointer-events-none absolute right-[1.2cqw] top-[1.1cqw] z-20 flex items-center gap-[.5cqw] bg-black/55 px-[.7cqw] py-[.45cqw] text-[.85cqw] text-white">
-                    <span className="size-[.65cqw] animate-pulse bg-[var(--px-red-hi)]" />
+                  <div
+                    style={photoRatio === 'frame' ? { right: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 4.4cqw)`, top: '1.5cqw' } : { right: '1.2cqw', top: '1.1cqw' }}
+                    className="font-pixel pointer-events-none absolute z-30 flex items-center gap-[.35cqw] bg-black/55 px-[.5cqw] py-[.3cqw] text-[.62cqw] text-white"
+                  >
+                    <span className="size-[.5cqw] animate-pulse bg-[var(--px-red-hi)]" />
                     LIVE
                   </div>
                   {photoRatio === 'frame' ? (
