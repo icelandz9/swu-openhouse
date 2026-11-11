@@ -13,6 +13,10 @@ import {
   Sliders,
   Check,
   RotateCcw,
+  Cog,
+  HardHat,
+  Wrench,
+  Hammer,
 } from 'lucide-react';
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
 import { ScreenSyncEvent, CROP_DIMENSIONS_4_3, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
@@ -810,60 +814,72 @@ export default function KioskCapturePage() {
           ▶ PLAYER 1 · READY
         </div>
 
-        {/* Left Pillar (12.5%): Branding & Telemetry */}
-        <aside className="kiosk-pillar px-panel absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col justify-between p-[1.65%]">
+        {/* Left grip of the console: title, D-pad, status screen */}
+        <aside className="kiosk-pillar px-panel absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col justify-between px-[1.1%] py-[1.6%]">
           <div>
-            <div className="flex items-center gap-2">
-              <CpeLogo className="h-[clamp(1.4rem,2.2vw,2.6rem)] max-w-full" />
-              <div className="h-1 flex-1 bg-[var(--px-red)]" />
+            <CpeLogo className="mx-auto h-[clamp(1.4rem,2.2vw,2.6rem)] max-w-full" />
+            <div className="px-screen mt-[1.4vw] px-[.5vw] py-[.8vw] text-center">
+              <p className="px-title text-[clamp(.34rem,.62vw,.74rem)]">ENGI&shy;NEERING</p>
+              <p className="font-pixel mt-[.5vw] text-[clamp(.26rem,.36vw,.44rem)] leading-[1.8] text-white">
+                BUILD YOUR
+                <br />
+                OWN FUTURE
+              </p>
             </div>
-            <p className="font-pixel mt-[2.2vw] text-[clamp(.4rem,.6vw,.72rem)] leading-[1.7] text-[var(--px-red-hi)] [text-shadow:2px_2px_0_#1a0306]">
-              SWU Computer
-              <br />
-              Engineering
-            </p>
-            <p className="font-pixel-sm mt-2 text-[clamp(.46rem,.57vw,.68rem)] font-bold leading-relaxed text-white">
-              OPEN HOUSE 2026
+            <p className="font-pixel-sm mt-[.7vw] text-center text-[clamp(.4rem,.52vw,.62rem)] font-bold text-[var(--px-cream)]">
+              SWU OPEN HOUSE 2026
             </p>
           </div>
 
-          <div className="space-y-[1.2vw]">
-            <div className="px-screen px-[.6vw] py-[.45vw]">
-              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-[var(--px-gold)]">1440×1080</div>
-              <div className="mt-1 text-[clamp(.38rem,.45vw,.54rem)] font-bold tracking-[.12em] text-[var(--px-muted)]">
-                RAW · 4:3
-              </div>
+          {/* D-pad and two small buttons, as on the poster's console */}
+          <div className="flex flex-col items-center gap-[1.3vw]" aria-hidden>
+            <div className="relative size-[5.4vw]">
+              <span className="absolute left-1/2 top-0 h-full w-[34%] -translate-x-1/2 bg-[var(--px-red-dark)] shadow-[inset_.25vw_.25vw_0_var(--px-red),0_.3vw_0_#141317]" />
+              <span className="absolute left-0 top-1/2 h-[34%] w-full -translate-y-1/2 bg-[var(--px-red-dark)] shadow-[inset_.25vw_.25vw_0_var(--px-red),0_.3vw_0_#141317]" />
+              <span className="absolute left-1/2 top-1/2 size-[18%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#3a0610]" />
             </div>
-            <div className="px-screen px-[.6vw] py-[.45vw]">
-              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-[var(--px-green)]">
-                {cameraActive ? '60 FPS' : 'STANDBY'}
-              </div>
-              <div className="mt-1 text-[clamp(.38rem,.45vw,.54rem)] font-bold tracking-[.08em] text-[var(--px-muted)]">
-                VISION READY
-              </div>
+            <div className="flex gap-[.7vw]">
+              <span className="size-[1.1vw] rounded-full bg-[var(--px-steel-dark)] shadow-[0_.2vw_0_#111]" />
+              <span className="size-[1.1vw] rounded-full bg-[var(--px-red-dark)] shadow-[0_.2vw_0_#111]" />
             </div>
-            <div className="px-screen px-[.6vw] py-[.45vw]">
-              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-[var(--px-gold)] uppercase">
-                {detectedGestureText}
+          </div>
+
+          {/* Status screen */}
+          <div className="px-screen space-y-[.45vw] px-[.6vw] py-[.6vw] font-pixel-sm text-[clamp(.36rem,.46vw,.56rem)]">
+            {[
+              ['RES', '1440×1080', 'text-[var(--px-gold)]'],
+              ['CAM', cameraActive ? '60 FPS' : 'STANDBY', cameraActive ? 'text-[var(--px-green)]' : 'text-[var(--px-gold)]'],
+              ['HAND', detectedGestureText, 'text-[var(--px-gold)]'],
+            ].map(([label, value, color]) => (
+              <div key={label} className="flex items-center justify-between gap-[.4vw]">
+                <span className="text-[var(--px-muted)]">{label}</span>
+                <span className={`truncate font-bold uppercase ${color}`}>{value}</span>
               </div>
-              <div className="mt-1 text-[clamp(.36rem,.43vw,.51rem)] font-bold tracking-[.08em] text-[var(--px-muted)]">
-                AI MODEL ACTIVE
-              </div>
-            </div>
-            <div className="font-pixel-sm flex items-center gap-2 text-[clamp(.38rem,.46vw,.55rem)] text-white">
-              <span className="size-1.5 bg-[var(--px-green)] animate-pulse" />
-              BUS READY · 0ms
+            ))}
+            <div className="flex items-center gap-[.4vw] border-t-2 border-[var(--px-screen-line)] pt-[.45vw] text-white">
+              <span className="size-[.4vw] animate-pulse bg-[var(--px-green)]" />
+              READY
             </div>
           </div>
         </aside>
 
-        {/* Right Pillar (12.5%): Gesture Guide & Instructions */}
-        <aside className="kiosk-pillar px-panel absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col justify-between p-[1.45%]">
-          <div className="font-pixel text-[clamp(.34rem,.42vw,.52rem)] text-white">
-            HOW TO PLAY
+        {/* Right grip: action buttons and how to play */}
+        <aside className="kiosk-pillar px-panel absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col justify-between px-[1.1%] py-[1.6%]">
+          {/* Gear / hard hat / wrench / bolt, in a diamond */}
+          <div className="mx-auto grid w-fit grid-cols-3 grid-rows-3 gap-[.25vw]" aria-hidden>
+            <span />
+            <span className="px-round size-[2.3vw]"><Cog className="size-[1vw]" /></span>
+            <span />
+            <span className="px-round size-[2.3vw]"><HardHat className="size-[1vw]" /></span>
+            <span />
+            <span className="px-round size-[2.3vw]"><Wrench className="size-[1vw]" /></span>
+            <span />
+            <span className="px-round size-[2.3vw]"><Hammer className="size-[1vw]" /></span>
+            <span />
           </div>
 
-          <div className="flex flex-1 flex-col justify-center gap-[2.4vw]">
+          <div className="flex flex-1 flex-col justify-center gap-[.8vw] py-[1vw]">
+            <p className="font-pixel text-center text-[clamp(.32rem,.42vw,.52rem)] text-white [text-shadow:2px_2px_0_#1a0306]">HOW TO PLAY</p>
             {[
               { icon: Hand, line1: 'แบมือค้าง', line2: '1.5 วินาที', english: 'HOLD TO START' },
               { icon: Timer, line1: 'โพสอิสระ', line2: 'ช่วง 3..2..1', english: 'POSE FREELY' },
@@ -871,23 +887,17 @@ export default function KioskCapturePage() {
             ].map((step, index) => {
               const GuideIcon = step.icon;
               return (
-                <div key={step.english} className="relative">
-                  <div className="mb-[.7vw] flex items-center gap-[.6vw]">
-                    <span className="font-pixel text-[clamp(.34rem,.42vw,.5rem)] text-[var(--px-gold)]">
-                      0{index + 1}
+                <div key={step.english} className="px-screen px-corners px-[.55vw] py-[.6vw]">
+                  <div className="flex items-center gap-[.5vw]">
+                    <span className="px-btn px-btn-red px-corners font-pixel size-[1.5vw] shrink-0 text-[clamp(.32rem,.42vw,.5rem)]">
+                      {index + 1}
                     </span>
-                    <span className="h-1 flex-1 bg-[var(--px-steel-dark)]" />
+                    <GuideIcon className="size-[clamp(.9rem,1.25vw,1.5rem)] text-white" strokeWidth={1.6} />
                   </div>
-                  <GuideIcon
-                    className="mb-[.7vw] size-[clamp(1.15rem,1.55vw,1.85rem)] text-white"
-                    strokeWidth={1.25}
-                  />
-                  <div className="text-[clamp(.52rem,.65vw,.78rem)] font-semibold leading-[1.5] text-slate-100">
-                    {step.line1}
-                    <br />
-                    {step.line2}
+                  <div className="mt-[.45vw] text-[clamp(.5rem,.62vw,.75rem)] font-semibold leading-[1.45] text-white">
+                    {step.line1} {step.line2}
                   </div>
-                  <div className="font-pixel-sm mt-1 text-[clamp(.35rem,.4vw,.48rem)] font-bold text-[var(--px-muted)]">
+                  <div className="font-pixel-sm mt-[.2vw] text-[clamp(.34rem,.4vw,.48rem)] font-bold text-[var(--px-gold)]">
                     {step.english}
                   </div>
                 </div>
@@ -895,7 +905,7 @@ export default function KioskCapturePage() {
             })}
           </div>
 
-          <div className="font-pixel-sm text-[clamp(.34rem,.4vw,.48rem)] leading-relaxed text-[var(--px-muted)]">
+          <div className="font-pixel-sm text-center text-[clamp(.32rem,.38vw,.46rem)] leading-relaxed text-[var(--px-cream)]/70">
             KEY: [P]ALM [F]IST [S]TAFF
           </div>
         </aside>
