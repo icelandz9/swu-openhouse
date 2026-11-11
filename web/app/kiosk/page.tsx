@@ -965,16 +965,23 @@ function KioskCapturePageContent() {
               {/* HUD: player + lives, LIVE, viewfinder corners */}
               {showLiveFeed && cameraActive && (
                 <>
-                  <div className="font-pixel pointer-events-none absolute left-[1.2cqw] top-[1.1cqw] z-20 flex items-center gap-[.6cqw] bg-black/55 px-[.7cqw] py-[.45cqw] text-[.85cqw] text-white">
+                  {/* Smaller badges; in frame mode they sit inside the white box, between its corner brackets */}
+                  <div
+                    style={photoRatio === 'frame' ? { left: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 4.4cqw)`, top: '1.5cqw' } : { left: '1.2cqw', top: '1.1cqw' }}
+                    className="font-pixel pointer-events-none absolute z-30 flex items-center gap-[.4cqw] bg-black/55 px-[.5cqw] py-[.3cqw] text-[.62cqw] text-white"
+                  >
                     PLAYER 1
-                    <span className="flex gap-[.2cqw] text-[var(--px-red-hi)]">
+                    <span className="flex gap-[.15cqw] text-[var(--px-red-hi)]">
                       {[0, 1, 2].map((i) => (
-                        <Heart key={i} className="size-[.9cqw]" fill="currentColor" strokeWidth={0} />
+                        <Heart key={i} className="size-[.65cqw]" fill="currentColor" strokeWidth={0} />
                       ))}
                     </span>
                   </div>
-                  <div className="font-pixel pointer-events-none absolute right-[1.2cqw] top-[1.1cqw] z-20 flex items-center gap-[.5cqw] bg-black/55 px-[.7cqw] py-[.45cqw] text-[.85cqw] text-white">
-                    <span className="size-[.65cqw] animate-pulse bg-[var(--px-red-hi)]" />
+                  <div
+                    style={photoRatio === 'frame' ? { right: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 4.4cqw)`, top: '1.5cqw' } : { right: '1.2cqw', top: '1.1cqw' }}
+                    className="font-pixel pointer-events-none absolute z-30 flex items-center gap-[.35cqw] bg-black/55 px-[.5cqw] py-[.3cqw] text-[.62cqw] text-white"
+                  >
+                    <span className="size-[.5cqw] animate-pulse bg-[var(--px-red-hi)]" />
                     LIVE
                   </div>
                   {photoRatio === 'frame' ? (
@@ -1002,12 +1009,20 @@ function KioskCapturePageContent() {
 
               {/* Dialog box: what to do now */}
               {(isIdle || isDetecting) && showLiveFeed && cameraActive && (
-                <div className="kc-dialog pointer-events-none absolute inset-x-[1.2cqw] bottom-[1.2cqw] z-30 flex items-center gap-[1.2cqw] px-[1.2cqw] py-[1cqw]">
-                  <span className="flex size-[3.6cqw] shrink-0 items-center justify-center rounded-[.5cqw] bg-[var(--px-red)]">
-                    <Hand className="size-[2.2cqw] text-white" strokeWidth={2.2} />
+                // Compact prompt, kept inside the capture area (inside the white box in frame mode)
+                <div
+                  style={
+                    photoRatio === 'frame'
+                      ? { left: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 1.6cqw)`, right: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 1.6cqw)` }
+                      : { left: '3cqw', right: '3cqw' }
+                  }
+                  className="kc-dialog pointer-events-none absolute bottom-[2.2cqw] z-30 flex items-center gap-[.8cqw] px-[.9cqw] py-[.6cqw]"
+                >
+                  <span className="flex size-[2.5cqw] shrink-0 items-center justify-center rounded-[.4cqw] bg-[var(--px-red)]">
+                    <Hand className="size-[1.5cqw] text-white" strokeWidth={2.2} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[1.75cqw] font-bold leading-tight text-white">
+                    <p className="truncate text-[1.2cqw] font-bold leading-tight text-white">
                       {holdProgress > 0
                         ? 'ค้างไว้อีกนิด...'
                         : liveLandmarks && !isForeground
@@ -1015,14 +1030,14 @@ function KioskCapturePageContent() {
                           : 'ชูมือ 5 นิ้ว เพื่อเริ่มถ่ายรูป'}
                     </p>
                     {holdProgress > 0 ? (
-                      <div className="px-meter mt-[.5cqw]">
+                      <div className="px-meter mt-[.35cqw]">
                         <span style={{ width: `${Math.max(0, Math.min(100, holdProgress))}%` }} />
                       </div>
                     ) : (
-                      <p className="font-pixel mt-[.4cqw] text-[.66cqw] text-white/55">RAISE YOUR HAND TO START</p>
+                      <p className="font-pixel mt-[.3cqw] truncate text-[.5cqw] text-white/55">RAISE YOUR HAND TO START</p>
                     )}
                   </div>
-                  <span className="font-pixel shrink-0 text-[.8cqw] text-[var(--px-gold)]">
+                  <span className="font-pixel shrink-0 text-[.6cqw] text-[var(--px-gold)]">
                     {holdProgress > 0 ? `${Math.round(holdProgress)}%` : 'PRESS START'}
                   </span>
                 </div>
