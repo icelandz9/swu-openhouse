@@ -37,6 +37,7 @@ export interface FrameGroup {
 
 export const FRAME_GROUPS: FrameGroup[] = [
   { id: 'cpe', title: 'กรอบภาคคอม' },
+  { id: 'style', title: 'สไตล์อื่น ๆ' },
   { id: 'pixel', title: 'ธีมเกม 8-bit' },
 ];
 
@@ -62,19 +63,29 @@ export const FRAME_TEMPLATES: FrameTemplate[] = [
   frame('cpe', '14', '#ท้าย CPE', { x: 74, y: 91, w: 932, h: 1021 }),
   frame('cpe', '15', 'คลาสสิก', { x: 75, y: 68, w: 930, h: 1019 }),
 
-  // template/booth-templates-pixel/ (windows from templates-pixel-all.json)
-  frame('pixel', 'G1-world', 'โลกเกม', { x: 100, y: 200, w: 880, h: 860 }),
-  frame('pixel', 'G2-handheld', 'เครื่องเกมพกพา', { x: 170, y: 190, w: 740, h: 700 }),
-  frame('pixel', 'G3-stage-clear', 'ผ่านด่าน', { x: 110, y: 330, w: 860, h: 820 }),
-  frame('pixel', 'G4-arcade', 'ตู้เกม', { x: 170, y: 290, w: 740, h: 740 }),
-  frame('pixel', 'P05-character-select', 'เลือกตัวละคร', { x: 80, y: 250, w: 600, h: 800 }),
-  frame('pixel', 'P06-new-challenger', 'ผู้ท้าชิง', { x: 90, y: 260, w: 900, h: 880 }),
-  frame('pixel', 'P07-openhouse-exe', 'openhouse.exe', { x: 90, y: 190, w: 900, h: 900 }),
-  frame('pixel', 'P08-space', 'อวกาศ', { x: 110, y: 230, w: 860, h: 860 }),
-  frame('pixel', 'P09-dungeon', 'ดันเจี้ยน', { x: 150, y: 250, w: 780, h: 860 }),
-  frame('pixel', 'P10-blocks', 'ตัวต่อ', { x: 100, y: 160, w: 720, h: 1000 }),
-  frame('pixel', 'P11-snake', 'เกมงู', { x: 140, y: 200, w: 800, h: 880 }),
-  frame('pixel', 'P12-kawaii', 'เลเวลรัก', { x: 120, y: 220, w: 840, h: 880 }),
+  // template/booth-templates-934x1023/ (templates.json): every window is 934x1023, the same shape
+  // as the kiosk's frame-mode photo (986x1080), so the photo fills it with nothing cut
+  frame('style', 'A-maroon', 'แดงเลือดหมู', { x: 73, y: 60, w: 934, h: 1023 }),
+  frame('style', 'B-film', 'ฟิล์ม', { x: 73, y: 80, w: 934, h: 1023 }),
+  frame('style', 'C-white-red', 'ขาวแดง', { x: 73, y: 60, w: 934, h: 1023 }),
+  frame('style', 'E-magazine', 'ปกนิตยสาร', { x: 73, y: 250, w: 934, h: 1023 }),
+  frame('style', 'F-digicam', 'กล้องดิจิทัล', { x: 73, y: 110, w: 934, h: 1023 }),
+  frame('style', 'G-polaroid', 'โพลารอยด์', { x: 73, y: 100, w: 934, h: 1023 }),
+  frame('style', 'H-ticket', 'ตั๋วเข้างาน', { x: 73, y: 70, w: 934, h: 1023 }),
+
+  frame('pixel', 'D-pixel', 'พิกเซล 1UP', { x: 73, y: 190, w: 934, h: 1023 }),
+  frame('pixel', 'I-world', 'โลกเกม', { x: 73, y: 170, w: 934, h: 1023 }),
+  frame('pixel', 'J-handheld', 'เครื่องเกมพกพา', { x: 73, y: 70, w: 934, h: 1023 }),
+  frame('pixel', 'K-stage-clear', 'ผ่านด่าน', { x: 73, y: 225, w: 934, h: 1023 }),
+  frame('pixel', 'L-arcade', 'ตู้เกม', { x: 73, y: 210, w: 934, h: 1023 }),
+  frame('pixel', 'M-character-select', 'เลือกตัวละคร', { x: 73, y: 120, w: 934, h: 1023 }),
+  frame('pixel', 'N-new-challenger', 'ผู้ท้าชิง', { x: 73, y: 200, w: 934, h: 1023 }),
+  frame('pixel', 'O-openhouse-exe', 'openhouse.exe', { x: 73, y: 130, w: 934, h: 1023 }),
+  frame('pixel', 'P-space', 'เลเวลอัป', { x: 73, y: 150, w: 934, h: 1023 }),
+  frame('pixel', 'Q-dungeon', 'ดันเจี้ยน', { x: 73, y: 170, w: 934, h: 1023 }),
+  frame('pixel', 'R-blocks', 'ตัวต่อ', { x: 73, y: 150, w: 934, h: 1023 }),
+  frame('pixel', 'S-snake', 'เกมงู', { x: 73, y: 130, w: 934, h: 1023 }),
+  frame('pixel', 'T-kawaii', 'เลเวลรัก', { x: 73, y: 150, w: 934, h: 1023 }),
 ];
 
 /**
