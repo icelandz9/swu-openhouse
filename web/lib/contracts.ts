@@ -152,8 +152,23 @@ export interface StoredPhotoResult {
 }
 
 // 5. Photo Capture Specifications
-// Default capture ratio; staff can switch to 3:4 in /admin (sent to the kiosk as SET_PHOTO_RATIO)
-export type PhotoRatio = '4:3' | '3:4';
-export const PHOTO_ASPECT_RATIO: PhotoRatio = '3:4';
-export const CROP_DIMENSIONS_3_4 = { width: 1080, height: 1440 } as const; // 3:4 portrait (default): fills the 1080x1440 frames, keeps ~42% of the camera's width
+// Capture modes, switched in /admin (sent to the kiosk as SET_PHOTO_RATIO):
+// - 'frame' (default): the same shape as the photo window in the CPE frames, so the photo fills the frame
+//   with nothing cut and no filler bands
+// - '4:3': wide landscape for big groups
+export type PhotoRatio = '4:3' | 'frame';
+export const PHOTO_ASPECT_RATIO: PhotoRatio = 'frame';
+
+/** Accepts saved / sent values, including the old '3:4' name for the portrait mode. */
+export function toPhotoRatio(value: unknown): PhotoRatio | null {
+  if (value === '4:3') return '4:3';
+  if (value === 'frame' || value === '3:4') return 'frame';
+  return null;
+}
+
+/** Photo window of the CPE frames (cpe-frame-1, -5, -6; the others are within a few px). */
+export const FRAME_PHOTO_WINDOW = { width: 934, height: 1023 } as const;
+export const FRAME_PHOTO_ASPECT = FRAME_PHOTO_WINDOW.width / FRAME_PHOTO_WINDOW.height; // 0.913
+// 'frame' mode output: full camera height (1080), width at the frame ratio: 1080 x 934/1023 = 986
+export const CROP_DIMENSIONS_FRAME = { width: 986, height: 1080 } as const;
 export const CROP_DIMENSIONS_4_3 = { width: 1440, height: 1080 } as const; // 4:3 landscape: keeps 75% of the camera's width, for big groups

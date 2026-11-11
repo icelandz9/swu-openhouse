@@ -105,7 +105,7 @@ export default function MobilePhotoEditorPage({
   const frameImage = frame ? frameImages[frame.id] : undefined;
   // A frame whose PNG failed to load falls back to the plain photo
   const activeFrame = frame && frameImage ? frame : null;
-  // Without a frame the output is the photo itself: 1440x1080 (4:3) or 1080x1440 (3:4), whichever the kiosk took.
+  // Without a frame the output is the photo itself: 1440x1080 (4:3) or 986x1080 (frame shape), whichever the kiosk took.
   // photoLoaded re-renders once the image is in, so the ref has its real size here.
   const photoW = (photoLoaded && baseImageRef.current?.naturalWidth) || PHOTO_ONLY_SIZE.width;
   const photoH = (photoLoaded && baseImageRef.current?.naturalHeight) || PHOTO_ONLY_SIZE.height;

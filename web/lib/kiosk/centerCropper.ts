@@ -1,4 +1,4 @@
-import { CROP_DIMENSIONS_3_4, CROP_DIMENSIONS_4_3 } from '../contracts';
+import { CROP_DIMENSIONS_FRAME, CROP_DIMENSIONS_4_3, FRAME_PHOTO_ASPECT, PhotoRatio } from '../contracts';
 
 export interface CropRect {
   sx: number;
@@ -11,15 +11,15 @@ export interface CropRect {
 
 /**
  * Calculates center-crop rectangle for target aspect ratio from camera stream
- * - '3:4' Portrait (default): 1920x1080 -> 810x1080 crop, rendered to 1080x1440 (fits portrait frames; narrower view)
+ * - 'frame' (default): 1920x1080 -> 986x1080 crop, the CPE frames' photo-window shape (934:1023)
  * - '4:3' Landscape: 1920x1080 -> 1440x1080 crop (wide view for groups)
  */
 export function calculateCrop(
   sourceWidth: number = 1920,
   sourceHeight: number = 1080,
-  ratio: '3:4' | '4:3' = '3:4'
+  ratio: PhotoRatio = 'frame'
 ): CropRect {
-  const targetAspect = ratio === '3:4' ? 3 / 4 : 4 / 3;
+  const targetAspect = ratio === 'frame' ? FRAME_PHOTO_ASPECT : 4 / 3;
   let sWidth = sourceHeight * targetAspect;
   let sHeight = sourceHeight;
   let sx = (sourceWidth - sWidth) / 2;
@@ -32,7 +32,7 @@ export function calculateCrop(
     sy = (sourceHeight - sHeight) / 2;
   }
 
-  const dims = ratio === '3:4' ? CROP_DIMENSIONS_3_4 : CROP_DIMENSIONS_4_3;
+  const dims = ratio === 'frame' ? CROP_DIMENSIONS_FRAME : CROP_DIMENSIONS_4_3;
 
   return {
     sx: Math.round(sx),
@@ -44,12 +44,6 @@ export function calculateCrop(
   };
 }
 
-export function calculate34Crop(
-  sourceWidth: number = 1920,
-  sourceHeight: number = 1080
-): CropRect {
-  return calculateCrop(sourceWidth, sourceHeight, '3:4');
-}
 
 export function calculate43Crop(
   sourceWidth: number = 1920,

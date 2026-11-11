@@ -140,7 +140,7 @@ function StaffAdminScreen() {
   // Settings & Tuners
   const [sensitivity, setSensitivity] = useState<number>(2.5);
   const [countdownDuration, setCountdownDuration] = useState<number>(3);
-  const [photoRatio, setPhotoRatio] = useState<'3:4' | '4:3'>('3:4');
+  const [photoRatio, setPhotoRatio] = useState<'frame' | '4:3'>('frame');
   const [publicDomain, setPublicDomain] = useState<string>('');
   const [instantPurgeCode, setInstantPurgeCode] = useState<string>('');
   const [currentTime, setCurrentTime] = useState<string>('--:--');
@@ -272,10 +272,12 @@ function StaffAdminScreen() {
         }
       }
 
-      // Load saved photo capture ratio (defaults to 3:4 portrait: fills the frames)
+      // Load saved capture mode (default 'frame': the CPE frames' photo shape; old saved '3:4' means the same)
       const savedRatio = localStorage.getItem('swu_photo_ratio');
-      if (savedRatio === '3:4' || savedRatio === '4:3') {
-        setPhotoRatio(savedRatio);
+      if (savedRatio === '3:4' || savedRatio === 'frame') {
+        setPhotoRatio('frame');
+      } else if (savedRatio === '4:3') {
+        setPhotoRatio('4:3');
       }
     }
   }, []);
@@ -1737,26 +1739,26 @@ function StaffAdminScreen() {
                     <div className="flex justify-between text-xs">
                       <span className="font-semibold text-slate-400">สัดส่วนภาพถ่าย</span>
                       <span className="font-mono text-cyan-400 font-bold bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded-md text-[11px]">
-                        {photoRatio === '3:4' ? '3:4 แนวตั้ง พอดีกรอบ' : '4:3 แนวนอน ถ่ายกลุ่ม'}
+                        {photoRatio === 'frame' ? 'พอดีกรอบ 986×1080' : '4:3 แนวนอน 1440×1080'}
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-1.5 pt-1">
                       <button
                         type="button"
                         onClick={() => {
-                          setPhotoRatio('3:4');
-                          sendCommand('SET_PHOTO_RATIO', 'สลับสัดส่วนภาพ 3:4 แนวตั้ง', '3:4');
+                          setPhotoRatio('frame');
+                          sendCommand('SET_PHOTO_RATIO', 'สลับเป็นขนาดพอดีกรอบ 986×1080', 'frame');
                           if (typeof window !== 'undefined') {
-                            try { localStorage.setItem('swu_photo_ratio', '3:4'); } catch {}
+                            try { localStorage.setItem('swu_photo_ratio', 'frame'); } catch {}
                           }
                         }}
                         className={`py-1 px-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                          photoRatio === '3:4'
+                          photoRatio === 'frame'
                             ? 'bg-cyan-500 text-black font-bold shadow-xs'
                             : isDark ? 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800' : 'bg-white text-slate-700 border border-slate-200'
                         }`}
                       >
-                        3:4 แนวตั้ง (แนะนำ)
+                        พอดีกรอบ (แนะนำ)
                       </button>
                       <button
                         type="button"
