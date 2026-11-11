@@ -226,18 +226,20 @@ export default function ShowcaseDisplayScreen() {
         setNewestCode(pushItem.code);
         showPhotoInQueue(pushItem);
       } else if (data.type === 'HEARTBEAT_PING') {
-        channelRef.current?.postMessage({
-          type: 'HEARTBEAT_PONG',
-          sender: 'DISPLAY',
-          timestamp: Date.now(),
-          pingTimestamp: data.timestamp,
-          status: {
-            activeCode: activePhoto?.code || null,
-            totalPhotos: photos.length,
-            queueLength: activePhoto ? 1 : 0,
-            isMuted,
-          },
-        });
+        try {
+          channelRef.current?.postMessage({
+            type: 'HEARTBEAT_PONG',
+            sender: 'DISPLAY',
+            timestamp: Date.now(),
+            pingTimestamp: data.timestamp,
+            status: {
+              activeCode: activePhoto?.code || null,
+              totalPhotos: photos.length,
+              queueLength: activePhoto ? 1 : 0,
+              isMuted,
+            },
+          });
+        } catch {}
       } else if (data.type === 'PHOTO_DELETED') {
         const deletedCode = data.code;
 
@@ -277,7 +279,12 @@ export default function ShowcaseDisplayScreen() {
     };
 
     return () => {
-      channel.close();
+      try {
+        channel.close();
+      } catch {}
+      if (channelRef.current === channel) {
+        channelRef.current = null;
+      }
       if (queueTimerRef.current) {
         clearTimeout(queueTimerRef.current);
       }

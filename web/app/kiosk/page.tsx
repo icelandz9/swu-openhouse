@@ -184,26 +184,33 @@ export default function KioskCapturePage() {
       } else if (data.type === 'HEARTBEAT_PING') {
         const video = videoRef.current;
         const resText = video && video.videoWidth > 0 ? `${video.videoWidth}x${video.videoHeight}` : '1080p';
-        channelRef.current?.postMessage({
-          type: 'HEARTBEAT_PONG',
-          sender: 'KIOSK',
-          timestamp: Date.now(),
-          pingTimestamp: data.timestamp,
-          status: {
-            state: state,
-            isPaused,
-            cameraActive,
-            fps: fpsCounterRef.current.currentFps || 60,
-            resolution: resText,
-            aiLatencyMs: lastAiLatencyRef.current || 11,
-            threshold: handAreaThreshold,
-          },
-        });
+        try {
+          channelRef.current?.postMessage({
+            type: 'HEARTBEAT_PONG',
+            sender: 'KIOSK',
+            timestamp: Date.now(),
+            pingTimestamp: data.timestamp,
+            status: {
+              state: state,
+              isPaused,
+              cameraActive,
+              fps: fpsCounterRef.current.currentFps || 60,
+              resolution: resText,
+              aiLatencyMs: lastAiLatencyRef.current || 11,
+              threshold: handAreaThreshold,
+            },
+          });
+        } catch {}
       }
     };
 
     return () => {
-      channel.close();
+      try {
+        channel.close();
+      } catch {}
+      if (channelRef.current === channel) {
+        channelRef.current = null;
+      }
     };
   }, [send, isPreviewing]);
 
@@ -347,7 +354,9 @@ export default function KioskCapturePage() {
       };
 
       // 3. Broadcast to Screen 2 & 3 via BroadcastChannel
-      channelRef.current?.postMessage(syncEvent);
+      try {
+        channelRef.current?.postMessage(syncEvent);
+      } catch {}
 
       // 4. Save to localStorage for cross-window / tab reliability
       if (typeof window !== 'undefined') {

@@ -156,6 +156,17 @@ function StaffAdminScreen() {
   const lastDisplayPongRef = useRef<number>(0);
   const channelRef = useRef<BroadcastChannel | null>(null);
 
+  // Safe BroadcastChannel dispatcher that avoids InvalidStateError (Channel is closed)
+  const safePostMessage = useCallback((event: ScreenSyncEvent) => {
+    try {
+      if (channelRef.current) {
+        channelRef.current.postMessage(event);
+      }
+    } catch {
+      // Guard against InvalidStateError when channel is closed during unmount / navigation
+    }
+  }, []);
+
   const [kioskTelemetry, setKioskTelemetry] = useState<{
     online: boolean;
     fps: number;
@@ -276,7 +287,7 @@ function StaffAdminScreen() {
   // Heartbeat watchdog (Zero-overhead IPC, pings every 3s, timeout 8s)
   useEffect(() => {
     const sendPing = () => {
-      channelRef.current?.postMessage({
+      safePostMessage({
         type: 'HEARTBEAT_PING',
         sender: 'ADMIN',
         timestamp: Date.now(),
@@ -389,7 +400,14 @@ function StaffAdminScreen() {
       }
     };
 
-    return () => channel.close();
+    return () => {
+      try {
+        channel.close();
+      } catch {}
+      if (channelRef.current === channel) {
+        channelRef.current = null;
+      }
+    };
   }, [addAuditLog]);
 
   // Load photos
@@ -447,14 +465,14 @@ function StaffAdminScreen() {
   }, []);
 
   const sendCommand = (command: string, label: string, value?: any) => {
-    channelRef.current?.postMessage({
+    safePostMessage({
       type: 'KIOSK_COMMAND',
       command,
       value,
     } as ScreenSyncEvent);
 
     if (command === 'RESET_STANDBY') {
-      channelRef.current?.postMessage({ type: 'SCREEN1_RESET' } as ScreenSyncEvent);
+      safePostMessage({ type: 'SCREEN1_RESET' } as ScreenSyncEvent);
     }
 
     setCommandNotice(label);
@@ -465,7 +483,7 @@ function StaffAdminScreen() {
   const toggleDisplayMute = () => {
     const next = !isDisplayMuted;
     setIsDisplayMuted(next);
-    channelRef.current?.postMessage({ type: next ? 'MUTE_DISPLAY' : 'UNMUTE_DISPLAY' } as ScreenSyncEvent);
+    safePostMessage({ type: next ? 'MUTE_DISPLAY' : 'UNMUTE_DISPLAY' } as ScreenSyncEvent);
     setCommandNotice(next ? 'ม่านดำเปิดใช้งาน' : 'ปลดม่านดำแล้ว');
     addAuditLog('STAFF', next ? 'เปิดม่านดำ' : 'ปลดม่านดำ');
     setTimeout(() => setCommandNotice(''), 2000);
@@ -483,7 +501,7 @@ function StaffAdminScreen() {
   };
 
   const handlePushToDisplay = (photo: PhotoRecord) => {
-    channelRef.current?.postMessage({ type: 'PUSH_TO_DISPLAY', photo } as ScreenSyncEvent);
+    safePostMessage({ type: 'PUSH_TO_DISPLAY', photo } as ScreenSyncEvent);
     setPushedCode(photo.code);
     setCommandNotice(`ส่งรูป #${photo.code.replace('OPH-', '')} ขึ้นจอแล้ว`);
     setTimeout(() => setPushedCode(null), 2000);
@@ -510,9 +528,7 @@ function StaffAdminScreen() {
       await fetch('/api/photos/' + encodeURIComponent(code), { method: 'DELETE' });
     } catch {}
 
-    try {
-      channelRef.current?.postMessage({ type: 'PHOTO_DELETED', code } as ScreenSyncEvent);
-    } catch {}
+    safePostMessage({ type: 'PHOTO_DELETED', code } as ScreenSyncEvent);
 
     setCommandNotice(`ลบรูป ${code} แล้ว`);
     setTimeout(() => setCommandNotice(''), 2000);
