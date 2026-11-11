@@ -311,46 +311,46 @@ export default function ShowcaseDisplayScreen() {
 
   return (
     <main className="display-shell grid h-dvh w-screen place-items-center overflow-hidden bg-black select-none">
-      <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-black">
+      <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden">
         {isMuted && (
-          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md text-white select-none animate-in fade-in">
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0c0305]/95 text-white select-none animate-in fade-in">
             <CpeLogo className="h-16 text-white opacity-40 mb-4" />
-            <div className="rounded-full bg-red-500/20 border border-red-500/40 px-4 py-1 text-xs font-mono text-red-400 mb-2">
-              EMERGENCY PRIVACY SHIELD ACTIVE
+            <div className="font-pixel px-blink mb-3 text-xs text-[var(--px-gold)]">
+              PAUSED
             </div>
             <h2 className="text-xl font-bold text-white">จอแสดงผลอยู่ในโหมดพักการแสดงภาพชั่วคราว</h2>
             <p className="text-xs text-slate-400 mt-1">เจ้าหน้าที่กำลังจัดเตรียมระบบ กรุณารอสักครู่</p>
           </div>
         )}
         {/* Left Section (30%): Live Polaroid Showcase & Centered White QR Station */}
-        <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col border-r border-[#1C1C1C] px-[1.2%] py-[1.2vw] justify-between">
+        <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col border-r-4 border-[var(--px-red-dark)] px-[1.2%] py-[1.2vw] justify-between">
           <div>
             {/* Live Indicator Banner */}
-            <div className="mono flex items-center justify-between text-[clamp(.48rem,.62vw,.74rem)]">
+            <div className="font-pixel flex items-center justify-between text-[clamp(.36rem,.48vw,.6rem)]">
               {activePhoto ? (
-                <span className="flex items-center gap-2 tracking-[.16em] text-[#CE1126] font-bold">
-                  <span className="size-2 rounded-full bg-[#10B981] animate-pulse shadow-[0_0_12px_#10B981]" />
-                  LATEST SHOT
+                <span className="flex items-center gap-2 text-[var(--px-red-hi)]">
+                  <span className="size-2 bg-[var(--px-green)] animate-pulse" />
+                  NEW RECORD!
                 </span>
               ) : (
-                <span className="flex items-center gap-2 tracking-[.16em] text-slate-300 font-bold">
-                  <span className="size-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_12px_#22D3EE]" />
-                  STANDBY · พร้อมถ่ายภาพ
+                <span className="flex items-center gap-2 text-white">
+                  <span className="size-2 bg-[var(--px-gold)] px-blink" />
+                  INSERT COIN
                 </span>
               )}
-              <span className="text-slate-400 font-bold" suppressHydrationWarning>{currentTime}</span>
+              <span className="text-[var(--px-muted)]" suppressHydrationWarning>{currentTime}</span>
             </div>
 
-            <h1 className="mt-[0.6vw] text-[clamp(1.3rem,1.8vw,2.2rem)] font-extrabold tracking-[-.035em] text-white">
+            <h1 className="mt-[0.8vw] font-['Kanit'] text-[clamp(1.3rem,1.8vw,2.2rem)] font-extrabold text-white [text-shadow:3px_3px_0_#1a0306]">
               {activePhoto ? 'รูปล่าสุด' : 'ยินดีต้อนรับ'}
             </h1>
 
             {/* Polaroid Frame Card tilted -2deg */}
-            <div className="mx-auto mt-[0.6vw] w-[96%] shrink-0 rotate-[-2deg] rounded-[.18vw] bg-[#F8FAFC] p-[.65vw] pb-[.75vw] shadow-[0_24px_70px_rgba(0,0,0,.55)] transition-transform duration-500 hover:rotate-0">
+            <div className="mx-auto mt-[0.6vw] w-[96%] shrink-0 rotate-[-2deg] px-panel px-corners p-[.65vw] pb-[.75vw] transition-transform duration-500 hover:rotate-0">
               {activePhoto ? (
                 // Active Attendee Photo
                 <>
-                  <div className="relative aspect-[4/3] overflow-hidden bg-slate-900 rounded-[2px]">
+                  <div className="relative aspect-[4/3] overflow-hidden px-screen">
                     <img
                       src={activePhoto.photoUrl}
                       alt={`รูปล่าสุด ${activePhoto.code}`}
@@ -361,18 +361,18 @@ export default function ShowcaseDisplayScreen() {
                     />
                     <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/85 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
                       <span className="text-[clamp(.42rem,.52vw,.62rem)] font-bold">
-                        <span className="text-[#CE1126]">CPE</span> OPEN HOUSE
+                        <span className="text-[var(--px-red-hi)]">CPE</span> OPEN HOUSE
                       </span>
                       <span className="text-[clamp(.34rem,.42vw,.5rem)] text-slate-300">
                         วิศวกรรมคอมพิวเตอร์ • {formatPhotoDate(activePhoto.createdAt).thai}
                       </span>
                     </div>
                   </div>
-                  <div className="pt-[.65vw] text-center text-[#0F172A]">
-                    <div className="text-[clamp(.52rem,.68vw,.82rem)] font-extrabold tracking-[.12em]">
+                  <div className="pt-[.65vw] text-center text-white">
+                    <div className="font-pixel text-[clamp(.4rem,.55vw,.68rem)] [text-shadow:2px_2px_0_#1a0306]">
                       CPE OPEN HOUSE
                     </div>
-                    <div className="mono mt-1 text-[clamp(.38rem,.46vw,.56rem)] text-slate-500 font-semibold">
+                    <div className="font-pixel-sm mt-1 text-[clamp(.38rem,.46vw,.56rem)] text-[var(--px-cream)]/80 font-bold">
                       {formatPhotoDate(activePhoto.createdAt).dotted} · #{activePhoto.code.replace('OPH-', '')}
                     </div>
                   </div>
@@ -380,27 +380,27 @@ export default function ShowcaseDisplayScreen() {
               ) : (
                 // Standby Idle Black Card (Not stored in history)
                 <>
-                  <div className="relative aspect-[4/3] overflow-hidden bg-black rounded-[2px] flex items-center justify-center">
+                  <div className="relative aspect-[4/3] overflow-hidden px-screen flex items-center justify-center">
                     <div className="flex flex-col items-center justify-center gap-2 select-none">
                       <CpeLogo className="h-[2.2vw] opacity-30 text-white" />
-                      <span className="text-[clamp(.42rem,.54vw,.66rem)] font-semibold tracking-widest text-slate-500 uppercase">
-                        STANDBY · รอถ่ายภาพถัดไป
+                      <span className="font-pixel px-blink text-[clamp(.36rem,.46vw,.56rem)] text-[var(--px-gold)]">
+                        PRESS START
                       </span>
                     </div>
                     <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/90 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
                       <span className="text-[clamp(.42rem,.52vw,.62rem)] font-bold">
-                        <span className="text-[#CE1126]">CPE</span> OPEN HOUSE
+                        <span className="text-[var(--px-red-hi)]">CPE</span> OPEN HOUSE
                       </span>
                       <span className="text-[clamp(.34rem,.42vw,.5rem)] text-slate-400">
                         วิศวกรรมคอมพิวเตอร์ มศว
                       </span>
                     </div>
                   </div>
-                  <div className="pt-[.65vw] text-center text-[#0F172A]">
-                    <div className="text-[clamp(.52rem,.68vw,.82rem)] font-extrabold tracking-[.12em]">
+                  <div className="pt-[.65vw] text-center text-white">
+                    <div className="font-pixel text-[clamp(.4rem,.55vw,.68rem)] [text-shadow:2px_2px_0_#1a0306]">
                       CPE OPEN HOUSE
                     </div>
-                    <div className="mono mt-1 text-[clamp(.38rem,.46vw,.56rem)] text-slate-400 font-semibold">
+                    <div className="font-pixel-sm mt-1 text-[clamp(.38rem,.46vw,.56rem)] text-[var(--px-cream)]/80 font-bold">
                       ซุ้มถ่ายภาพวิศวะคอม · STANDBY
                     </div>
                   </div>
@@ -411,7 +411,7 @@ export default function ShowcaseDisplayScreen() {
 
           {/* White QR Card - Perfectly Centered in Lower Section, Elevated from Bottom */}
           <div className="flex-1 flex flex-col items-center justify-center my-auto pt-[0.6vw] pb-[0.2vw]">
-            <div className="qr-card flex flex-col items-center justify-center rounded-[1vw] bg-white px-[1.4vw] pb-[1.3vw] pt-[1.0vw] shadow-2xl shrink-0 w-fit text-center">
+            <div className="qr-card px-corners flex flex-col items-center justify-center bg-white shadow-[inset_0_0_0_6px_var(--px-red),inset_0_0_0_10px_var(--px-red-dark)] px-[1.4vw] pb-[1.3vw] pt-[1.0vw] shadow-2xl shrink-0 w-fit text-center">
               {activePhoto ? (
                 // Active Photo Scan QR
                 <>
@@ -455,20 +455,20 @@ export default function ShowcaseDisplayScreen() {
         </section>
 
         {/* Right Section (70%): Live Photo Wall / Gallery (Never contains black standby cards) */}
-        <section className="absolute inset-y-0 right-0 flex w-[70%] flex-col bg-black px-[2.45vw] py-[.75vw]">
-          <header className="flex items-center justify-between border-b border-white/10 pb-3">
-            <h2 className="flex items-center gap-[.3em] text-[clamp(1.55rem,2.5vw,3rem)] font-extrabold tracking-[-.05em]">
+        <section className="absolute inset-y-0 right-0 flex w-[70%] flex-col px-[2.45vw] py-[.75vw]">
+          <header className="flex items-center justify-between border-b-4 border-[var(--px-red-dark)] pb-3">
+            <h2 className="flex items-center gap-[.5em] text-[clamp(1rem,1.7vw,2.1rem)]">
               <CpeLogo className="h-[1em]" />
-              <span className="text-white">OPEN HOUSE</span>
+              <span className="px-title">SWU OPEN HOUSE</span>
             </h2>
-            <div className="text-[clamp(.5rem,.68vw,.82rem)] font-medium text-slate-400">
-              ถ่ายไปแล้ว <span className="mono text-white font-bold">{photos.length}</span> รูป
+            <div className="text-[clamp(.5rem,.68vw,.82rem)] font-medium text-[var(--px-muted)]">
+              ถ่ายไปแล้ว <span className="font-pixel text-[var(--px-gold)]">{photos.length}</span> รูป
             </div>
           </header>
 
           <div className="mt-[1.8vw] flex min-h-0 flex-1 flex-col">
-            <div className="text-[clamp(.45rem,.58vw,.7rem)] font-bold tracking-[.18em] text-[#CE1126] uppercase">
-              ประวัติการถ่ายภาพทั้งหมด (Live Photo Wall)
+            <div className="font-pixel text-[clamp(.38rem,.5vw,.62rem)] text-[var(--px-red-hi)]">
+              ▶ HIGH SCORES · ภาพทั้งหมด
             </div>
 
             <div className="photo-wall-scroll mt-[1vw] min-h-0 flex-1 overflow-y-auto pr-[.5vw]">
@@ -478,7 +478,7 @@ export default function ShowcaseDisplayScreen() {
                   return (
                     <figure
                       key={`${photo.code}-${index}`}
-                      className={`group relative aspect-[4/3] overflow-hidden rounded-[.3vw] bg-[#0A0A0A] border border-white/5 transition duration-300 hover:border-[#CE1126] ${
+                      className={`group relative aspect-[4/3] overflow-hidden px-corners px-screen transition duration-300 hover:brightness-110 ${
                         isNew ? 'photo-wall-enter' : ''
                       }`}
                     >
@@ -490,7 +490,7 @@ export default function ShowcaseDisplayScreen() {
                           (e.currentTarget as HTMLImageElement).style.display = "none";
                         }}
                       />
-                      <figcaption className="absolute bottom-1.5 left-1.5 rounded bg-black/65 px-1.5 py-0.5 text-[clamp(.32rem,.4vw,.48rem)] font-bold tracking-[.08em] text-white/80 backdrop-blur">
+                      <figcaption className="font-pixel-sm absolute bottom-1.5 left-1.5 bg-[var(--px-red)] px-1.5 py-0.5 text-[clamp(.32rem,.4vw,.48rem)] font-bold text-white">
                         #{photo.code.replace('OPH-', '')}
                       </figcaption>
                     </figure>

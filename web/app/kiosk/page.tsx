@@ -748,7 +748,7 @@ export default function KioskCapturePage() {
 
   return (
     <main className="kiosk-shell relative grid h-dvh w-screen place-items-center overflow-hidden bg-black select-none">
-      <div className="kiosk-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-black">
+      <div className="kiosk-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden">
         {/* Live Camera Feed */}
         <video
           ref={videoRef}
@@ -761,13 +761,14 @@ export default function KioskCapturePage() {
 
         {/* Fallback Simulation View if camera not open */}
         {!cameraActive && showLiveFeed && (
-          <div className="absolute inset-0 h-full w-full bg-black flex items-center justify-center z-10">
+          <div className="absolute inset-0 h-full w-full flex items-center justify-center z-10">
             <div className="engineering-grid absolute inset-0 opacity-40" />
             <div className="text-center space-y-4 z-10 max-w-md px-6">
-              <div className="size-16 rounded-2xl bg-[#CE1126]/10 border border-[#CE1126]/30 flex items-center justify-center mx-auto text-[#CE1126]">
+              <div className="px-round size-16 mx-auto">
                 <Camera className="size-8" strokeWidth={1.8} />
               </div>
               <div>
+                <p className="font-pixel px-blink mb-3 text-xs text-[var(--px-gold)]">INSERT COIN</p>
                 <h3 className="text-lg font-bold text-white tracking-tight">
                   ระบบกล้องกำลังเชื่อมต่อ (Camera Standby)
                 </h3>
@@ -779,7 +780,7 @@ export default function KioskCapturePage() {
                 <button
                   type="button"
                   onClick={() => initCamera()}
-                  className="rounded-xl bg-[#CE1126] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#8F0B20] transition-colors shadow-lg flex items-center gap-2 cursor-pointer"
+                  className="px-btn px-btn-red px-corners px-5 py-2.5 text-xs"
                 >
                   <Camera className="size-4" />
                   <span>เชื่อมต่อกล้องทันที</span>
@@ -805,61 +806,61 @@ export default function KioskCapturePage() {
 
         {/* 4:3 Capture Zone Overlay & Bracket Boundaries */}
         <div className="kiosk-capture-zone pointer-events-none absolute inset-y-0 left-[12.5%] z-20 w-3/4 border-x-[1.5px] border-[#CE1126]/60" />
-        <div className="mono pointer-events-none absolute left-1/2 top-[1.4%] z-30 -translate-x-1/2 border border-[#CE1126]/40 bg-black/90 px-[.9vw] py-[.38vw] text-[clamp(.38rem,.48vw,.58rem)] tracking-[.14em] text-white/90 backdrop-blur">
-          4:3 CAPTURE ZONE · 1440×1080 RAW
+        <div className="font-pixel pointer-events-none absolute left-1/2 top-[1.4%] z-30 -translate-x-1/2 px-corners bg-[var(--px-red)] px-[.9vw] py-[.45vw] text-[clamp(.34rem,.42vw,.52rem)] text-white shadow-[inset_2px_2px_0_var(--px-red-hi),inset_-2px_-3px_0_var(--px-red-dark)]">
+          ▶ PLAYER 1 · READY
         </div>
 
         {/* Left Pillar (12.5%): Branding & Telemetry */}
-        <aside className="kiosk-pillar absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col justify-between border-r border-white/10 bg-[rgba(0,0,0,0.92)] p-[1.65%] backdrop-blur-md">
+        <aside className="kiosk-pillar px-panel absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col justify-between p-[1.65%]">
           <div>
             <div className="flex items-center gap-2">
               <CpeLogo className="h-[clamp(1.4rem,2.2vw,2.6rem)] max-w-full" />
-              <div className="h-px flex-1 bg-[#CE1126]/60" />
+              <div className="h-1 flex-1 bg-[var(--px-red)]" />
             </div>
-            <p className="mt-[2.2vw] text-[clamp(.55rem,.76vw,.92rem)] font-bold leading-[1.45] tracking-[-.02em] text-white">
+            <p className="font-pixel mt-[2.2vw] text-[clamp(.4rem,.6vw,.72rem)] leading-[1.7] text-[var(--px-red-hi)] [text-shadow:2px_2px_0_#1a0306]">
               SWU Computer
               <br />
               Engineering
             </p>
-            <p className="mt-2 text-[clamp(.46rem,.57vw,.68rem)] font-semibold leading-relaxed tracking-[.08em] text-slate-400">
+            <p className="font-pixel-sm mt-2 text-[clamp(.46rem,.57vw,.68rem)] font-bold leading-relaxed text-white">
               OPEN HOUSE 2026
             </p>
           </div>
 
           <div className="space-y-[1.2vw]">
-            <div className="border-l border-cyan-400/50 pl-[.7vw]">
-              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-cyan-300">1440×1080</div>
-              <div className="mt-1 text-[clamp(.38rem,.45vw,.54rem)] font-bold tracking-[.12em] text-slate-500">
+            <div className="px-screen px-[.6vw] py-[.45vw]">
+              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-[var(--px-gold)]">1440×1080</div>
+              <div className="mt-1 text-[clamp(.38rem,.45vw,.54rem)] font-bold tracking-[.12em] text-[var(--px-muted)]">
                 RAW · 4:3
               </div>
             </div>
-            <div className="border-l border-emerald-400/50 pl-[.7vw]">
-              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-emerald-300">
+            <div className="px-screen px-[.6vw] py-[.45vw]">
+              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-[var(--px-green)]">
                 {cameraActive ? '60 FPS' : 'STANDBY'}
               </div>
-              <div className="mt-1 text-[clamp(.38rem,.45vw,.54rem)] font-bold tracking-[.08em] text-slate-500">
+              <div className="mt-1 text-[clamp(.38rem,.45vw,.54rem)] font-bold tracking-[.08em] text-[var(--px-muted)]">
                 VISION READY
               </div>
             </div>
-            <div className="border-l border-cyan-400/50 pl-[.7vw]">
-              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-cyan-300 uppercase">
+            <div className="px-screen px-[.6vw] py-[.45vw]">
+              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-[var(--px-gold)] uppercase">
                 {detectedGestureText}
               </div>
-              <div className="mt-1 text-[clamp(.36rem,.43vw,.51rem)] font-bold tracking-[.08em] text-slate-500">
+              <div className="mt-1 text-[clamp(.36rem,.43vw,.51rem)] font-bold tracking-[.08em] text-[var(--px-muted)]">
                 AI MODEL ACTIVE
               </div>
             </div>
-            <div className="mono flex items-center gap-2 text-[clamp(.38rem,.46vw,.55rem)] text-slate-400">
-              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="font-pixel-sm flex items-center gap-2 text-[clamp(.38rem,.46vw,.55rem)] text-white">
+              <span className="size-1.5 bg-[var(--px-green)] animate-pulse" />
               BUS READY · 0ms
             </div>
           </div>
         </aside>
 
         {/* Right Pillar (12.5%): Gesture Guide & Instructions */}
-        <aside className="kiosk-pillar absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col justify-between border-l border-white/10 bg-[rgba(0,0,0,0.92)] p-[1.45%] backdrop-blur-md">
-          <div className="text-[clamp(.43rem,.52vw,.62rem)] font-bold tracking-[.16em] text-slate-400">
-            GESTURE GUIDE
+        <aside className="kiosk-pillar px-panel absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col justify-between p-[1.45%]">
+          <div className="font-pixel text-[clamp(.34rem,.42vw,.52rem)] text-white">
+            HOW TO PLAY
           </div>
 
           <div className="flex flex-1 flex-col justify-center gap-[2.4vw]">
@@ -872,10 +873,10 @@ export default function KioskCapturePage() {
               return (
                 <div key={step.english} className="relative">
                   <div className="mb-[.7vw] flex items-center gap-[.6vw]">
-                    <span className="mono text-[clamp(.4rem,.48vw,.58rem)] text-[#CE1126] font-bold">
+                    <span className="font-pixel text-[clamp(.34rem,.42vw,.5rem)] text-[var(--px-gold)]">
                       0{index + 1}
                     </span>
-                    <span className="h-px flex-1 bg-white/10" />
+                    <span className="h-1 flex-1 bg-[var(--px-steel-dark)]" />
                   </div>
                   <GuideIcon
                     className="mb-[.7vw] size-[clamp(1.15rem,1.55vw,1.85rem)] text-white"
@@ -886,7 +887,7 @@ export default function KioskCapturePage() {
                     <br />
                     {step.line2}
                   </div>
-                  <div className="mt-1 text-[clamp(.35rem,.4vw,.48rem)] font-bold tracking-[.1em] text-slate-500">
+                  <div className="font-pixel-sm mt-1 text-[clamp(.35rem,.4vw,.48rem)] font-bold text-[var(--px-muted)]">
                     {step.english}
                   </div>
                 </div>
@@ -894,7 +895,7 @@ export default function KioskCapturePage() {
             })}
           </div>
 
-          <div className="mono text-[clamp(.34rem,.4vw,.48rem)] leading-relaxed text-slate-500">
+          <div className="font-pixel-sm text-[clamp(.34rem,.4vw,.48rem)] leading-relaxed text-[var(--px-muted)]">
             KEY: [P]ALM [F]IST [S]TAFF
           </div>
         </aside>
@@ -916,11 +917,11 @@ export default function KioskCapturePage() {
         {/* Dynamic Tracking Status Badge - Positioned on the Side (Non-intrusive HUD Telemetry) */}
         {(isIdle || isDetecting) && showLiveFeed && liveLandmarks && (
           <div className="pointer-events-none absolute left-[13.8%] bottom-[3%] z-30 flex items-center">
-            <div className="mono flex items-center gap-2 rounded-full bg-black/90 border border-cyan-400/30 px-3.5 py-1.5 text-[clamp(.36rem,.46vw,.55rem)] text-slate-300 backdrop-blur-md shadow-lg transition-all duration-200">
-              <span className={`size-2 rounded-full ${isForeground ? 'bg-cyan-400 animate-pulse' : 'bg-amber-400'}`} />
+            <div className="font-pixel-sm flex items-center gap-2 px-card px-corners px-3.5 py-1.5 text-[clamp(.36rem,.46vw,.55rem)] text-slate-300 backdrop-blur-md shadow-lg transition-all duration-200">
+              <span className={`size-2 ${isForeground ? 'bg-[var(--px-green)] animate-pulse' : 'bg-[var(--px-gold)]'}`} />
               <span>PRIMARY HAND · {isForeground ? `AREA ${(handAreaRatio * 100).toFixed(1)}% (OK)` : `< 3.5% (เข้าใกล้กล้องอีกนิด)`}</span>
               <span className="text-slate-500">|</span>
-              <span className="text-cyan-300 font-bold">
+              <span className="text-[var(--px-gold)] font-bold">
                 {holdProgress > 0 ? `OPEN_PALM ${Math.round(holdProgress)}%` : detectedGestureText}
               </span>
             </div>
@@ -930,13 +931,13 @@ export default function KioskCapturePage() {
         {/* Countdown Active State (3..2..1) */}
         {isCountingDown && (
           <div className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center">
-            <div className="countdown-rings relative flex h-44 w-44 items-center justify-center rounded-full bg-black/85 border-2 border-white/20 backdrop-blur-md">
-              <span className="mono text-7xl font-black text-white tabular-nums">
+            <div className="px-screen px-corners relative flex h-44 w-44 items-center justify-center">
+              <span className="px-title text-7xl tabular-nums">
                 {countdown}
               </span>
             </div>
-            <div className="mt-6 rounded-full bg-black/85 border border-white/10 px-6 py-2 text-sm font-bold text-white backdrop-blur">
-              โพสท่าอิสระได้เลย!
+            <div className="mt-6 px-panel px-corners px-6 py-2 text-sm font-bold text-white">
+              <span className="font-pixel mr-2 text-[var(--px-gold)]">READY?</span> โพสท่าอิสระได้เลย!
             </div>
           </div>
         )}
@@ -949,29 +950,29 @@ export default function KioskCapturePage() {
         {/* Preview State: Review & Retake Controls - Clean, Formal & No Emojis */}
         {isPreviewing && (
           <div className="absolute inset-x-0 bottom-0 z-40 flex flex-col items-center justify-end pb-8">
-            <div className="flex items-center gap-6 rounded-2xl bg-black/95 border border-white/15 px-7 py-3.5 shadow-2xl backdrop-blur-xl">
+            <div className="flex items-center gap-6 px-panel px-corners px-7 py-4">
               {/* Fist: Retake Button (Unlimited Retakes) */}
               <button
                 type="button"
                 onClick={handleRetake}
-                className="group flex items-center gap-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 px-5 py-2.5 transition-all cursor-pointer"
+                className="group px-btn px-corners gap-3 px-5 py-2.5"
               >
-                <div className="flex size-9 items-center justify-center rounded-lg bg-white/10 text-white group-hover:rotate-[-45deg] transition-transform">
+                <div className="flex size-9 items-center justify-center bg-black/30 text-white group-hover:rotate-[-45deg] transition-transform">
                   <RotateCcw className="size-4" />
                 </div>
                 <div className="text-left">
                   <div className="text-xs font-bold text-white">กำมือ เพื่อถ่ายใหม่</div>
-                  <div className="mono text-[10px] text-slate-400">RETAKE PHOTO</div>
+                  <div className="font-pixel-sm text-[10px] text-white/80">CONTINUE?</div>
                 </div>
               </button>
 
               {/* Center Timer */}
-              <div className="flex flex-col items-center px-4 min-w-[70px]">
-                <div className="mono text-2xl font-black text-cyan-400 tabular-nums">
+              <div className="px-screen flex flex-col items-center px-4 py-2 min-w-[80px]">
+                <div className="font-pixel text-xl text-[var(--px-gold)] tabular-nums">
                   {previewSeconds}s
                 </div>
-                <div className="mono text-[9px] font-bold text-slate-400 tracking-wider uppercase">
-                  AUTO PROCEED
+                <div className="font-pixel-sm text-[9px] font-bold text-[var(--px-muted)] uppercase">
+                  TIME
                 </div>
               </div>
 
@@ -979,14 +980,14 @@ export default function KioskCapturePage() {
               <button
                 type="button"
                 onClick={handleConfirmUpload}
-                className="group flex items-center gap-3 rounded-xl bg-[#CE1126] hover:bg-[#8F0B20] border border-[#CE1126]/60 px-6 py-2.5 transition-all shadow-[0_4px_20px_rgba(206,17,38,0.35)] cursor-pointer"
+                className="group px-btn px-btn-red px-corners gap-3 px-6 py-2.5"
               >
-                <div className="flex size-9 items-center justify-center rounded-lg bg-black/25 text-white">
+                <div className="flex size-9 items-center justify-center bg-black/25 text-white">
                   <Check className="size-5" strokeWidth={2.5} />
                 </div>
                 <div className="text-left">
                   <div className="text-xs font-bold text-white">แบมือ ยืนยันรูปนี้</div>
-                  <div className="mono text-[10px] text-white/90">CONFIRM & CREATE QR</div>
+                  <div className="font-pixel-sm text-[10px] text-white/90">PRESS START</div>
                 </div>
               </button>
             </div>
@@ -995,12 +996,13 @@ export default function KioskCapturePage() {
 
         {/* Uploading & Success Notification */}
         {isSyncing && (
-          <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md">
+          <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-[#0c0305]/90">
             <div className="text-center space-y-4">
-              <CheckCircle2 className="size-20 text-[#10B981] mx-auto animate-bounce" />
+              <CheckCircle2 className="size-20 text-[var(--px-green)] mx-auto animate-bounce" />
+              <p className="px-title text-4xl">STAGE CLEAR!</p>
               <h2 className="text-3xl font-black text-white">ส่งรูปเรียบร้อย!</h2>
               <p className="text-base text-slate-300">
-                เชิญสแกนรับรูปที่ <b>จอหมายเลข 2 (Showcase)</b> รหัสรูป: <span className="mono text-cyan-400 font-bold">{syncedCode}</span>
+                เชิญสแกนรับรูปที่ <b>จอหมายเลข 2 (Showcase)</b> รหัสรูป: <span className="font-pixel text-[var(--px-gold)]">{syncedCode}</span>
               </p>
             </div>
           </div>
@@ -1008,14 +1010,15 @@ export default function KioskCapturePage() {
 
         {/* Kiosk Paused Overlay */}
         {isPaused && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md">
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#0c0305]/92">
             <div className="text-center space-y-3">
-              <Pause className="size-16 text-amber-400 mx-auto" />
+              <Pause className="size-16 text-[var(--px-gold)] mx-auto" />
+              <p className="font-pixel px-blink text-lg text-white">PAUSED</p>
               <h2 className="text-2xl font-bold text-white">พักบูธชั่วคราว</h2>
               <p className="text-xs text-slate-400">สตาฟกำลังดูแลความเรียบร้อย หรือจัดคิว</p>
               <button
                 onClick={() => setIsPaused(false)}
-                className="mt-4 rounded bg-[#CE1126] px-4 py-2 text-xs font-bold text-white"
+                className="px-btn px-btn-red px-corners mt-4 px-4 py-2 text-xs"
               >
                 เปิดใช้งานต่อ
               </button>
