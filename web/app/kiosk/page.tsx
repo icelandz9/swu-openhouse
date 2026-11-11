@@ -1002,12 +1002,20 @@ function KioskCapturePageContent() {
 
               {/* Dialog box: what to do now */}
               {(isIdle || isDetecting) && showLiveFeed && cameraActive && (
-                <div className="kc-dialog pointer-events-none absolute inset-x-[1.2cqw] bottom-[1.2cqw] z-30 flex items-center gap-[1.2cqw] px-[1.2cqw] py-[1cqw]">
-                  <span className="flex size-[3.6cqw] shrink-0 items-center justify-center rounded-[.5cqw] bg-[var(--px-red)]">
-                    <Hand className="size-[2.2cqw] text-white" strokeWidth={2.2} />
+                // Compact prompt, kept inside the capture area (inside the white box in frame mode)
+                <div
+                  style={
+                    photoRatio === 'frame'
+                      ? { left: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 1.6cqw)`, right: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 1.6cqw)` }
+                      : { left: '3cqw', right: '3cqw' }
+                  }
+                  className="kc-dialog pointer-events-none absolute bottom-[2.2cqw] z-30 flex items-center gap-[.8cqw] px-[.9cqw] py-[.6cqw]"
+                >
+                  <span className="flex size-[2.5cqw] shrink-0 items-center justify-center rounded-[.4cqw] bg-[var(--px-red)]">
+                    <Hand className="size-[1.5cqw] text-white" strokeWidth={2.2} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[1.75cqw] font-bold leading-tight text-white">
+                    <p className="truncate text-[1.2cqw] font-bold leading-tight text-white">
                       {holdProgress > 0
                         ? 'ค้างไว้อีกนิด...'
                         : liveLandmarks && !isForeground
@@ -1015,14 +1023,14 @@ function KioskCapturePageContent() {
                           : 'ชูมือ 5 นิ้ว เพื่อเริ่มถ่ายรูป'}
                     </p>
                     {holdProgress > 0 ? (
-                      <div className="px-meter mt-[.5cqw]">
+                      <div className="px-meter mt-[.35cqw]">
                         <span style={{ width: `${Math.max(0, Math.min(100, holdProgress))}%` }} />
                       </div>
                     ) : (
-                      <p className="font-pixel mt-[.4cqw] text-[.66cqw] text-white/55">RAISE YOUR HAND TO START</p>
+                      <p className="font-pixel mt-[.3cqw] truncate text-[.5cqw] text-white/55">RAISE YOUR HAND TO START</p>
                     )}
                   </div>
-                  <span className="font-pixel shrink-0 text-[.8cqw] text-[var(--px-gold)]">
+                  <span className="font-pixel shrink-0 text-[.6cqw] text-[var(--px-gold)]">
                     {holdProgress > 0 ? `${Math.round(holdProgress)}%` : 'PRESS START'}
                   </span>
                 </div>
