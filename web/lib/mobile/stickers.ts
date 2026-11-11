@@ -55,7 +55,7 @@ export function drawStickers(
   }
 }
 
-// Groups for the "view all" sticker sheet. "วิศวะรัก..." hearts first, everything else after.
+// Groups for the "view all" sticker sheet: folders ("วิศวะรัก...", "เซเลปองครักษ์") first, then the rest.
 export interface StickerGroup {
   id: string;
   title: string;
@@ -75,14 +75,25 @@ function withCoverFirst(stickers: StickerAsset[], cover: RegExp): StickerAsset[]
   return i <= 0 ? stickers : [stickers[i], ...stickers.slice(0, i), ...stickers.slice(i + 1)];
 }
 
+// Folder tiles in the sheet, in display order. Stickers that match no folder are listed loose after them.
+const STICKER_FOLDERS: { id: string; title: string; match: RegExp; cover: RegExp }[] = [
+  { id: 'hearts', title: 'วิศวะรัก...', match: HEART_STICKER, cover: HEART_COVER },
+  // Engineering mascot dogs (dog-set1-*.png, dog-set2-*.png); the CPE dog is the cover.
+  { id: 'celeb', title: 'เซเลปองครักษ์', match: /\/dog-set[^/]*$/i, cover: /\/dog-set1-05\.png$/i },
+];
+
+/** The id of the group that holds stickers outside every folder. */
+export const LOOSE_STICKER_GROUP = 'others';
+
 export function groupStickers(catalog: StickerAsset[]): StickerGroup[] {
-  const hearts = withCoverFirst(
-    catalog.filter((s) => HEART_STICKER.test(decodeURIComponent(s.src))),
-    HEART_COVER
-  );
-  const others = catalog.filter((s) => !HEART_STICKER.test(decodeURIComponent(s.src)));
   const groups: StickerGroup[] = [];
-  if (hearts.length) groups.push({ id: 'hearts', title: 'วิศวะรัก...', stickers: hearts, cover: hearts[0] });
-  if (others.length) groups.push({ id: 'others', title: 'สติกเกอร์อื่น ๆ', stickers: others, cover: others[0] });
+  let rest = catalog;
+  for (const folder of STICKER_FOLDERS) {
+    const inFolder = rest.filter((s) => folder.match.test(decodeURIComponent(s.src)));
+    rest = rest.filter((s) => !inFolder.includes(s));
+    const stickers = withCoverFirst(inFolder, folder.cover);
+    if (stickers.length) groups.push({ id: folder.id, title: folder.title, stickers, cover: stickers[0] });
+  }
+  if (rest.length) groups.push({ id: LOOSE_STICKER_GROUP, title: 'สติกเกอร์อื่น ๆ', stickers: rest, cover: rest[0] });
   return groups;
 }
