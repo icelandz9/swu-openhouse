@@ -25,9 +25,10 @@ import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
 import { calculate43Crop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
+import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
 import { GameMenu, PixelSkyline } from '@/components/PixelScene';
 
-export default function KioskCapturePage() {
+function KioskCapturePageContent() {
   const {
     send,
     state,
@@ -51,7 +52,7 @@ export default function KioskCapturePage() {
   const [isAiVisionReady, setIsAiVisionReady] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number }>({ width: 16, height: 9 });
-  const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.035);
+  const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.025);
   const currentStreamRef = useRef<MediaStream | null>(null);
 
   // Gesture detection & tracking
@@ -130,6 +131,18 @@ export default function KioskCapturePage() {
 
   // Initialize BroadcastChannel & listen to admin / display events
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedThreshold = localStorage.getItem('swu_hand_threshold');
+        if (savedThreshold) {
+          const parsed = parseFloat(savedThreshold);
+          if (!isNaN(parsed) && parsed >= 0.005 && parsed <= 0.1) {
+            setHandAreaThreshold(parsed);
+          }
+        }
+      } catch {}
+    }
+
     const channel = new BroadcastChannel(SCREEN_SYNC_CHANNEL);
     channelRef.current = channel;
 
@@ -174,6 +187,9 @@ export default function KioskCapturePage() {
         } else if (data.command === 'SET_THRESHOLD') {
           if (typeof data.value === 'number') {
             setHandAreaThreshold(data.value);
+            if (typeof window !== 'undefined') {
+              try { localStorage.setItem('swu_hand_threshold', data.value.toString()); } catch {}
+            }
           }
         } else if (data.command === 'SET_PUBLIC_DOMAIN') {
           if (typeof window !== 'undefined') {
@@ -188,26 +204,33 @@ export default function KioskCapturePage() {
       } else if (data.type === 'HEARTBEAT_PING') {
         const video = videoRef.current;
         const resText = video && video.videoWidth > 0 ? `${video.videoWidth}x${video.videoHeight}` : '1080p';
-        channelRef.current?.postMessage({
-          type: 'HEARTBEAT_PONG',
-          sender: 'KIOSK',
-          timestamp: Date.now(),
-          pingTimestamp: data.timestamp,
-          status: {
-            state: state,
-            isPaused,
-            cameraActive,
-            fps: fpsCounterRef.current.currentFps || 60,
-            resolution: resText,
-            aiLatencyMs: lastAiLatencyRef.current || 11,
-            threshold: handAreaThreshold,
-          },
-        });
+        try {
+          channelRef.current?.postMessage({
+            type: 'HEARTBEAT_PONG',
+            sender: 'KIOSK',
+            timestamp: Date.now(),
+            pingTimestamp: data.timestamp,
+            status: {
+              state: state,
+              isPaused,
+              cameraActive,
+              fps: fpsCounterRef.current.currentFps || 60,
+              resolution: resText,
+              aiLatencyMs: lastAiLatencyRef.current || 11,
+              threshold: handAreaThreshold,
+            },
+          });
+        } catch {}
       }
     };
 
     return () => {
-      channel.close();
+      try {
+        channel.close();
+      } catch {}
+      if (channelRef.current === channel) {
+        channelRef.current = null;
+      }
     };
   }, [send, isPreviewing]);
 
@@ -351,7 +374,9 @@ export default function KioskCapturePage() {
       };
 
       // 3. Broadcast to Screen 2 & 3 via BroadcastChannel
-      channelRef.current?.postMessage(syncEvent);
+      try {
+        channelRef.current?.postMessage(syncEvent);
+      } catch {}
 
       // 4. Save to localStorage for cross-window / tab reliability
       if (typeof window !== 'undefined') {
@@ -476,24 +501,28 @@ export default function KioskCapturePage() {
 
         if (!active) return;
 
+        const landmarkerOptions = {
+          baseOptions: {
+            modelAssetPath: '/mediapipe/hand_landmarker.task',
+            delegate: 'GPU' as const,
+          },
+          runningMode: 'VIDEO' as const,
+          numHands: 2,
+          minHandDetectionConfidence: 0.35,
+          minHandPresenceConfidence: 0.35,
+          minTrackingConfidence: 0.35,
+        };
+
         let landmarker: any = null;
         try {
-          landmarker = await HandLandmarker.createFromOptions(vision, {
-            baseOptions: {
-              modelAssetPath: '/mediapipe/hand_landmarker.task',
-              delegate: 'GPU',
-            },
-            runningMode: 'VIDEO',
-            numHands: 2,
-          });
+          landmarker = await HandLandmarker.createFromOptions(vision, landmarkerOptions);
         } catch {
           landmarker = await HandLandmarker.createFromOptions(vision, {
+            ...landmarkerOptions,
             baseOptions: {
-              modelAssetPath: '/mediapipe/hand_landmarker.task',
+              ...landmarkerOptions.baseOptions,
               delegate: 'CPU',
             },
-            runningMode: 'VIDEO',
-            numHands: 2,
           });
         }
 
@@ -1002,5 +1031,13 @@ export default function KioskCapturePage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function KioskCapturePage() {
+  return (
+    <SafeErrorBoundary fallbackTitle="หน้าจอสัมผัส Kiosk พบข้อขัดข้องชั่วคราว">
+      <KioskCapturePageContent />
+    </SafeErrorBoundary>
   );
 }
