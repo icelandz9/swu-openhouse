@@ -48,7 +48,7 @@ function KioskCapturePageContent() {
   const [isAiVisionReady, setIsAiVisionReady] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number }>({ width: 16, height: 9 });
-  const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.035);
+  const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.025);
   const currentStreamRef = useRef<MediaStream | null>(null);
 
   // Gesture detection & tracking
@@ -127,6 +127,18 @@ function KioskCapturePageContent() {
 
   // Initialize BroadcastChannel & listen to admin / display events
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedThreshold = localStorage.getItem('swu_hand_threshold');
+        if (savedThreshold) {
+          const parsed = parseFloat(savedThreshold);
+          if (!isNaN(parsed) && parsed >= 0.005 && parsed <= 0.1) {
+            setHandAreaThreshold(parsed);
+          }
+        }
+      } catch {}
+    }
+
     const channel = new BroadcastChannel(SCREEN_SYNC_CHANNEL);
     channelRef.current = channel;
 
@@ -171,6 +183,9 @@ function KioskCapturePageContent() {
         } else if (data.command === 'SET_THRESHOLD') {
           if (typeof data.value === 'number') {
             setHandAreaThreshold(data.value);
+            if (typeof window !== 'undefined') {
+              try { localStorage.setItem('swu_hand_threshold', data.value.toString()); } catch {}
+            }
           }
         } else if (data.command === 'SET_PUBLIC_DOMAIN') {
           if (typeof window !== 'undefined') {
@@ -482,24 +497,28 @@ function KioskCapturePageContent() {
 
         if (!active) return;
 
+        const landmarkerOptions = {
+          baseOptions: {
+            modelAssetPath: '/mediapipe/hand_landmarker.task',
+            delegate: 'GPU' as const,
+          },
+          runningMode: 'VIDEO' as const,
+          numHands: 2,
+          minHandDetectionConfidence: 0.35,
+          minHandPresenceConfidence: 0.35,
+          minTrackingConfidence: 0.35,
+        };
+
         let landmarker: any = null;
         try {
-          landmarker = await HandLandmarker.createFromOptions(vision, {
-            baseOptions: {
-              modelAssetPath: '/mediapipe/hand_landmarker.task',
-              delegate: 'GPU',
-            },
-            runningMode: 'VIDEO',
-            numHands: 2,
-          });
+          landmarker = await HandLandmarker.createFromOptions(vision, landmarkerOptions);
         } catch {
           landmarker = await HandLandmarker.createFromOptions(vision, {
+            ...landmarkerOptions,
             baseOptions: {
-              modelAssetPath: '/mediapipe/hand_landmarker.task',
+              ...landmarkerOptions.baseOptions,
               delegate: 'CPU',
             },
-            runningMode: 'VIDEO',
-            numHands: 2,
           });
         }
 

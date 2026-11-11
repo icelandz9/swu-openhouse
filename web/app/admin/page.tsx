@@ -138,7 +138,7 @@ function StaffAdminScreen() {
   const [pushedCode, setPushedCode] = useState<string | null>(null);
 
   // Settings & Tuners
-  const [sensitivity, setSensitivity] = useState<number>(3.5);
+  const [sensitivity, setSensitivity] = useState<number>(2.5);
   const [countdownDuration, setCountdownDuration] = useState<number>(3);
   const [publicDomain, setPublicDomain] = useState<string>('');
   const [instantPurgeCode, setInstantPurgeCode] = useState<string>('');
@@ -260,6 +260,15 @@ function StaffAdminScreen() {
       } else {
         const saved = localStorage.getItem('swu_admin_theme') as 'dark' | 'light';
         if (saved === 'light' || saved === 'dark') setTheme(saved);
+      }
+
+      // Load saved hand threshold sensitivity
+      const savedThreshold = localStorage.getItem('swu_hand_threshold');
+      if (savedThreshold) {
+        const parsed = parseFloat(savedThreshold);
+        if (!isNaN(parsed) && parsed >= 0.005 && parsed <= 0.1) {
+          setSensitivity(parsed * 100);
+        }
       }
     }
   }, []);
@@ -1606,29 +1615,87 @@ function StaffAdminScreen() {
               {/* Minimal Tuners (Clean, Compact 3-Column) */}
               <div className="border-t border-slate-800/40 pt-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                  {/* Tuner 1: Sensitivity */}
-                  <div className={`p-3.5 rounded-xl border space-y-2 ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                    <div className="flex justify-between text-xs">
-                      <span className="font-semibold text-slate-400">เกณฑ์ตรวจจับมือ</span>
-                      <span className="font-mono text-cyan-500 font-bold">{sensitivity.toFixed(1)}%</span>
+                  {/* Tuner 1: Sensitivity (Hand Detection Range) */}
+                  <div className={`p-3.5 rounded-xl border space-y-2.5 ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-semibold text-slate-300">ระยะตรวจจับมือ</span>
+                      <span className="font-mono text-cyan-400 font-bold bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded-md text-[11px]">
+                        {sensitivity.toFixed(1)}% ({sensitivity <= 1.8 ? 'ไกล 2-3m' : sensitivity <= 3.2 ? 'ปกติ 1.5m' : 'ประชิด <1m'})
+                      </span>
                     </div>
+
                     <input
                       type="range"
-                      min="2.0"
-                      max="6.0"
-                      step="0.5"
+                      min="0.8"
+                      max="5.0"
+                      step="0.1"
                       value={sensitivity}
                       onChange={(e) => {
                         const val = parseFloat(e.target.value);
                         setSensitivity(val);
-                        sendCommand('SET_THRESHOLD', `เกณฑ์ ${val}%`, val / 100);
+                        sendCommand('SET_THRESHOLD', `เกณฑ์ ${val.toFixed(1)}%`, val / 100);
+                        if (typeof window !== 'undefined') {
+                          try { localStorage.setItem('swu_hand_threshold', (val / 100).toString()); } catch {}
+                        }
                       }}
-                      className="w-full accent-cyan-500 cursor-pointer"
+                      className="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg"
                     />
-                    <div className="flex justify-between text-[10px] text-slate-500">
-                      <span>2.0%</span>
-                      <span className="text-cyan-500 font-bold">3.5% แนะนำ</span>
-                      <span>5.0%</span>
+
+                    {/* Quick Distance Presets */}
+                    <div className="grid grid-cols-3 gap-1 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSensitivity(1.5);
+                          sendCommand('SET_THRESHOLD', 'โหมดระยะไกล 1.5%', 0.015);
+                          if (typeof window !== 'undefined') {
+                            try { localStorage.setItem('swu_hand_threshold', '0.015'); } catch {}
+                          }
+                        }}
+                        className={`px-1.5 py-1 text-[10px] rounded-lg font-medium transition-all cursor-pointer ${
+                          sensitivity <= 1.8
+                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                            : isDark ? 'bg-slate-800/60 text-slate-400 hover:text-slate-200 border border-transparent' : 'bg-slate-200 text-slate-600 hover:text-slate-800 border border-transparent'
+                        }`}
+                      >
+                        🔭 ไกล (1.5%)
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSensitivity(2.5);
+                          sendCommand('SET_THRESHOLD', 'โหมดปกติ 2.5%', 0.025);
+                          if (typeof window !== 'undefined') {
+                            try { localStorage.setItem('swu_hand_threshold', '0.025'); } catch {}
+                          }
+                        }}
+                        className={`px-1.5 py-1 text-[10px] rounded-lg font-medium transition-all cursor-pointer ${
+                          sensitivity > 1.8 && sensitivity <= 3.2
+                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                            : isDark ? 'bg-slate-800/60 text-slate-400 hover:text-slate-200 border border-transparent' : 'bg-slate-200 text-slate-600 hover:text-slate-800 border border-transparent'
+                        }`}
+                      >
+                        🎯 ปกติ (2.5%)
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSensitivity(4.0);
+                          sendCommand('SET_THRESHOLD', 'โหมดคนแน่น 4.0%', 0.04);
+                          if (typeof window !== 'undefined') {
+                            try { localStorage.setItem('swu_hand_threshold', '0.04'); } catch {}
+                          }
+                        }}
+                        className={`px-1.5 py-1 text-[10px] rounded-lg font-medium transition-all cursor-pointer ${
+                          sensitivity > 3.2
+                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                            : isDark ? 'bg-slate-800/60 text-slate-400 hover:text-slate-200 border border-transparent' : 'bg-slate-200 text-slate-600 hover:text-slate-800 border border-transparent'
+                        }`}
+                      >
+                        🛡️ ประชิด (4.0%)
+                      </button>
                     </div>
                   </div>
 
