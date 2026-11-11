@@ -615,6 +615,15 @@ button:focus-visible {
   );
 }
 
+/* Smaller steps for small badges and buttons, where 8px steps would turn them into a plus sign */
+.px-corners-sm {
+  clip-path: polygon(
+    0 3px, 3px 3px, 3px 0, calc(100% - 3px) 0, calc(100% - 3px) 3px, 100% 3px,
+    100% calc(100% - 3px), calc(100% - 3px) calc(100% - 3px), calc(100% - 3px) 100%,
+    3px 100%, 3px calc(100% - 3px), 0 calc(100% - 3px)
+  );
+}
+
 /* Grey console body with a bevelled pixel edge and screws in the corners */
 .px-panel {
   position: relative;
@@ -626,7 +635,7 @@ button:focus-visible {
     linear-gradient(180deg, #6b6a71 0%, var(--px-steel) 60%, #4c4b52 100%);
   box-shadow:
     inset 4px 4px 0 var(--px-steel-hi),
-    inset -4px -8px 0 var(--px-steel-dark);
+    inset -4px -4px 0 var(--px-steel-dark);
   color: var(--px-cream);
 }
 
@@ -636,10 +645,12 @@ button:focus-visible {
   background:
     repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.25) 0 1px, transparent 1px 3px),
     linear-gradient(180deg, #2b0c11 0%, var(--px-screen) 100%);
+  /* Even bezel on all four sides: dark frame, thin red inner line, soft shade under the top edge */
   box-shadow:
-    inset 4px 4px 0 #0a0203,
-    inset -4px -4px 0 var(--px-screen-line),
-    0 0 0 4px #232227;
+    inset 0 0 0 3px #0a0203,
+    inset 0 0 0 4px var(--px-screen-line),
+    inset 0 10px 12px -8px rgba(0, 0, 0, 0.7),
+    0 0 0 3px #232227;
   color: var(--px-cream);
 }
 

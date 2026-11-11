@@ -818,7 +818,7 @@ export default function KioskCapturePage() {
         <aside className="kiosk-pillar px-panel absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col px-[1.1%] py-[1.6%]">
           <CpeLogo className="mx-auto h-[clamp(1.4rem,2.3vw,2.8rem)] max-w-full" />
           <div className="px-screen mt-[1.1vw] px-[.5vw] py-[.9vw] text-center">
-            <p className="px-title text-[clamp(.5rem,.82vw,1rem)]">ENGINEERING</p>
+            <p className="px-title text-[clamp(.46rem,.72vw,.9rem)]">ENGINEERING</p>
             <p className="font-pixel mt-[.55vw] text-[clamp(.32rem,.44vw,.54rem)] leading-[1.8] text-white">
               BUILD YOUR
               <br />
@@ -886,9 +886,9 @@ export default function KioskCapturePage() {
             ].map((step, index) => {
               const GuideIcon = step.icon;
               return (
-                <li key={step.english} className="px-screen px-corners flex flex-1 flex-col justify-center px-[.65vw] py-[.75vw]">
+                <li key={step.english} className="px-screen flex flex-1 flex-col justify-center px-[.75vw] py-[.75vw]">
                   <div className="flex items-center justify-between">
-                    <span className="px-btn px-btn-red px-corners font-pixel size-[1.9vw] text-[clamp(.4rem,.55vw,.66rem)]">
+                    <span className="px-btn px-btn-red px-corners-sm font-pixel size-[1.9vw] text-[clamp(.4rem,.55vw,.66rem)]">
                       {index + 1}
                     </span>
                     <GuideIcon className="size-[clamp(1rem,1.5vw,1.8rem)] text-white" strokeWidth={1.75} />
