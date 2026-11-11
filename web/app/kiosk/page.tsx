@@ -816,8 +816,16 @@ export default function KioskCapturePage() {
 
         {/* Left grip of the console: title, D-pad, player status */}
         <aside className="kiosk-pillar px-panel absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col px-[1.1%] py-[1.6%]">
-          <CpeLogo className="mx-auto h-[clamp(1.4rem,2.3vw,2.8rem)] max-w-full" />
-          <div className="px-screen mt-[1.1vw] px-[.5vw] py-[.9vw] text-center">
+          {/* Logo lit up on the console's title screen (it is made for dark backgrounds) */}
+          <div className="px-screen px-[.6vw] pb-[.9vw] pt-[1.1vw] text-center">
+            <div className="relative mx-auto w-fit">
+              <span
+                className="pointer-events-none absolute -inset-[.8vw] bg-[radial-gradient(closest-side,rgba(232,56,79,0.35),transparent)]"
+                aria-hidden
+              />
+              <CpeLogo className="relative mx-auto h-[clamp(2.2rem,3.7vw,4.4rem)] max-w-full [filter:drop-shadow(.18vw_.18vw_0_#1a0306)]" />
+            </div>
+            <div className="mx-auto my-[.8vw] h-[3px] w-[80%] bg-[repeating-linear-gradient(90deg,var(--px-red)_0_6px,transparent_6px_10px)]" aria-hidden />
             <p className="px-title text-[clamp(.46rem,.72vw,.9rem)]">ENGINEERING</p>
             <p className="font-pixel mt-[.55vw] text-[clamp(.32rem,.44vw,.54rem)] leading-[1.8] text-white">
               BUILD YOUR
