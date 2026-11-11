@@ -35,6 +35,9 @@ export function useMediaPipeHand(video: HTMLVideoElement | null, enabled: boolea
             baseOptions: { modelAssetPath: MODEL_PATH, delegate },
             runningMode: 'VIDEO',
             numHands: 2,
+            minHandDetectionConfidence: 0.35,
+            minHandPresenceConfidence: 0.35,
+            minTrackingConfidence: 0.35,
           });
         const landmarker = await create('GPU').catch(() => create('CPU'));
         if (cancelled) {

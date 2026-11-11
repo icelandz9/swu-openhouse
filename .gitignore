@@ -21,6 +21,8 @@ fivepalm_capture_*.jpg
 # Design assets (not photos of people): frame overlays and stickers
 !web/public/frames/cpe/
 !web/public/frames/cpe/*.png
+!web/public/frames/pixel/
+!web/public/frames/pixel/*.png
 !web/public/stickers/
 !web/public/stickers/*.png
 !web/public/stickers/*.jpg
