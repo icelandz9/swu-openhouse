@@ -22,8 +22,9 @@ import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
 import { calculate43Crop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
+import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
 
-export default function KioskCapturePage() {
+function KioskCapturePageContent() {
   const {
     send,
     state,
@@ -1033,5 +1034,13 @@ export default function KioskCapturePage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function KioskCapturePage() {
+  return (
+    <SafeErrorBoundary fallbackTitle="หน้าจอสัมผัส Kiosk พบข้อขัดข้องชั่วคราว">
+      <KioskCapturePageContent />
+    </SafeErrorBoundary>
   );
 }

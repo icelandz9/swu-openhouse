@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
 import { CpeLogo } from '@/components/CpeLogo';
+import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
 
 interface GalleryItem {
   code: string;
@@ -32,7 +33,7 @@ function formatPhotoDate(iso: string) {
 // Wait a moment after a new photo arrives (so the upload has finished) before reloading.
 const RELOAD_AFTER_PHOTO_MS = 1500;
 
-export default function ShowcaseDisplayScreen() {
+function ShowcaseDisplayScreenContent() {
   const [photos, setPhotos] = useState<GalleryItem[]>(DEFAULT_SEEDS);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [activePhoto, setActivePhoto] = useState<GalleryItem | null>(null);
@@ -509,5 +510,13 @@ export default function ShowcaseDisplayScreen() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function ShowcaseDisplayScreen() {
+  return (
+    <SafeErrorBoundary fallbackTitle="หน้าจอแสดงผล Display พบข้อขัดข้องชั่วคราว">
+      <ShowcaseDisplayScreenContent />
+    </SafeErrorBoundary>
   );
 }

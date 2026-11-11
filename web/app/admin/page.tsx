@@ -17,6 +17,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { CpeLogo } from '@/components/CpeLogo';
 import { StaffGate } from '@/components/StaffGate';
+import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
 import {
   PhotoRecord,
   ScreenSyncEvent,
@@ -1902,8 +1903,10 @@ function StaffAdminScreen() {
 
 export default function StaffAdminPortal() {
   return (
-    <StaffGate title="Staff Mission Control Center">
-      <StaffAdminScreen />
-    </StaffGate>
+    <SafeErrorBoundary fallbackTitle="ศูนย์ควบคุม Staff Admin พบข้อขัดข้องชั่วคราว">
+      <StaffGate title="Staff Mission Control Center">
+        <StaffAdminScreen />
+      </StaffGate>
+    </SafeErrorBoundary>
   );
 }
