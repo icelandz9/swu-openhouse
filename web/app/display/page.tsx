@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
 import { CpeLogo } from '@/components/CpeLogo';
 import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
+import { ConsoleCaps, GameMenu, PixelSkyline } from '@/components/PixelScene';
 
 interface GalleryItem {
   code: string;
@@ -319,193 +320,208 @@ function ShowcaseDisplayScreenContent() {
 
   return (
     <main className="display-shell grid h-dvh w-screen place-items-center overflow-hidden bg-black select-none">
-      <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-black">
+      <div className="display-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden">
         {isMuted && (
-          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md text-white select-none animate-in fade-in">
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0c0305]/95 text-white select-none animate-in fade-in">
             <CpeLogo className="h-16 text-white opacity-40 mb-4" />
-            <div className="rounded-full bg-red-500/20 border border-red-500/40 px-4 py-1 text-xs font-mono text-red-400 mb-2">
-              EMERGENCY PRIVACY SHIELD ACTIVE
+            <div className="font-pixel px-blink mb-3 text-xs text-[var(--px-gold)]">
+              PAUSED
             </div>
             <h2 className="text-xl font-bold text-white">จอแสดงผลอยู่ในโหมดพักการแสดงภาพชั่วคราว</h2>
             <p className="text-xs text-slate-400 mt-1">เจ้าหน้าที่กำลังจัดเตรียมระบบ กรุณารอสักครู่</p>
           </div>
         )}
-        {/* Left Section (30%): Live Polaroid Showcase & Centered White QR Station */}
-        <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col border-r border-[#1C1C1C] px-[1.2%] py-[1.2vw] justify-between">
-          <div>
-            {/* Live Indicator Banner */}
-            <div className="mono flex items-center justify-between text-[clamp(.48rem,.62vw,.74rem)]">
+        {/* Left (30%): latest photo on a console screen + QR */}
+        <section className="showcase-left absolute inset-y-0 left-0 z-20 flex w-[30%] flex-col gap-[1vw] border-r-4 border-[var(--px-red-dark)] px-[1.3vw] py-[1.1vw]">
+          {/* HUD row */}
+          <div className="font-pixel flex items-center justify-between text-[clamp(.36rem,.5vw,.62rem)]">
+            {activePhoto ? (
+              <span className="flex items-center gap-[.5vw] text-[var(--px-gold)]">
+                <span className="size-[.5vw] bg-[var(--px-green)] animate-pulse" />
+                NEW RECORD!
+              </span>
+            ) : (
+              <span className="flex items-center gap-[.5vw] text-white">
+                <span className="px-blink size-[.5vw] bg-[var(--px-gold)]" />
+                INSERT COIN
+              </span>
+            )}
+            <span className="px-screen px-[.5vw] py-[.25vw] text-[var(--px-gold)]" suppressHydrationWarning>
+              {currentTime}
+            </span>
+          </div>
+
+          {/* Console with the photo */}
+          <div className="px-panel px-corners relative p-[1.1vw] pb-[.8vw] [--cap-h:1.9vw] [--cap-w:2.6vw]">
+            <ConsoleCaps corners={['tl', 'tr']} />
+            <div className="relative z-[2] aspect-[4/3] overflow-hidden px-screen">
               {activePhoto ? (
-                <span className="flex items-center gap-2 tracking-[.16em] text-[#CE1126] font-bold">
-                  <span className="size-2 rounded-full bg-[#10B981] animate-pulse shadow-[0_0_12px_#10B981]" />
-                  LATEST SHOT
-                </span>
+                <img
+                  src={activePhoto.photoUrl}
+                  alt={`รูปล่าสุด ${activePhoto.code}`}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  }}
+                />
               ) : (
-                <span className="flex items-center gap-2 tracking-[.16em] text-slate-300 font-bold">
-                  <span className="size-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_12px_#22D3EE]" />
-                  STANDBY · พร้อมถ่ายภาพ
+                <>
+                  <PixelSkyline />
+                  <div className="relative flex h-full flex-col items-center justify-start gap-[.7vw] pt-[1.6vw]">
+                    <p className="px-title text-[clamp(.8rem,1.45vw,1.75rem)]">ENGINEERING</p>
+                    <p className="font-pixel px-menu-item text-[clamp(.32rem,.46vw,.56rem)]">BUILD YOUR OWN FUTURE</p>
+                    <GameMenu className="mt-[.8vw] text-[clamp(.34rem,.5vw,.62rem)]" />
+                  </div>
+                </>
+              )}
+              {activePhoto && (
+                <span className="font-pixel absolute left-[.5vw] top-[.5vw] bg-[var(--px-red)] px-[.45vw] py-[.25vw] text-[clamp(.32rem,.42vw,.52rem)] text-white">
+                  #{activePhoto.code.replace('OPH-', '')}
                 </span>
               )}
-              <span className="text-slate-400 font-bold" suppressHydrationWarning>{currentTime}</span>
             </div>
-
-            <h1 className="mt-[0.6vw] text-[clamp(1.3rem,1.8vw,2.2rem)] font-extrabold tracking-[-.035em] text-white">
-              {activePhoto ? 'รูปล่าสุด' : 'ยินดีต้อนรับ'}
-            </h1>
-
-            {/* Polaroid Frame Card tilted -2deg */}
-            <div className="mx-auto mt-[0.6vw] w-[96%] shrink-0 rotate-[-2deg] rounded-[.18vw] bg-[#F8FAFC] p-[.65vw] pb-[.75vw] shadow-[0_24px_70px_rgba(0,0,0,.55)] transition-transform duration-500 hover:rotate-0">
-              {activePhoto ? (
-                // Active Attendee Photo
-                <>
-                  <div className="relative aspect-[4/3] overflow-hidden bg-slate-900 rounded-[2px]">
-                    <img
-                      src={activePhoto.photoUrl}
-                      alt={`รูปล่าสุด ${activePhoto.code}`}
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/85 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
-                      <span className="text-[clamp(.42rem,.52vw,.62rem)] font-bold">
-                        <span className="text-[#CE1126]">CPE</span> OPEN HOUSE
-                      </span>
-                      <span className="text-[clamp(.34rem,.42vw,.5rem)] text-slate-300">
-                        วิศวกรรมคอมพิวเตอร์ • {formatPhotoDate(activePhoto.createdAt).thai}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="pt-[.65vw] text-center text-[#0F172A]">
-                    <div className="text-[clamp(.52rem,.68vw,.82rem)] font-extrabold tracking-[.12em]">
-                      CPE OPEN HOUSE
-                    </div>
-                    <div className="mono mt-1 text-[clamp(.38rem,.46vw,.56rem)] text-slate-500 font-semibold">
-                      {formatPhotoDate(activePhoto.createdAt).dotted} · #{activePhoto.code.replace('OPH-', '')}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                // Standby Idle Black Card (Not stored in history)
-                <>
-                  <div className="relative aspect-[4/3] overflow-hidden bg-black rounded-[2px] flex items-center justify-center">
-                    <div className="flex flex-col items-center justify-center gap-2 select-none">
-                      <CpeLogo className="h-[2.2vw] opacity-30 text-white" />
-                      <span className="text-[clamp(.42rem,.54vw,.66rem)] font-semibold tracking-widest text-slate-500 uppercase">
-                        STANDBY · รอถ่ายภาพถัดไป
-                      </span>
-                    </div>
-                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/90 px-[.7vw] py-[.38vw] text-white backdrop-blur-sm">
-                      <span className="text-[clamp(.42rem,.52vw,.62rem)] font-bold">
-                        <span className="text-[#CE1126]">CPE</span> OPEN HOUSE
-                      </span>
-                      <span className="text-[clamp(.34rem,.42vw,.5rem)] text-slate-400">
-                        วิศวกรรมคอมพิวเตอร์ มศว
-                      </span>
-                    </div>
-                  </div>
-                  <div className="pt-[.65vw] text-center text-[#0F172A]">
-                    <div className="text-[clamp(.52rem,.68vw,.82rem)] font-extrabold tracking-[.12em]">
-                      CPE OPEN HOUSE
-                    </div>
-                    <div className="mono mt-1 text-[clamp(.38rem,.46vw,.56rem)] text-slate-400 font-semibold">
-                      ซุ้มถ่ายภาพวิศวะคอม · STANDBY
-                    </div>
-                  </div>
-                </>
-              )}
+            <div className="relative z-[2] mt-[.6vw] flex items-center justify-between">
+              <div>
+                <div className="font-['Kanit'] text-[clamp(.7rem,1vw,1.2rem)] font-bold leading-tight text-white [text-shadow:2px_2px_0_#1a0306]">
+                  {activePhoto ? 'รูปล่าสุด' : 'ยินดีต้อนรับ'}
+                </div>
+                <div className="mt-[.2vw] text-[clamp(.4rem,.52vw,.64rem)] text-[var(--px-cream)]/80">
+                  {activePhoto
+                    ? `วิศวกรรมคอมพิวเตอร์ · ${formatPhotoDate(activePhoto.createdAt).thai}`
+                    : 'ซุ้มถ่ายภาพวิศวะคอม มศว'}
+                </div>
+              </div>
+              {/* A / B buttons */}
+              <div className="flex gap-[.4vw]" aria-hidden>
+                <span className="px-round size-[1.3vw] font-pixel text-[clamp(.3rem,.4vw,.5rem)]">B</span>
+                <span className="px-round size-[1.3vw] -translate-y-[.4vw] font-pixel text-[clamp(.3rem,.4vw,.5rem)]">A</span>
+              </div>
             </div>
           </div>
 
-          {/* White QR Card - Perfectly Centered in Lower Section, Elevated from Bottom */}
-          <div className="flex-1 flex flex-col items-center justify-center my-auto pt-[0.6vw] pb-[0.2vw]">
-            <div className="qr-card flex flex-col items-center justify-center rounded-[1vw] bg-white px-[1.4vw] pb-[1.3vw] pt-[1.0vw] shadow-2xl shrink-0 w-fit text-center">
-              {activePhoto ? (
-                // Active Photo Scan QR
-                <>
-                  <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
-                    สแกนรับ<span className="text-[#CE1126]">รูป</span>
-                  </div>
-                  <div className="aspect-square w-[clamp(145px,12.5vw,230px)] bg-white flex items-center justify-center">
-                    {isMounted ? (
-                      <QRCodeSVG
-                        value={qrTargetUrl}
-                        level="H"
-                        bgColor="#FFFFFF"
-                        fgColor="#000000"
-                        className="h-full w-full"
-                        title={`รับรูป ${activePhoto.code}`}
-                      />
-                    ) : (
-                      <div className="h-full w-full bg-slate-100 flex items-center justify-center text-slate-300 text-[10px] font-mono animate-pulse rounded">
-                        QR CODE
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                // Standby Follow Us (Instagram) QR
-                <>
-                  <div className="text-[#0F172A] text-[clamp(.95rem,1.3vw,1.6rem)] font-extrabold tracking-[-.02em] mb-[0.6vw]">
-                    ติดตาม<span className="text-[#CE1126]">เรา</span>
-                  </div>
-                  <div className="aspect-square w-[clamp(145px,12.5vw,230px)] bg-white flex items-center justify-center p-1">
-                    <img
-                      src="/cpe-ig-qr.png"
-                      alt="Instagram @cpe_swu"
-                      className="h-full w-full object-contain"
+          {/* QR */}
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+            <p className="font-pixel mb-[.7vw] text-center text-[clamp(.4rem,.6vw,.74rem)] text-white [text-shadow:2px_2px_0_#1a0306]">
+              {activePhoto ? '▼ SCAN TO GET YOUR PHOTO ▼' : '▼ FOLLOW US ▼'}
+            </p>
+            <div className="qr-card px-corners flex w-fit shrink-0 flex-col items-center justify-center bg-white px-[1.3vw] pb-[1.1vw] pt-[.9vw] text-center shadow-[inset_0_0_0_6px_var(--px-red),inset_0_0_0_10px_var(--px-red-dark)]">
+              <div className="mb-[.6vw] font-['Kanit'] text-[clamp(1rem,1.45vw,1.8rem)] font-bold leading-none text-[#1a0306] [text-shadow:.12vw_.12vw_0_rgba(200,16,46,0.22)]">
+                {activePhoto ? (
+                  <>
+                    สแกนรับ<span className="text-[var(--px-red)]">รูป</span>
+                  </>
+                ) : (
+                  <>
+                    ติดตาม<span className="text-[var(--px-red)]">เรา</span>
+                  </>
+                )}
+              </div>
+              <div className="flex aspect-square w-[clamp(140px,11.5vw,220px)] items-center justify-center bg-white">
+                {activePhoto ? (
+                  isMounted ? (
+                    <QRCodeSVG
+                      value={qrTargetUrl}
+                      level="H"
+                      bgColor="#FFFFFF"
+                      fgColor="#000000"
+                      className="h-full w-full"
+                      title={`รับรูป ${activePhoto.code}`}
                     />
-                  </div>
-                </>
-              )}
+                  ) : (
+                    <div className="flex h-full w-full animate-pulse items-center justify-center bg-slate-100 font-mono text-[10px] text-slate-300">
+                      QR CODE
+                    </div>
+                  )
+                ) : (
+                  <img src="/cpe-ig-qr.png" alt="Instagram @cpe_swu" className="h-full w-full object-contain p-1" />
+                )}
+              </div>
             </div>
+          </div>
+
+          {/* Event date, like the poster */}
+          <div className="text-center">
+            <div className="font-pixel text-[clamp(.42rem,.62vw,.76rem)] text-white [text-shadow:2px_2px_0_#1a0306]">14-15 NOVEMBER 2026</div>
+            <div className="mt-[.3vw] text-[clamp(.4rem,.5vw,.62rem)] text-[var(--px-muted)]">ภาควิชาวิศวกรรมคอมพิวเตอร์ · IG cpe_swu</div>
           </div>
         </section>
 
-        {/* Right Section (70%): Live Photo Wall / Gallery (Never contains black standby cards) */}
-        <section className="absolute inset-y-0 right-0 flex w-[70%] flex-col bg-black px-[2.45vw] py-[.75vw]">
-          <header className="flex items-center justify-between border-b border-white/10 pb-3">
-            <h2 className="flex items-center gap-[.3em] text-[clamp(1.55rem,2.5vw,3rem)] font-extrabold tracking-[-.05em]">
-              <CpeLogo className="h-[1em]" />
-              <span className="text-white">OPEN HOUSE</span>
+        {/* Right (70%): photo wall */}
+        <section className="absolute inset-y-0 right-0 flex w-[70%] flex-col px-[2.2vw] py-[1.1vw]">
+          <header className="flex items-center justify-between gap-[1vw] border-b-4 border-[var(--px-red-dark)] pb-[.9vw]">
+            <h2 className="flex items-center gap-[.8vw] text-[clamp(1rem,1.9vw,2.3rem)]">
+              <CpeLogo className="h-[1.1em]" />
+              <span className="px-title">SWU OPEN HOUSE</span>
             </h2>
-            <div className="text-[clamp(.5rem,.68vw,.82rem)] font-medium text-slate-400">
-              ถ่ายไปแล้ว <span className="mono text-white font-bold">{photos.length}</span> รูป
+            <div className="flex items-stretch gap-[.6vw]">
+              <div className="px-screen px-corners px-[.9vw] py-[.45vw] text-center">
+                <div className="font-pixel-sm text-[clamp(.38rem,.5vw,.62rem)] text-[var(--px-muted)]">PHOTOS</div>
+                <div className="font-pixel text-[clamp(.6rem,.95vw,1.15rem)] text-[var(--px-gold)] tabular-nums">
+                  {String(photos.length).padStart(3, '0')}
+                </div>
+              </div>
+              <div className="px-screen px-corners px-[.9vw] py-[.45vw] text-center">
+                <div className="font-pixel-sm text-[clamp(.38rem,.5vw,.62rem)] text-[var(--px-muted)]">STAGE</div>
+                <div className="font-pixel text-[clamp(.6rem,.95vw,1.15rem)] text-[var(--px-green)]">CPE</div>
+              </div>
             </div>
           </header>
 
-          <div className="mt-[1.8vw] flex min-h-0 flex-1 flex-col">
-            <div className="text-[clamp(.45rem,.58vw,.7rem)] font-bold tracking-[.18em] text-[#CE1126] uppercase">
-              ประวัติการถ่ายภาพทั้งหมด (Live Photo Wall)
+          <div className="relative mt-[1.2vw] flex min-h-0 flex-1 flex-col">
+          <div className="px-screen relative flex min-h-0 flex-1 flex-col overflow-hidden px-[1.2vw] py-[1vw]">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[42%] opacity-60" aria-hidden>
+            <PixelSkyline />
+          </div>
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            <div className="font-pixel flex items-center gap-[.8vw] text-[clamp(.38rem,.55vw,.68rem)] text-[var(--px-red-hi)]">
+              <span>▶ HIGH SCORES</span>
+              <span className="h-1 flex-1 bg-[repeating-linear-gradient(90deg,var(--px-red-dark)_0_8px,transparent_8px_14px)]" />
+              <span className="font-['Kanit'] text-[clamp(.5rem,.66vw,.8rem)] text-[var(--px-muted)]">ภาพทั้งหมดของวันนี้</span>
             </div>
 
             <div className="photo-wall-scroll mt-[1vw] min-h-0 flex-1 overflow-y-auto pr-[.5vw]">
-              <div className="grid grid-cols-5 gap-[.65vw] pb-[2vw]">
+              <div className="grid grid-cols-4 gap-[.9vw] pb-[2vw]">
                 {photos.map((photo, index) => {
                   const isNew = photo.code === newestCode;
                   return (
                     <figure
                       key={`${photo.code}-${index}`}
-                      className={`group relative aspect-[4/3] overflow-hidden rounded-[.3vw] bg-[#0A0A0A] border border-white/5 transition duration-300 hover:border-[#CE1126] ${
-                        isNew ? 'photo-wall-enter' : ''
-                      }`}
+                      className={`group relative aspect-[4/3] overflow-hidden px-corners px-panel p-[.35vw] ${isNew ? 'photo-wall-enter' : ''}`}
                     >
-                      <img
-                        src={photo.photoUrl}
-                        alt={`ภาพถ่าย ${photo.code}`}
-                        className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.display = "none";
-                        }}
-                      />
-                      <figcaption className="absolute bottom-1.5 left-1.5 rounded bg-black/65 px-1.5 py-0.5 text-[clamp(.32rem,.4vw,.48rem)] font-bold tracking-[.08em] text-white/80 backdrop-blur">
+                      <div className="relative h-full w-full overflow-hidden bg-black">
+                        <img
+                          src={photo.photoUrl}
+                          alt={`ภาพถ่าย ${photo.code}`}
+                          className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      </div>
+                      <figcaption className="font-pixel absolute bottom-[.7vw] left-[.7vw] bg-[var(--px-red)] px-[.4vw] py-[.2vw] text-[clamp(.3rem,.38vw,.46rem)] text-white">
                         #{photo.code.replace('OPH-', '')}
                       </figcaption>
+                      {index === 0 && (
+                        <span className="font-pixel absolute right-[.7vw] top-[.7vw] bg-[var(--px-gold)] px-[.4vw] py-[.2vw] text-[clamp(.3rem,.38vw,.46rem)] text-[#1a0306]">
+                          NEW
+                        </span>
+                      )}
                     </figure>
                   );
                 })}
+                {/* Empty slots so the wall never looks bare */}
+                {Array.from({ length: Math.max(0, 12 - photos.length) }, (_, i) => (
+                  <div key={`slot-${i}`} className="flex aspect-[4/3] flex-col items-center justify-center gap-[.5vw] px-corners px-card">
+                    <span className="font-pixel text-[clamp(.9rem,1.6vw,2rem)] text-[var(--px-screen-line)]">?</span>
+                    <span className="font-pixel-sm text-[clamp(.34rem,.46vw,.56rem)] text-[var(--px-muted)]/70">
+                      {i === 0 ? 'NEXT PLAYER' : 'EMPTY SLOT'}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
+          </div>
+          </div>
           </div>
         </section>
       </div>

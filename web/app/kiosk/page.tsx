@@ -3,8 +3,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Hand,
-  Timer,
-  QrCode,
   ShieldAlert,
   CheckCircle2,
   RefreshCw,
@@ -13,16 +11,22 @@ import {
   Sliders,
   Check,
   RotateCcw,
+  Cog,
+  HardHat,
+  Wrench,
+  Hammer,
+  Heart,
 } from 'lucide-react';
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
-import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
+import { ScreenSyncEvent, CROP_DIMENSIONS_4_3, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
 import { generateShortCode } from '@/lib/mobile/shortCodeGenerator';
 import { classifyGesture, LandmarkPoint } from '@/lib/ai-vision/gestureRules';
 import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
-import { calculateCrop } from '@/lib/kiosk/centerCropper';
+import { calculate43Crop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
 import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
+import { GameMenu, PixelSkyline } from '@/components/PixelScene';
 
 function KioskCapturePageContent() {
   const {
@@ -49,7 +53,6 @@ function KioskCapturePageContent() {
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number }>({ width: 16, height: 9 });
   const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.025);
-  const [photoRatio, setPhotoRatio] = useState<'3:4' | '4:3'>('3:4');
   const currentStreamRef = useRef<MediaStream | null>(null);
 
   // Gesture detection & tracking
@@ -137,10 +140,6 @@ function KioskCapturePageContent() {
             setHandAreaThreshold(parsed);
           }
         }
-        const savedRatio = localStorage.getItem('swu_photo_ratio');
-        if (savedRatio === '3:4' || savedRatio === '4:3') {
-          setPhotoRatio(savedRatio);
-        }
       } catch {}
     }
 
@@ -192,13 +191,6 @@ function KioskCapturePageContent() {
               try { localStorage.setItem('swu_hand_threshold', data.value.toString()); } catch {}
             }
           }
-        } else if (data.command === 'SET_PHOTO_RATIO') {
-          if (data.value === '3:4' || data.value === '4:3') {
-            setPhotoRatio(data.value);
-            if (typeof window !== 'undefined') {
-              try { localStorage.setItem('swu_photo_ratio', data.value); } catch {}
-            }
-          }
         } else if (data.command === 'SET_PUBLIC_DOMAIN') {
           if (typeof window !== 'undefined') {
             const val = typeof data.value === 'string' ? data.value.trim() : '';
@@ -242,21 +234,19 @@ function KioskCapturePageContent() {
     };
   }, [send, isPreviewing]);
 
-  // Snapshot capture function (Center-crop according to photoRatio: 3:4 portrait or 4:3 landscape)
+  // Snapshot capture function (1440x1080 center-crop of 16:9 video feed)
   const takeCenterCropSnapshot = useCallback(() => {
     try {
       const canvas = offscreenCanvasRef.current || document.createElement('canvas');
-      const video = videoRef.current;
-      const vw = video && video.videoWidth > 0 ? video.videoWidth : 1920;
-      const vh = video && video.videoHeight > 0 ? video.videoHeight : 1080;
-      const crop = calculateCrop(vw, vh, photoRatio);
-
-      canvas.width = crop.dWidth;
-      canvas.height = crop.dHeight;
+      canvas.width = CROP_DIMENSIONS_4_3.width;
+      canvas.height = CROP_DIMENSIONS_4_3.height;
       const ctx = canvas.getContext('2d');
 
       if (ctx) {
-        if (video && cameraActive && video.videoWidth > 0) {
+        if (videoRef.current && cameraActive && videoRef.current.videoWidth > 0) {
+          const video = videoRef.current;
+          const crop = calculate43Crop(video.videoWidth, video.videoHeight);
+
           // Mirror horizontally for natural selfie perspective
           ctx.translate(canvas.width, 0);
           ctx.scale(-1, 1);
@@ -304,7 +294,7 @@ function KioskCapturePageContent() {
       console.error('Error taking snapshot:', err);
     }
     return capturedPhotoUrl;
-  }, [cameraActive, capturedPhotoUrl, photoRatio]);
+  }, [cameraActive, capturedPhotoUrl]);
 
   // Confirm photo, post to API, broadcast to Screen 2, and reset
   const handleConfirmUpload = useCallback(async () => {
@@ -791,293 +781,249 @@ function KioskCapturePageContent() {
 
   return (
     <main className="kiosk-shell relative grid h-dvh w-screen place-items-center overflow-hidden bg-black select-none">
-      <div className="kiosk-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden bg-black">
-        {/* Live Camera Feed */}
-        <video
-          ref={videoRef}
-          muted
-          playsInline
-          className={`absolute inset-0 h-full w-full scale-x-[-1] object-cover transition-opacity duration-300 ${
-            showLiveFeed && cameraActive ? 'opacity-100' : 'opacity-0'
-          }`}
-        />
+      {/* 16:9 stage; everything inside is sized in cqw (1% of the stage width) so it scales as one console */}
+      <div className="kiosk-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden [container-type:inline-size]">
+        {/* Handheld console body */}
+        <div className="kc-body absolute inset-[.8cqw]">
+          <span className="kc-cap kc-cap-tl" aria-hidden />
+          <span className="kc-cap kc-cap-tr" aria-hidden />
+          <span className="kc-cap kc-cap-bl" aria-hidden />
+          <span className="kc-cap kc-cap-br" aria-hidden />
 
-        {/* Fallback Simulation View if camera not open */}
-        {!cameraActive && showLiveFeed && (
-          <div className="absolute inset-0 h-full w-full bg-black flex items-center justify-center z-10">
-            <div className="engineering-grid absolute inset-0 opacity-40" />
-            <div className="text-center space-y-4 z-10 max-w-md px-6">
-              <div className="size-16 rounded-2xl bg-[#CE1126]/10 border border-[#CE1126]/30 flex items-center justify-center mx-auto text-[#CE1126]">
-                <Camera className="size-8" strokeWidth={1.8} />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white tracking-tight">
-                  ระบบกล้องกำลังเชื่อมต่อ (Camera Standby)
-                </h3>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  กรุณาอนุญาตการเข้าถึงกล้องบนเบราว์เซอร์ หรือกดปุ่มด้านล่างเพื่อเชื่อมต่อกล้อง
-                </p>
-              </div>
-              <div className="flex items-center justify-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => initCamera()}
-                  className="rounded-xl bg-[#CE1126] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#8F0B20] transition-colors shadow-lg flex items-center gap-2 cursor-pointer"
-                >
-                  <Camera className="size-4" />
-                  <span>เชื่อมต่อกล้องทันที</span>
-                </button>
-              </div>
-              <div className="mono text-[11px] text-slate-500 pt-2">
-                โหมดทดสอบ: กดปุ่ม P เพื่อจำลองแบมือ หรือ S เพื่อถ่ายภาพ
-              </div>
+          {/* Left: logo, D-pad, SELECT / START */}
+          <div className="absolute inset-y-0 left-0 flex w-[14.2cqw] flex-col items-center pt-[8.4cqw]">
+            <div className="w-[10.4cqw]">
+              <CpeLogo className="px-logo-pop h-auto max-w-full" />
+            </div>
+            <p className="font-pixel mt-[1.1cqw] text-center text-[.78cqw] leading-[1.7] text-[#3a3a40]">
+              BUILD YOUR
+              <br />
+              OWN FUTURE
+            </p>
+            <div className="relative mt-[3.8cqw] size-[8.4cqw]" aria-hidden>
+              <span className="kc-dpad absolute left-1/2 top-0 h-full w-[34%] -translate-x-1/2" />
+              <span className="kc-dpad absolute left-0 top-1/2 h-[34%] w-full -translate-y-1/2" />
+              <span className="absolute left-1/2 top-1/2 size-[18%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--px-red-dark)] shadow-[inset_0_.2cqw_.3cqw_rgba(0,0,0,.5)]" />
+            </div>
+            <div className="mt-[3cqw] flex gap-[1.2cqw]" aria-hidden>
+              {['SELECT', 'START'].map((label) => (
+                <div key={label} className="flex flex-col items-center gap-[.5cqw]">
+                  <span className="kc-pill h-[1.1cqw] w-[3.8cqw]" />
+                  <span className="font-pixel-sm text-[.62cqw] font-bold text-[#4a4a52]">{label}</span>
+                </div>
+              ))}
             </div>
           </div>
-        )}
 
-        {/* Captured Snapshot in Preview / Sent States */}
-        {!showLiveFeed && (
-          <div
-            style={
-              photoRatio === '3:4'
-                ? { left: '28.9%', width: '42.2%' }
-                : { left: '12.5%', width: '75%' }
-            }
-            className="absolute inset-y-0 h-full overflow-hidden bg-black flex items-center justify-center z-15"
-          >
-            <img
-              src={capturedPhotoUrl}
-              alt="ภาพถ่ายตัวอย่าง"
-              className="h-full w-full object-cover"
-            />
+          {/* Right: gear / hard hat / wrench / hammer buttons and the speaker grille */}
+          <div className="absolute inset-y-0 right-0 flex w-[14.2cqw] flex-col items-center pt-[13cqw]">
+            <div className="grid grid-cols-3 grid-rows-3 gap-[.35cqw]" aria-hidden>
+              <span />
+              <span className="px-round size-[3.8cqw]"><Cog className="size-[2cqw]" /></span>
+              <span />
+              <span className="px-round size-[3.8cqw]"><HardHat className="size-[2cqw]" /></span>
+              <span />
+              <span className="px-round size-[3.8cqw]"><Wrench className="size-[2cqw]" /></span>
+              <span />
+              <span className="px-round size-[3.8cqw]"><Hammer className="size-[2cqw]" /></span>
+              <span />
+            </div>
+            <div className="mt-[3.6cqw] ml-[2cqw] flex gap-[.8cqw]" aria-hidden>
+              {Array.from({ length: 5 }, (_, i) => (
+                <span key={i} className="kc-grille h-[5cqw] w-[.6cqw]" />
+              ))}
+            </div>
           </div>
-        )}
 
-        {/* Capture Zone Overlay & Bracket Boundaries */}
-        <div
-          style={
-            photoRatio === '3:4'
-              ? { left: '28.9%', width: '42.2%' }
-              : { left: '12.5%', width: '75%' }
-          }
-          className="kiosk-capture-zone pointer-events-none absolute inset-y-0 z-20 border-x-[2px] border-[#CE1126]/70 transition-all duration-300"
-        />
-        <div className="mono pointer-events-none absolute left-1/2 top-[1.4%] z-30 -translate-x-1/2 border border-[#CE1126]/50 bg-black/90 px-[.9vw] py-[.38vw] text-[clamp(.38rem,.48vw,.58rem)] tracking-[.14em] text-white/90 backdrop-blur rounded-full shadow-lg">
-          {photoRatio === '3:4'
-            ? '3:4 PORTRAIT ZONE · 1080×1440 (FITS FRAME)'
-            : '4:3 LANDSCAPE ZONE · 1440×1080 RAW'}
+          {/* Screen bezel */}
+          <div className="kc-bezel absolute left-1/2 top-1/2 flex w-[65.5cqw] -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] pb-[.8cqw] pt-[.8cqw]">
+            <p className="font-pixel mb-[.45cqw] text-[.78cqw] text-[#b9b9c2]">
+              SWU OPEN HOUSE <span className="text-[var(--px-red-hi)]">2026</span> · 14-15 NOV
+            </p>
+
+            {/* LEDs on the bezel, left of the screen */}
+            <div className="absolute -left-[2.6cqw] top-1/2 flex -translate-y-1/2 flex-col items-center gap-[1.4cqw]" aria-hidden>
+              {[
+                ['CAM', cameraActive],
+                ['HAND', Boolean(liveLandmarks)],
+              ].map(([label, on]) => (
+                <div key={label as string} className="flex flex-col items-center gap-[.3cqw]">
+                  <span className={`size-[.8cqw] ${on ? 'bg-[var(--px-green)] shadow-[0_0_.6cqw_var(--px-green)]' : 'bg-[#6a6a72]'}`} />
+                  <span className="font-pixel-sm text-[.55cqw] font-bold text-[#4a4a52]">{label as string}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* The 4:3 screen = exactly what gets captured */}
+            <div className="kc-screen relative aspect-[4/3] w-full overflow-hidden">
+              <video
+                ref={videoRef}
+                muted
+                playsInline
+                className={`absolute inset-0 h-full w-full scale-x-[-1] object-cover transition-opacity duration-300 ${
+                  showLiveFeed && cameraActive ? 'opacity-100' : 'opacity-0'
+                }`}
+              />
+
+              {/* Title screen while the camera is not connected */}
+              {!cameraActive && showLiveFeed && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center">
+                  <PixelSkyline className="opacity-80" />
+                  <div className="relative flex flex-col items-center px-[2cqw] text-center">
+                    <h3 className="px-title text-[4.4cqw]">ENGINEERING</h3>
+                    <p className="font-pixel px-menu-item mt-[1cqw] -rotate-2 text-[1.3cqw]">BUILD YOUR OWN FUTURE</p>
+                    <GameMenu className="mt-[2cqw] text-[1cqw]" />
+                    <p className="mt-[1.8cqw] text-[1.05cqw] font-semibold text-white [text-shadow:2px_2px_0_#1a0306]">
+                      กำลังรอกล้อง · อนุญาตการใช้กล้องในเบราว์เซอร์ หรือกดปุ่มด้านล่าง
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => initCamera()}
+                      className="px-btn px-btn-red px-corners mt-[1.2cqw] px-[1.6cqw] py-[.8cqw] text-[.95cqw]"
+                    >
+                      <Camera className="size-[1.2cqw]" />
+                      <span>เชื่อมต่อกล้องทันที</span>
+                    </button>
+                    <p className="mt-[.9cqw] text-[.8cqw] text-[var(--px-cream)]/75">
+                      โหมดทดสอบ: กดปุ่ม P เพื่อจำลองแบมือ หรือ S เพื่อถ่ายภาพ
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Captured photo while reviewing / sending */}
+              {!showLiveFeed && (
+                <img src={capturedPhotoUrl} alt="ภาพถ่ายตัวอย่าง" className="absolute inset-0 z-10 h-full w-full object-cover" />
+              )}
+
+              {/* Hand skeleton, mapped to this 4:3 screen */}
+              {(isIdle || isDetecting) && showLiveFeed && liveLandmarks && (
+                <HandMesh
+                  active={holdProgress > 0 || isDetecting}
+                  landmarks={liveLandmarks}
+                  holdProgress={holdProgress}
+                  mode="overlay"
+                  handAreaRatio={handAreaRatio}
+                  isForeground={isForeground}
+                  gestureText={detectedGestureText}
+                  videoDimensions={videoDimensions}
+                  containerAspect={4 / 3}
+                />
+              )}
+
+              {/* HUD: player + lives, LIVE, viewfinder corners */}
+              {showLiveFeed && cameraActive && (
+                <>
+                  <div className="font-pixel pointer-events-none absolute left-[1.2cqw] top-[1.1cqw] z-20 flex items-center gap-[.6cqw] bg-black/55 px-[.7cqw] py-[.45cqw] text-[.85cqw] text-white">
+                    PLAYER 1
+                    <span className="flex gap-[.2cqw] text-[var(--px-red-hi)]">
+                      {[0, 1, 2].map((i) => (
+                        <Heart key={i} className="size-[.9cqw]" fill="currentColor" strokeWidth={0} />
+                      ))}
+                    </span>
+                  </div>
+                  <div className="font-pixel pointer-events-none absolute right-[1.2cqw] top-[1.1cqw] z-20 flex items-center gap-[.5cqw] bg-black/55 px-[.7cqw] py-[.45cqw] text-[.85cqw] text-white">
+                    <span className="size-[.65cqw] animate-pulse bg-[var(--px-red-hi)]" />
+                    LIVE
+                  </div>
+                  <div className="kc-brackets pointer-events-none absolute inset-x-[3cqw] bottom-[9.5cqw] top-[4cqw] z-20" aria-hidden />
+                </>
+              )}
+
+              {/* Dialog box: what to do now */}
+              {(isIdle || isDetecting) && showLiveFeed && cameraActive && (
+                <div className="kc-dialog pointer-events-none absolute inset-x-[1.2cqw] bottom-[1.2cqw] z-30 flex items-center gap-[1.2cqw] px-[1.2cqw] py-[1cqw]">
+                  <span className="flex size-[3.6cqw] shrink-0 items-center justify-center rounded-[.5cqw] bg-[var(--px-red)]">
+                    <Hand className="size-[2.2cqw] text-white" strokeWidth={2.2} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[1.75cqw] font-bold leading-tight text-white">
+                      {holdProgress > 0
+                        ? 'ค้างไว้อีกนิด...'
+                        : liveLandmarks && !isForeground
+                          ? 'เข้ามาใกล้กล้องอีกนิด'
+                          : 'ชูมือ 5 นิ้ว เพื่อเริ่มถ่ายรูป'}
+                    </p>
+                    {holdProgress > 0 ? (
+                      <div className="px-meter mt-[.5cqw]">
+                        <span style={{ width: `${Math.max(0, Math.min(100, holdProgress))}%` }} />
+                      </div>
+                    ) : (
+                      <p className="font-pixel mt-[.4cqw] text-[.66cqw] text-white/55">RAISE YOUR HAND TO START</p>
+                    )}
+                  </div>
+                  <span className="font-pixel shrink-0 text-[.8cqw] text-[var(--px-gold)]">
+                    {holdProgress > 0 ? `${Math.round(holdProgress)}%` : 'PRESS START'}
+                  </span>
+                </div>
+              )}
+
+              {/* Countdown 3..2..1 */}
+              {isCountingDown && (
+                <div className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/25">
+                  <span className="px-title text-[12cqw] leading-none tabular-nums">{countdown}</span>
+                  <div className="kc-dialog mt-[1.6cqw] px-[1.6cqw] py-[.7cqw] text-[1.3cqw] font-bold text-white">
+                    <span className="font-pixel mr-[.8cqw] text-[1cqw] text-[var(--px-gold)]">READY?</span>
+                    โพสท่าอิสระได้เลย!
+                  </div>
+                </div>
+              )}
+
+              {/* Shutter flash */}
+              {isCapturing && <div className="kiosk-flash pointer-events-none absolute inset-0 z-50 bg-white" />}
+
+              {/* Review: retake / timer / confirm */}
+              {isPreviewing && (
+                <div className="kc-dialog absolute inset-x-[1.2cqw] bottom-[1.2cqw] z-40 flex items-center justify-between gap-[1.2cqw] px-[1.2cqw] py-[.9cqw]">
+                  <button type="button" onClick={handleRetake} className="group px-btn px-corners gap-[.8cqw] px-[1.2cqw] py-[.7cqw]">
+                    <RotateCcw className="size-[1.4cqw] transition-transform group-hover:rotate-[-45deg]" />
+                    <span className="text-left">
+                      <span className="block text-[1.05cqw] font-bold text-white">กำมือ เพื่อถ่ายใหม่</span>
+                      <span className="font-pixel-sm block text-[.7cqw] text-white/80">CONTINUE?</span>
+                    </span>
+                  </button>
+                  <div className="text-center">
+                    <div className="font-pixel text-[1.6cqw] text-[var(--px-gold)] tabular-nums">{previewSeconds}s</div>
+                    <div className="font-pixel-sm text-[.65cqw] font-bold text-white/70">TIME</div>
+                  </div>
+                  <button type="button" onClick={handleConfirmUpload} className="px-btn px-btn-red px-corners gap-[.8cqw] px-[1.4cqw] py-[.7cqw]">
+                    <Check className="size-[1.6cqw]" strokeWidth={2.5} />
+                    <span className="text-left">
+                      <span className="block text-[1.05cqw] font-bold text-white">แบมือ ยืนยันรูปนี้</span>
+                      <span className="font-pixel-sm block text-[.7cqw] text-white/90">PRESS START</span>
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <p className="font-pixel mt-[.45cqw] text-[.68cqw] tracking-[.2em] text-[#8a8a94]">COMPUTER ENGINEERING</p>
+          </div>
         </div>
 
-        {/* Left Pillar (12.5%): Branding & Telemetry */}
-        <aside className="kiosk-pillar absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col justify-between border-r border-white/10 bg-[rgba(0,0,0,0.92)] p-[1.65%] backdrop-blur-md">
-          <div>
-            <div className="flex items-center gap-2">
-              <CpeLogo className="h-[clamp(1.4rem,2.2vw,2.6rem)] max-w-full" />
-              <div className="h-px flex-1 bg-[#CE1126]/60" />
-            </div>
-            <p className="mt-[2.2vw] text-[clamp(.55rem,.76vw,.92rem)] font-bold leading-[1.45] tracking-[-.02em] text-white">
-              SWU Computer
-              <br />
-              Engineering
-            </p>
-            <p className="mt-2 text-[clamp(.46rem,.57vw,.68rem)] font-semibold leading-relaxed tracking-[.08em] text-slate-400">
-              OPEN HOUSE 2026
-            </p>
-          </div>
-
-          <div className="space-y-[1.2vw]">
-            <div className="border-l border-cyan-400/50 pl-[.7vw]">
-              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-cyan-300">
-                {photoRatio === '3:4' ? '1080×1440' : '1440×1080'}
-              </div>
-              <div className="mt-1 text-[clamp(.38rem,.45vw,.54rem)] font-bold tracking-[.12em] text-slate-500">
-                {photoRatio === '3:4' ? 'FRAME · 3:4' : 'RAW · 4:3'}
-              </div>
-            </div>
-            <div className="border-l border-emerald-400/50 pl-[.7vw]">
-              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-emerald-300">
-                {cameraActive ? '60 FPS' : 'STANDBY'}
-              </div>
-              <div className="mt-1 text-[clamp(.38rem,.45vw,.54rem)] font-bold tracking-[.08em] text-slate-500">
-                VISION READY
-              </div>
-            </div>
-            <div className="border-l border-cyan-400/50 pl-[.7vw]">
-              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-cyan-300 uppercase">
-                {detectedGestureText}
-              </div>
-              <div className="mt-1 text-[clamp(.36rem,.43vw,.51rem)] font-bold tracking-[.08em] text-slate-500">
-                AI MODEL ACTIVE
-              </div>
-            </div>
-            <div className="mono flex items-center gap-2 text-[clamp(.38rem,.46vw,.55rem)] text-slate-400">
-              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              BUS READY · 0ms
-            </div>
-          </div>
-        </aside>
-
-        {/* Right Pillar (12.5%): Gesture Guide & Instructions */}
-        <aside className="kiosk-pillar absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col justify-between border-l border-white/10 bg-[rgba(0,0,0,0.92)] p-[1.45%] backdrop-blur-md">
-          <div className="text-[clamp(.43rem,.52vw,.62rem)] font-bold tracking-[.16em] text-slate-400">
-            GESTURE GUIDE
-          </div>
-
-          <div className="flex flex-1 flex-col justify-center gap-[2.4vw]">
-            {[
-              { icon: Hand, line1: 'แบมือค้าง', line2: '1.5 วินาที', english: 'HOLD TO START' },
-              { icon: Timer, line1: 'โพสอิสระ', line2: 'ช่วง 3..2..1', english: 'POSE FREELY' },
-              { icon: QrCode, line1: 'รับรูปที่', line2: 'จอหมายเลข 2', english: 'SCAN AT SCREEN 2' },
-            ].map((step, index) => {
-              const GuideIcon = step.icon;
-              return (
-                <div key={step.english} className="relative">
-                  <div className="mb-[.7vw] flex items-center gap-[.6vw]">
-                    <span className="mono text-[clamp(.4rem,.48vw,.58rem)] text-[#CE1126] font-bold">
-                      0{index + 1}
-                    </span>
-                    <span className="h-px flex-1 bg-white/10" />
-                  </div>
-                  <GuideIcon
-                    className="mb-[.7vw] size-[clamp(1.15rem,1.55vw,1.85rem)] text-white"
-                    strokeWidth={1.25}
-                  />
-                  <div className="text-[clamp(.52rem,.65vw,.78rem)] font-semibold leading-[1.5] text-slate-100">
-                    {step.line1}
-                    <br />
-                    {step.line2}
-                  </div>
-                  <div className="mt-1 text-[clamp(.35rem,.4vw,.48rem)] font-bold tracking-[.1em] text-slate-500">
-                    {step.english}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mono text-[clamp(.34rem,.4vw,.48rem)] leading-relaxed text-slate-500">
-            KEY: [P]ALM [F]IST [S]TAFF
-          </div>
-        </aside>
-
-        {/* Full-Screen Real-Time 1:1 Hand Mesh Overlay */}
-        {(isIdle || isDetecting) && showLiveFeed && liveLandmarks && (
-          <HandMesh
-            active={holdProgress > 0 || isDetecting}
-            landmarks={liveLandmarks}
-            holdProgress={holdProgress}
-            mode="overlay"
-            handAreaRatio={handAreaRatio}
-            isForeground={isForeground}
-            gestureText={detectedGestureText}
-            videoDimensions={videoDimensions}
-          />
-        )}
-
-        {/* Dynamic Tracking Status Badge - Positioned on the Side (Non-intrusive HUD Telemetry) */}
-        {(isIdle || isDetecting) && showLiveFeed && liveLandmarks && (
-          <div className="pointer-events-none absolute left-[13.8%] bottom-[3%] z-30 flex items-center">
-            <div className="mono flex items-center gap-2 rounded-full bg-black/90 border border-cyan-400/30 px-3.5 py-1.5 text-[clamp(.36rem,.46vw,.55rem)] text-slate-300 backdrop-blur-md shadow-lg transition-all duration-200">
-              <span className={`size-2 rounded-full ${isForeground ? 'bg-cyan-400 animate-pulse' : 'bg-amber-400'}`} />
-              <span>PRIMARY HAND · {isForeground ? `AREA ${(handAreaRatio * 100).toFixed(1)}% (OK)` : `< 3.5% (เข้าใกล้กล้องอีกนิด)`}</span>
-              <span className="text-slate-500">|</span>
-              <span className="text-cyan-300 font-bold">
-                {holdProgress > 0 ? `OPEN_PALM ${Math.round(holdProgress)}%` : detectedGestureText}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Countdown Active State (3..2..1) */}
-        {isCountingDown && (
-          <div className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center">
-            <div className="countdown-rings relative flex h-44 w-44 items-center justify-center rounded-full bg-black/85 border-2 border-white/20 backdrop-blur-md">
-              <span className="mono text-7xl font-black text-white tabular-nums">
-                {countdown}
-              </span>
-            </div>
-            <div className="mt-6 rounded-full bg-black/85 border border-white/10 px-6 py-2 text-sm font-bold text-white backdrop-blur">
-              โพสท่าอิสระได้เลย!
-            </div>
-          </div>
-        )}
-
-        {/* Shutter Flash (150ms) */}
-        {isCapturing && (
-          <div className="kiosk-flash pointer-events-none absolute inset-0 z-50 bg-white" />
-        )}
-
-        {/* Preview State: Review & Retake Controls - Clean, Formal & No Emojis */}
-        {isPreviewing && (
-          <div className="absolute inset-x-0 bottom-0 z-40 flex flex-col items-center justify-end pb-8">
-            <div className="flex items-center gap-6 rounded-2xl bg-black/95 border border-white/15 px-7 py-3.5 shadow-2xl backdrop-blur-xl">
-              {/* Fist: Retake Button (Unlimited Retakes) */}
-              <button
-                type="button"
-                onClick={handleRetake}
-                className="group flex items-center gap-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 px-5 py-2.5 transition-all cursor-pointer"
-              >
-                <div className="flex size-9 items-center justify-center rounded-lg bg-white/10 text-white group-hover:rotate-[-45deg] transition-transform">
-                  <RotateCcw className="size-4" />
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-bold text-white">กำมือ เพื่อถ่ายใหม่</div>
-                  <div className="mono text-[10px] text-slate-400">RETAKE PHOTO</div>
-                </div>
-              </button>
-
-              {/* Center Timer */}
-              <div className="flex flex-col items-center px-4 min-w-[70px]">
-                <div className="mono text-2xl font-black text-cyan-400 tabular-nums">
-                  {previewSeconds}s
-                </div>
-                <div className="mono text-[9px] font-bold text-slate-400 tracking-wider uppercase">
-                  AUTO PROCEED
-                </div>
-              </div>
-
-              {/* Palm: Confirm Button */}
-              <button
-                type="button"
-                onClick={handleConfirmUpload}
-                className="group flex items-center gap-3 rounded-xl bg-[#CE1126] hover:bg-[#8F0B20] border border-[#CE1126]/60 px-6 py-2.5 transition-all shadow-[0_4px_20px_rgba(206,17,38,0.35)] cursor-pointer"
-              >
-                <div className="flex size-9 items-center justify-center rounded-lg bg-black/25 text-white">
-                  <Check className="size-5" strokeWidth={2.5} />
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-bold text-white">แบมือ ยืนยันรูปนี้</div>
-                  <div className="mono text-[10px] text-white/90">CONFIRM & CREATE QR</div>
-                </div>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Uploading & Success Notification */}
+        {/* Sent */}
         {isSyncing && (
-          <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md">
-            <div className="text-center space-y-4">
-              <CheckCircle2 className="size-20 text-[#10B981] mx-auto animate-bounce" />
-              <h2 className="text-3xl font-black text-white">ส่งรูปเรียบร้อย!</h2>
-              <p className="text-base text-slate-300">
-                เชิญสแกนรับรูปที่ <b>จอหมายเลข 2 (Showcase)</b> รหัสรูป: <span className="mono text-cyan-400 font-bold">{syncedCode}</span>
+          <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-[#0c0305]/90">
+            <div className="space-y-[1.2cqw] text-center">
+              <CheckCircle2 className="mx-auto size-[6cqw] animate-bounce text-[var(--px-green)]" />
+              <p className="px-title text-[3.4cqw]">STAGE CLEAR!</p>
+              <h2 className="text-[2.4cqw] font-black text-white">ส่งรูปเรียบร้อย!</h2>
+              <p className="text-[1.3cqw] text-[var(--px-cream)]">
+                เชิญสแกนรับรูปที่ <b>จอหมายเลข 2</b> รหัสรูป: <span className="font-pixel text-[var(--px-gold)]">{syncedCode}</span>
               </p>
             </div>
           </div>
         )}
 
-        {/* Kiosk Paused Overlay */}
+        {/* Paused by staff */}
         {isPaused && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md">
-            <div className="text-center space-y-3">
-              <Pause className="size-16 text-amber-400 mx-auto" />
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#0c0305]/92">
+            <div className="space-y-3 text-center">
+              <Pause className="mx-auto size-16 text-[var(--px-gold)]" />
+              <p className="font-pixel px-blink text-lg text-white">PAUSED</p>
               <h2 className="text-2xl font-bold text-white">พักบูธชั่วคราว</h2>
-              <p className="text-xs text-slate-400">สตาฟกำลังดูแลความเรียบร้อย หรือจัดคิว</p>
-              <button
-                onClick={() => setIsPaused(false)}
-                className="mt-4 rounded bg-[#CE1126] px-4 py-2 text-xs font-bold text-white"
-              >
+              <p className="text-xs text-[var(--px-cream)]/80">สตาฟกำลังดูแลความเรียบร้อย หรือจัดคิว</p>
+              <button onClick={() => setIsPaused(false)} className="px-btn px-btn-red px-corners mt-4 px-4 py-2 text-xs">
                 เปิดใช้งานต่อ
               </button>
             </div>

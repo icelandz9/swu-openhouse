@@ -1,307 +1,146 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-  Camera,
-  Monitor,
-  Sliders,
-  Smartphone,
-  ArrowUpRight,
-  Sun,
-  Moon,
-  ExternalLink,
-} from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Camera, Monitor, Settings, Smartphone, Cog, HardHat, Wrench, Hammer } from 'lucide-react';
 import { CpeLogo } from '@/components/CpeLogo';
 import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
 
+// Start menu: each screen of the booth is a "stage". Keys 1-4 open them in a new tab.
+const STAGES = [
+  {
+    key: '1',
+    href: '/kiosk',
+    label: 'STAGE 1',
+    title: 'ตู้ถ่ายรูปไร้สัมผัส',
+    detail: '/kiosk · กล้องหลัก + AI จับท่ามือ',
+    icon: Camera,
+  },
+  {
+    key: '2',
+    href: '/display',
+    label: 'STAGE 2',
+    title: 'จอโชว์รูป & QR Code',
+    detail: '/display · จอใหญ่ต่อ HDMI',
+    icon: Monitor,
+  },
+  {
+    key: '3',
+    href: '/admin',
+    label: 'STAFF',
+    title: 'แดชบอร์ดสตาฟ',
+    detail: '/admin · ควบคุมกล้อง และคำสั่งฉุกเฉิน',
+    icon: Settings,
+  },
+  {
+    key: '4',
+    href: '/p/OPH-SWU1',
+    label: 'BONUS',
+    title: 'เว็บแต่งรูปบนมือถือ',
+    detail: '/p/[code] · ลองใส่กรอบ ฟิลเตอร์ สติกเกอร์',
+    icon: Smartphone,
+  },
+] as const;
+
 function MasterHubContent() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-
-  // Load theme preference from query param or localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const themeParam = urlParams.get('theme') as 'dark' | 'light';
-      if (themeParam === 'light' || themeParam === 'dark') {
-        setTheme(themeParam);
-      } else {
-        const saved = localStorage.getItem('swu_admin_theme') as 'dark' | 'light';
-        if (saved === 'light' || saved === 'dark') {
-          setTheme(saved);
-        }
-      }
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('swu_admin_theme', next);
-    }
-  };
-
-  // Keyboard shortcut listener [1-4]
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-      const routes: Record<string, string> = {
-        '1': '/kiosk',
-        '2': '/display',
-        '3': '/admin',
-        '4': '/p/demo-code',
-      };
-      if (routes[e.key]) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const stage = STAGES.find((s) => s.key === e.key);
+      if (stage) {
         e.preventDefault();
-        window.open(routes[e.key], '_blank');
+        window.open(stage.href, '_blank');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const isDark = theme === 'dark';
-
   return (
-    <div
-      className={`min-h-screen flex flex-col justify-between font-['Prompt'] transition-colors duration-150 select-none ${
-        isDark ? 'bg-[#090C13] text-slate-100' : 'bg-[#F8FAFC] text-slate-900'
-      }`}
-    >
-      {/* 1. Header (Quiet, Precise) */}
-      <header
-        className={`border-b transition-colors ${
-          isDark ? 'border-slate-800/60 bg-[#090C13]/90' : 'border-slate-200 bg-white/90 shadow-2xs'
-        } backdrop-blur-md`}
-      >
-        <div className="mx-auto max-w-5xl px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`p-1 rounded-lg transition-colors ${!isDark ? 'bg-slate-900 shadow-xs' : ''}`}>
-              <CpeLogo className="h-7" />
-            </div>
-            <div className="border-l border-slate-700/40 pl-3">
-              <div className="text-sm font-['Kanit'] font-bold tracking-tight">PhotoBooth Studio</div>
-              <div className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
-                SWU Open House 2026
-              </div>
-            </div>
-          </div>
-
-          {/* Right Actions */}
-          <div className="flex items-center gap-3">
-            <span
-              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono border ${
-                isDark
-                  ? 'text-slate-400 border-slate-800/80 bg-slate-900/40'
-                  : 'text-slate-700 border-slate-200 bg-slate-100'
-              }`}
-            >
-              <span className="size-1.5 rounded-full bg-emerald-500" />
-              DUAL DISPLAY READY
-            </span>
-
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-xl border transition-colors cursor-pointer ${
-                isDark
-                  ? 'border-slate-800 bg-slate-900/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                  : 'border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 shadow-xs'
-              }`}
-              title="สลับธีม สว่าง / มืด"
-            >
-              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
-            </button>
+    <div className="px-bg min-h-screen flex flex-col font-['Prompt'] select-none">
+      {/* Top bar */}
+      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 pt-5 sm:px-6">
+        <div className="flex items-center gap-3">
+          <CpeLogo className="h-8" />
+          <div className="border-l-4 border-[var(--px-red)] pl-3">
+            <div className="font-pixel-sm text-sm font-bold text-white">PHOTOBOOTH</div>
+            <div className="font-pixel-sm text-[11px] text-[var(--px-muted)]">COMPUTER ENGINEERING</div>
           </div>
         </div>
+        <div className="font-pixel text-[10px] text-white sm:text-xs">SWU OPEN HOUSE</div>
       </header>
 
-      {/* 2. Main Studio Console */}
-      <main className="mx-auto max-w-5xl w-full px-6 py-10 flex-1 flex flex-col justify-center space-y-8">
-        {/* Section 1: Dual Exhibition Displays (Primary Stage) */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-mono font-semibold tracking-wider text-slate-500 uppercase">
-              ฮาร์ดแวร์แสดงผลหน้างาน (Dual Fleet Displays)
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-4 py-8 sm:px-6">
+        {/* Handheld console */}
+        <div className="px-panel px-corners flex items-stretch gap-4 p-4 sm:gap-6 sm:p-6">
+          {/* Left controls: D-pad */}
+          <div className="hidden w-24 shrink-0 flex-col items-center justify-center gap-6 md:flex" aria-hidden>
+            <div className="relative size-20">
+              <span className="absolute left-1/2 top-0 h-full w-7 -translate-x-1/2 bg-[var(--px-red-dark)] shadow-[inset_3px_3px_0_var(--px-red)]" />
+              <span className="absolute left-0 top-1/2 h-7 w-full -translate-y-1/2 bg-[var(--px-red-dark)] shadow-[inset_3px_3px_0_var(--px-red)]" />
             </div>
-            <div className="text-[11px] font-mono text-slate-500 hidden sm:block">
-              1 โน้ตบุ๊กควบคุม 2 จอพร้อมกัน
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Display 1: Kiosk */}
-            <div
-              onClick={() => window.open('/kiosk', '_blank')}
-              className={`group p-6 rounded-2xl border transition-all duration-150 cursor-pointer flex flex-col justify-between h-52 relative overflow-hidden ${
-                isDark
-                  ? 'bg-slate-900/30 border-slate-800 hover:bg-slate-900/70 hover:border-slate-700'
-                  : 'bg-white border-slate-200 hover:bg-slate-50/80 hover:border-slate-300 shadow-xs'
-              }`}
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono font-bold tracking-widest text-[#CE1126] uppercase">
-                    DISPLAY 1 · PRIMARY
-                  </span>
-                  <kbd className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold border transition-colors ${
-                    isDark
-                      ? 'border-slate-700/60 bg-slate-800/80 text-slate-300 group-hover:border-slate-500 group-hover:text-white'
-                      : 'border-slate-200 bg-slate-100 text-slate-700 group-hover:border-slate-300 group-hover:text-slate-900'
-                  }`}>
-                    1
-                  </kbd>
-                </div>
-                <h2 className="text-2xl font-bold font-['Kanit'] tracking-tight group-hover:text-rose-500 transition-colors">
-                  ตู้ถ่ายรูปไร้สัมผัส
-                </h2>
-                <p className={`text-xs font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                  /kiosk • กล้องหลัก & MediaPipe AI 60 FPS
-                </p>
-              </div>
-
-              <div className={`pt-4 border-t flex items-center justify-between text-xs font-semibold ${
-                isDark ? 'border-slate-800/60' : 'border-slate-100'
-              }`}>
-                <span className={isDark ? 'text-slate-400 group-hover:text-white transition-colors' : 'text-slate-600 group-hover:text-slate-900 transition-colors'}>
-                  เปิดจอ 1 (Kiosk)
-                </span>
-                <ArrowUpRight className="w-4 h-4 text-slate-500 group-hover:text-rose-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
-              </div>
-            </div>
-
-            {/* Display 2: Showcase */}
-            <div
-              onClick={() => window.open('/display', '_blank')}
-              className={`group p-6 rounded-2xl border transition-all duration-150 cursor-pointer flex flex-col justify-between h-52 relative overflow-hidden ${
-                isDark
-                  ? 'bg-slate-900/30 border-slate-800 hover:bg-slate-900/70 hover:border-slate-700'
-                  : 'bg-white border-slate-200 hover:bg-slate-50/80 hover:border-slate-300 shadow-xs'
-              }`}
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono font-bold tracking-widest text-cyan-400 uppercase">
-                    DISPLAY 2 · EXTERNAL HDMI
-                  </span>
-                  <kbd className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold border transition-colors ${
-                    isDark
-                      ? 'border-slate-700/60 bg-slate-800/80 text-slate-300 group-hover:border-slate-500 group-hover:text-white'
-                      : 'border-slate-200 bg-slate-100 text-slate-700 group-hover:border-slate-300 group-hover:text-slate-900'
-                  }`}>
-                    2
-                  </kbd>
-                </div>
-                <h2 className="text-2xl font-bold font-['Kanit'] tracking-tight group-hover:text-cyan-400 transition-colors">
-                  จอฉายแสดงผล & QR Code
-                </h2>
-                <p className={`text-xs font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                  /display • จอโปรเจกเตอร์/ทีวี & Spotlight 30s
-                </p>
-              </div>
-
-              <div className={`pt-4 border-t flex items-center justify-between text-xs font-semibold ${
-                isDark ? 'border-slate-800/60' : 'border-slate-100'
-              }`}>
-                <span className={isDark ? 'text-slate-400 group-hover:text-white transition-colors' : 'text-slate-600 group-hover:text-slate-900 transition-colors'}>
-                  เปิดจอ 2 (Showcase)
-                </span>
-                <ArrowUpRight className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
-              </div>
+            <div className="flex gap-2">
+              <span className="size-5 rounded-full bg-[var(--px-steel-dark)] shadow-[0_3px_0_#111]" />
+              <span className="size-5 rounded-full bg-[var(--px-red-dark)] shadow-[0_3px_0_#111]" />
             </div>
           </div>
-        </section>
 
-        {/* Section 2: Management & Companion (Secondary Utilities) */}
-        <section className="space-y-3">
-          <div className="text-xs font-mono font-semibold tracking-wider text-slate-500 uppercase">
-            เครื่องมือสตาฟและการทดสอบ (Operations & Mobile)
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Staff Admin */}
-            <div
-              onClick={() => window.open('/admin', '_blank')}
-              className={`group p-4 rounded-xl border transition-all duration-150 cursor-pointer flex items-center justify-between ${
-                isDark
-                  ? 'bg-slate-900/20 border-slate-800 hover:bg-slate-900/60 hover:border-slate-700'
-                  : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-2xs'
-              }`}
-            >
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm font-bold font-['Kanit'] transition-colors ${
-                    isDark ? 'group-hover:text-emerald-400' : 'group-hover:text-emerald-600'
-                  }`}>
-                    แดชบอร์ดสตาฟ (Mission Control)
-                  </span>
-                  <kbd className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold border ${
-                    isDark
-                      ? 'border-slate-700/60 bg-slate-800/60 text-slate-400'
-                      : 'border-slate-200 bg-slate-100 text-slate-600'
-                  }`}>
-                    3
-                  </kbd>
-                </div>
-                <div className="text-xs text-slate-500 font-mono">
-                  /admin • ควบคุมกล้อง กราฟความถี่สด และคำสั่งฉุกเฉิน
-                </div>
-              </div>
-              <ArrowUpRight className={`w-4 h-4 text-slate-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all ${
-                isDark ? 'group-hover:text-emerald-400' : 'group-hover:text-emerald-600'
-              }`} />
+          {/* Screen */}
+          <div className="px-screen flex-1 px-4 py-6 sm:px-8 sm:py-8">
+            <div className="text-center">
+              <h1 className="px-title text-2xl sm:text-4xl md:text-5xl">ENGINEERING</h1>
+              <p className="px-title-cream font-pixel mt-3 text-[10px] sm:text-sm">BUILD YOUR OWN FUTURE</p>
             </div>
 
-            {/* Mobile Web Editor */}
-            <div
-              onClick={() => window.open('/p/demo-code', '_blank')}
-              className={`group p-4 rounded-xl border transition-all duration-150 cursor-pointer flex items-center justify-between ${
-                isDark
-                  ? 'bg-slate-900/20 border-slate-800 hover:bg-slate-900/60 hover:border-slate-700'
-                  : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-2xs'
-              }`}
-            >
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm font-bold font-['Kanit'] transition-colors ${
-                    isDark ? 'group-hover:text-amber-400' : 'group-hover:text-amber-600'
-                  }`}>
-                    เว็บแต่งรูปมือถือน้อง (Mobile Studio)
-                  </span>
-                  <kbd className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold border ${
-                    isDark
-                      ? 'border-slate-700/60 bg-slate-800/60 text-slate-400'
-                      : 'border-slate-200 bg-slate-100 text-slate-600'
-                  }`}>
-                    4
-                  </kbd>
-                </div>
-                <div className="text-xs text-slate-500 font-mono">
-                  /p/[code] • ทดสอบแต่งโทนสี ใส่กรอบ และสติกเกอร์
-                </div>
-              </div>
-              <ArrowUpRight className={`w-4 h-4 text-slate-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all ${
-                isDark ? 'group-hover:text-amber-400' : 'group-hover:text-amber-600'
-              }`} />
+            <div className="mx-auto mt-8 grid max-w-3xl gap-3 sm:grid-cols-2">
+              {STAGES.map((stage) => {
+                const Icon = stage.icon;
+                return (
+                  <button
+                    key={stage.key}
+                    onClick={() => window.open(stage.href, '_blank')}
+                    className="group px-card px-corners flex items-center gap-3 p-3 text-left transition-transform hover:-translate-y-0.5 focus-visible:-translate-y-0.5"
+                  >
+                    <span className="px-btn px-btn-red px-corners size-12 shrink-0">
+                      <Icon className="size-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="font-pixel-sm flex items-center gap-2 text-[11px] text-[var(--px-gold)]">
+                        <span className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">▶</span>
+                        {stage.label}
+                      </span>
+                      <span className="block truncate font-['Kanit'] text-base font-bold text-white">{stage.title}</span>
+                      <span className="block truncate text-[11px] text-[var(--px-muted)]">{stage.detail}</span>
+                    </span>
+                    <kbd className="font-pixel-sm px-btn px-corners size-8 shrink-0 text-xs">{stage.key}</kbd>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="font-pixel px-blink mt-8 text-center text-[10px] text-white sm:text-xs">PRESS 1 - 4 TO START</p>
+          </div>
+
+          {/* Right controls: gear / hard hat / wrench / bolt */}
+          <div className="hidden w-24 shrink-0 items-center justify-center md:flex" aria-hidden>
+            <div className="grid grid-cols-3 grid-rows-3 gap-1">
+              <span />
+              <span className="px-round size-9"><Cog className="size-4" /></span>
+              <span />
+              <span className="px-round size-9"><HardHat className="size-4" /></span>
+              <span />
+              <span className="px-round size-9"><Wrench className="size-4" /></span>
+              <span />
+              <span className="px-round size-9"><Hammer className="size-4" /></span>
+              <span />
             </div>
           </div>
-        </section>
+        </div>
       </main>
 
-      {/* 3. Footer */}
-      <footer
-        className={`border-t py-4 px-6 text-xs font-mono transition-colors ${
-          isDark ? 'border-slate-800/60 text-slate-500' : 'border-slate-200 text-slate-600'
-        }`}
-      >
-        <div className="mx-auto max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div>Department of Computer Engineering, Srinakharinwirot University</div>
-          <div className="flex items-center gap-3">
-            <span>กดปุ่ม [1] [2] [3] [4] เพื่อเปิด</span>
-            <span className="text-slate-600">•</span>
-            <span>v2.6-Production</span>
-          </div>
+      <footer className="mx-auto w-full max-w-5xl px-4 pb-5 sm:px-6">
+        <div className="flex flex-col items-center justify-between gap-2 text-[11px] text-[var(--px-muted)] sm:flex-row">
+          <div>ภาควิชาวิศวกรรมคอมพิวเตอร์ มหาวิทยาลัยศรีนครินทรวิโรฒ</div>
+          <div className="font-pixel text-[10px] text-white">14-15 NOV 2026</div>
         </div>
       </footer>
     </div>

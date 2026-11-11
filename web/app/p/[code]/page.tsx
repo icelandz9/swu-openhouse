@@ -105,14 +105,8 @@ export default function MobilePhotoEditorPage({
   const frameImage = frame ? frameImages[frame.id] : undefined;
   // A frame whose PNG failed to load falls back to the plain photo
   const activeFrame = frame && frameImage ? frame : null;
-  const naturalWidth = (baseImageRef.current?.naturalWidth && baseImageRef.current.naturalWidth > 0)
-    ? baseImageRef.current.naturalWidth
-    : 1080;
-  const naturalHeight = (baseImageRef.current?.naturalHeight && baseImageRef.current.naturalHeight > 0)
-    ? baseImageRef.current.naturalHeight
-    : 1440;
-  const outWidth = activeFrame ? activeFrame.width : naturalWidth;
-  const outHeight = activeFrame ? activeFrame.height : naturalHeight;
+  const outWidth = activeFrame ? activeFrame.width : PHOTO_ONLY_SIZE.width;
+  const outHeight = activeFrame ? activeFrame.height : PHOTO_ONLY_SIZE.height;
 
   // Verify Scan Token / Claim and Load Photo
   useEffect(() => {
@@ -334,8 +328,8 @@ export default function MobilePhotoEditorPage({
   const tabButton = (tab: Tab, label: React.ReactNode) => (
     <button
       onClick={() => setActiveTab(tab)}
-      className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-colors ${
-        activeTab === tab ? 'bg-[#CE1126] text-white shadow-md' : 'text-slate-400 hover:text-white'
+      className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 px-tab px-corners text-xs font-bold ${
+        activeTab === tab ? 'is-active' : 'hover:text-white'
       }`}
     >
       {label}
@@ -345,13 +339,14 @@ export default function MobilePhotoEditorPage({
   // 1. Loading State
   if (authStatus === 'checking') {
     return (
-      <main className="min-h-dvh bg-[#0B0F19] text-white flex flex-col items-center justify-center p-6 text-center select-none">
+      <main className="min-h-dvh px-bg text-white flex flex-col items-center justify-center p-6 text-center select-none">
         <div className="relative mb-6">
           <div className="size-16 rounded-full border-4 border-white/10 border-t-[#CE1126] animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center">
             <CpeLogo className="h-6" />
           </div>
         </div>
+        <p className="font-pixel px-blink mb-3 text-xs text-[var(--px-gold)]">LOADING...</p>
         <h2 className="text-lg font-bold text-white mb-2">กำลังตรวจสอบสิทธิ์ความปลอดภัย...</h2>
         <p className="text-xs text-slate-400">Verifying secure QR scan token for #{normalizedCode.replace('OPH-', '')}</p>
       </main>
@@ -363,16 +358,17 @@ export default function MobilePhotoEditorPage({
   // 3. Not Found State
   if (authStatus === 'not_found') {
     return (
-      <main className="min-h-dvh bg-[#0B0F19] text-white flex flex-col items-center justify-center p-6 text-center select-none">
-        <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#141A26] p-6 shadow-2xl">
-          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-white/5 text-slate-400">
+      <main className="min-h-dvh px-bg text-white flex flex-col items-center justify-center p-6 text-center select-none">
+        <div className="w-full max-w-sm px-panel px-corners p-6">
+          <div className="mx-auto mb-4 flex size-14 items-center justify-center bg-black/30 px-corners text-[var(--px-cream)]">
             <Trash2 className="size-7" />
           </div>
+          <p className="font-pixel mb-3 text-sm text-[var(--px-red-hi)]">GAME OVER</p>
           <h1 className="text-lg font-bold text-white mb-2">ไม่พบรูปภาพนี้</h1>
-          <p className="text-xs text-slate-400 mb-6">รูปภาพรหัส {normalizedCode} อาจถูกลบ หรือหมดอายุการจัดเก็บแล้ว (เกิน 7 วัน ตามนโยบาย PDPA)</p>
+          <p className="text-xs text-[var(--px-cream)]/80 mb-6">รูปภาพรหัส {normalizedCode} อาจถูกลบ หรือหมดอายุการจัดเก็บแล้ว (เกิน 7 วัน ตามนโยบาย PDPA)</p>
           <a
             href="/"
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#CE1126] text-xs font-bold text-white transition-colors"
+            className="flex h-11 w-full items-center justify-center gap-2 px-btn px-btn-red px-corners text-xs"
           >
             กลับสู่หน้าหลัก
           </a>
@@ -383,19 +379,19 @@ export default function MobilePhotoEditorPage({
 
   // 4. Authorized State: Mobile Photo Editor
   return (
-    <main className="mobile-app-shell mx-auto min-h-screen max-w-md bg-black text-slate-200 flex flex-col justify-between pb-6 select-none shadow-2xl">
+    <main className="mobile-app-shell mx-auto min-h-screen max-w-md px-bg text-slate-200 flex flex-col justify-between pb-6 select-none shadow-2xl">
       {/* Top Header Bar */}
-      <header className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-black/60 backdrop-blur sticky top-0 z-30">
+      <header className="flex items-center justify-between px-5 py-4 border-b-4 border-[var(--px-red-dark)] bg-[#1a0709]/90 backdrop-blur sticky top-0 z-30">
         <div className="flex items-center gap-2.5">
           <CpeLogo className="h-6" />
           <div>
-            <div className="text-xs font-bold tracking-wider text-white">SWU OPEN HOUSE</div>
+            <div className="font-pixel text-[9px] text-white">SWU OPEN HOUSE</div>
             <div className="text-[10px] text-slate-400">วิศวกรรมคอมพิวเตอร์</div>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="mono text-xs font-bold text-white bg-white/10 px-2 py-0.5 rounded-full">
+          <span className="font-pixel-sm text-[10px] text-[var(--px-muted)]">PLAYER</span>
+          <span className="font-pixel-sm text-xs font-bold text-[var(--px-gold)] bg-black/50 px-2 py-0.5 px-corners">
             #{normalizedCode.replace('OPH-', '')}
           </span>
         </div>
@@ -403,8 +399,9 @@ export default function MobilePhotoEditorPage({
 
       {/* Main Canvas / Preview Stage */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-3 min-h-[460px]">
+        <p className="font-pixel mb-3 text-[10px] text-[var(--px-gold)]">★ STAGE CLEAR ★</p>
         <div
-          className="relative max-w-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-[#0F1218]"
+          className="relative max-w-full overflow-hidden px-screen"
           style={{
             width: '100%',
             maxWidth: '340px',
@@ -445,7 +442,7 @@ export default function MobilePhotoEditorPage({
       {/* Customization Controls Panel */}
       <div className="px-4 space-y-3">
         {/* Tab Switcher */}
-        <div className="flex bg-[#141A26] p-1 rounded-xl border border-white/5">
+        <div className="flex gap-1 p-1.5 px-panel px-corners">
           {tabButton('frames', <><Frame className="size-3.5" /> กรอบรูป</>)}
           {tabButton('filters', <><Sparkles className="size-3.5" /> ฟิลเตอร์</>)}
           {tabButton('stickers', <><Sticker className="size-3.5" /> สติกเกอร์</>)}
@@ -459,7 +456,7 @@ export default function MobilePhotoEditorPage({
               if (!frames.length) return null;
               return (
                 <div key={group.id}>
-                  <p className="px-1 text-[11px] font-semibold text-slate-400">
+                  <p className="font-pixel-sm px-1 text-[11px] font-bold text-[var(--px-gold)]">
                     {group.title} <span className="font-normal text-slate-500">· {frames.length} แบบ</span>
                   </p>
                   <div className="flex gap-2.5 overflow-x-auto py-1 scrollbar-none px-1">
@@ -467,10 +464,10 @@ export default function MobilePhotoEditorPage({
                       <button
                         key={tmpl.id}
                         onClick={() => setSelectedFrameId(tmpl.id)}
-                        className={`flex-shrink-0 flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
+                        className={`flex-shrink-0 flex flex-col items-center gap-1.5 p-2 px-corners transition-all ${
                           selectedFrameId === tmpl.id
-                            ? 'border-[#CE1126] bg-[#CE1126]/10 text-white'
-                            : 'border-white/10 bg-[#141A26] text-slate-400 hover:text-white'
+                            ? 'bg-[var(--px-red)] text-white'
+                            : 'px-card text-[var(--px-muted)] hover:text-white'
                         }`}
                       >
                         <div className="w-14 h-20 bg-slate-900 rounded-lg overflow-hidden border border-white/10 flex items-center justify-center relative">
@@ -488,7 +485,7 @@ export default function MobilePhotoEditorPage({
 
         {/* Filters Tab */}
         {activeTab === 'filters' && (
-          <div className="space-y-3 bg-[#141A26] p-3 rounded-xl border border-white/5">
+          <div className="space-y-3 px-card px-corners p-3">
             <div className="grid grid-cols-3 gap-2">
               {FILTER_LIST.map((f) => {
                 const active = selectedFilter === f.id;
@@ -529,7 +526,7 @@ export default function MobilePhotoEditorPage({
                 max="30"
                 value={brightness}
                 onChange={(e) => setBrightness(parseInt(e.target.value, 10))}
-                className="w-full accent-[#CE1126] h-1.5 bg-white/10 rounded-lg cursor-pointer"
+                className="brightness-slider px-slider w-full cursor-pointer"
               />
               <span className="mono text-[11px] text-slate-400 w-8 text-right">
                 {brightness > 0 ? `+${brightness}` : brightness}
@@ -540,7 +537,7 @@ export default function MobilePhotoEditorPage({
 
         {/* Stickers Tab */}
         {activeTab === 'stickers' && (
-          <div className="space-y-2 bg-[#141A26] p-3 rounded-xl border border-white/5">
+          <div className="space-y-2 px-card px-corners p-3">
             {stickerCatalog.length === 0 ? (
               <p className="text-xs text-slate-400 text-center py-2">กำลังโหลดสติกเกอร์...</p>
             ) : (
@@ -549,7 +546,7 @@ export default function MobilePhotoEditorPage({
                   <span className="text-[11px] text-slate-400">แตะเพื่อวางบนรูป · {stickerCatalog.length} แบบ</span>
                   <button
                     onClick={() => setStickerSheetOpen(true)}
-                    className="flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] font-bold text-slate-200 hover:bg-white/5"
+                    className="px-btn px-corners px-2.5 py-1.5 text-[11px]"
                   >
                     <Maximize2 className="size-3.5" /> ดูทั้งหมด
                   </button>
@@ -576,7 +573,7 @@ export default function MobilePhotoEditorPage({
                     setStickers([]);
                     setSelectedStickerId(null);
                   }}
-                  className="flex shrink-0 items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 font-bold text-slate-300"
+                  className="px-btn px-corners shrink-0 px-2.5 py-1.5"
                 >
                   <Trash2 className="size-3.5" /> ล้างทั้งหมด
                 </button>
@@ -599,7 +596,7 @@ export default function MobilePhotoEditorPage({
           aria-label="สติกเกอร์ทั้งหมด"
         >
           <div
-            className="flex max-h-[80dvh] w-full max-w-md flex-col rounded-t-2xl border border-white/10 bg-[#0E131D] shadow-2xl"
+            className="flex max-h-[80dvh] w-full max-w-md flex-col px-screen"
             onClick={(e) => e.stopPropagation()}
           >
             {(() => {
@@ -704,7 +701,7 @@ export default function MobilePhotoEditorPage({
       <footer className="px-5 pt-4 space-y-3">
         <button
           onClick={handleDownload}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#CE1126] hover:bg-[#e1132b] text-sm font-bold text-white transition-colors shadow-xl"
+          className="px-btn px-btn-red px-corners h-12 w-full text-sm"
         >
           <Download className="size-4" /> บันทึกรูปลงอุปกรณ์ ({outWidth}×{outHeight})
         </button>
@@ -714,7 +711,7 @@ export default function MobilePhotoEditorPage({
           href="https://www.instagram.com/cpe_swu/"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-white/10 bg-[#141A26] text-sm font-bold text-white transition-colors hover:bg-[#1B2232] active:scale-[.99]"
+          className="px-btn px-corners h-12 w-full gap-2.5 text-sm"
         >
           <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <rect x="3" y="3" width="18" height="18" rx="5" />
@@ -724,7 +721,8 @@ export default function MobilePhotoEditorPage({
           ติดตาม IG @cpe_swu
         </a>
 
-        <p className="text-center text-xs text-slate-400">
+        <p className="font-pixel text-center text-[10px] text-white">THANKS FOR PLAYING!</p>
+        <p className="text-center text-xs text-[var(--px-muted)]">
           ขอบคุณที่แวะมาบูธวิศวะคอมนะ #{normalizedCode.replace('OPH-', '')}
         </p>
 

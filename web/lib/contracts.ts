@@ -152,6 +152,5 @@ export interface StoredPhotoResult {
 }
 
 // 5. Photo Capture Specifications
-export const PHOTO_ASPECT_RATIO = "3:4" as const;
-export const CROP_DIMENSIONS_3_4 = { width: 1080, height: 1440 } as const; // 3:4 Portrait (Matches 1080x1440 frame, zero edge cutoff)
-export const CROP_DIMENSIONS_4_3 = { width: 1440, height: 1080 } as const; // 4:3 Landscape fallback
+export const PHOTO_ASPECT_RATIO = "4:3" as const;
+export const CROP_DIMENSIONS_4_3 = { width: 1440, height: 1080 } as const; // Center-crop from 1920x1080 webcam stream
