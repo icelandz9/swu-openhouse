@@ -53,7 +53,7 @@ function KioskCapturePageContent() {
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number }>({ width: 16, height: 9 });
   const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.025);
-  // 4:3 landscape (wide, for groups) or 3:4 portrait (fills the frames); staff switch it in /admin
+  // 3:4 portrait (default, fills the frames) or 4:3 landscape (wide, for groups); staff switch it in /admin
   const [photoRatio, setPhotoRatio] = useState<PhotoRatio>(PHOTO_ASPECT_RATIO);
   const currentStreamRef = useRef<MediaStream | null>(null);
 

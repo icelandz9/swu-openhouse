@@ -11,13 +11,13 @@ export interface CropRect {
 
 /**
  * Calculates center-crop rectangle for target aspect ratio from camera stream
- * - '3:4' Portrait: 1920x1080 -> 810x1080 crop, rendered to 1080x1440 (fits portrait frames; narrower view)
- * - '4:3' Landscape (default): 1920x1080 -> 1440x1080 crop (wide view for groups)
+ * - '3:4' Portrait (default): 1920x1080 -> 810x1080 crop, rendered to 1080x1440 (fits portrait frames; narrower view)
+ * - '4:3' Landscape: 1920x1080 -> 1440x1080 crop (wide view for groups)
  */
 export function calculateCrop(
   sourceWidth: number = 1920,
   sourceHeight: number = 1080,
-  ratio: '3:4' | '4:3' = '4:3'
+  ratio: '3:4' | '4:3' = '3:4'
 ): CropRect {
   const targetAspect = ratio === '3:4' ? 3 / 4 : 4 / 3;
   let sWidth = sourceHeight * targetAspect;

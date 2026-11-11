@@ -140,7 +140,7 @@ function StaffAdminScreen() {
   // Settings & Tuners
   const [sensitivity, setSensitivity] = useState<number>(2.5);
   const [countdownDuration, setCountdownDuration] = useState<number>(3);
-  const [photoRatio, setPhotoRatio] = useState<'3:4' | '4:3'>('4:3');
+  const [photoRatio, setPhotoRatio] = useState<'3:4' | '4:3'>('3:4');
   const [publicDomain, setPublicDomain] = useState<string>('');
   const [instantPurgeCode, setInstantPurgeCode] = useState<string>('');
   const [currentTime, setCurrentTime] = useState<string>('--:--');
@@ -272,7 +272,7 @@ function StaffAdminScreen() {
         }
       }
 
-      // Load saved photo capture ratio (defaults to 4:3 landscape: wide enough for groups)
+      // Load saved photo capture ratio (defaults to 3:4 portrait: fills the frames)
       const savedRatio = localStorage.getItem('swu_photo_ratio');
       if (savedRatio === '3:4' || savedRatio === '4:3') {
         setPhotoRatio(savedRatio);
@@ -1756,7 +1756,7 @@ function StaffAdminScreen() {
                             : isDark ? 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800' : 'bg-white text-slate-700 border border-slate-200'
                         }`}
                       >
-                        3:4 แนวตั้ง (คนน้อย)
+                        3:4 แนวตั้ง (แนะนำ)
                       </button>
                       <button
                         type="button"
@@ -1773,7 +1773,7 @@ function StaffAdminScreen() {
                             : isDark ? 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800' : 'bg-white text-slate-700 border border-slate-200'
                         }`}
                       >
-                        4:3 แนวนอน (แนะนำ)
+                        4:3 แนวนอน (คนเยอะ)
                       </button>
                     </div>
                   </div>
