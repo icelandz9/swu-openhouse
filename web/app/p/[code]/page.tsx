@@ -15,6 +15,8 @@ import {
 } from '@/lib/mobile/stickers';
 import { StickerLayer } from '@/components/StickerLayer';
 import { CpeLogo } from '@/components/CpeLogo';
+import { PixelFxAnimation } from '@/components/PixelFxAnimation';
+import { ChassisScrews, PixelEngineerSeal, PixelMechaBadge } from '@/components/RetroConsoleDecor';
 
 const FILTER_LIST: { id: FilterPresetId; label: string; thai: string }[] = [
   { id: 'original', label: 'Original', thai: 'ต้นฉบับ' },
@@ -380,64 +382,88 @@ export default function MobilePhotoEditorPage({
     );
   }
 
-  // 4. Authorized State: Mobile Photo Editor
+  // 4. Authorized State: Mobile Photo Editor (Styled as "SWU-BOY" Retro Handheld Console)
   return (
-    <main className="mobile-app-shell mx-auto min-h-screen max-w-md bg-black text-slate-200 flex flex-col justify-between pb-6 select-none shadow-2xl">
-      {/* Top Header Bar */}
-      <header className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-black/60 backdrop-blur sticky top-0 z-30">
-        <div className="flex items-center gap-2.5">
-          <CpeLogo className="h-6" />
+    <main className="mobile-app-shell mx-auto min-h-screen max-w-md bg-[#0D0F15] text-slate-200 flex flex-col justify-between pb-6 select-none shadow-2xl">
+      {/* Top Header Bar (Retro Handheld Console Top Bar) */}
+      <header className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-[#161922] sticky top-0 z-30 shadow-md">
+        <div className="flex items-center gap-2">
+          <div className="size-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10B981]" />
           <div>
-            <div className="text-xs font-bold tracking-wider text-white">SWU OPEN HOUSE</div>
-            <div className="text-[10px] text-slate-400">วิศวกรรมคอมพิวเตอร์</div>
+            <div className="font-pixel text-[10px] text-white tracking-wider flex items-center gap-1.5">
+              <span>SWU-BOY</span>
+              <span className="text-[#CE1126]">ENG</span>
+            </div>
+            <div className="text-[9px] text-slate-400 font-pixel-text">CPE OPEN HOUSE 2026</div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="mono text-xs font-bold text-white bg-white/10 px-2 py-0.5 rounded-full">
+
+        <div className="flex items-center gap-2">
+          <span className="font-pixel text-[9px] text-amber-400 bg-amber-950/60 border border-amber-500/30 px-1.5 py-0.5 rounded-xs">
+            P1
+          </span>
+          <span className="font-pixel text-[9px] text-slate-300 bg-black/60 border border-slate-700 px-2 py-0.5 rounded-xs">
             #{normalizedCode.replace('OPH-', '')}
           </span>
         </div>
       </header>
 
-      {/* Main Canvas / Preview Stage */}
+      {/* Main Canvas / Retro Console Screen Frame */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-3 min-h-[460px]">
-        <div
-          className="relative max-w-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-[#0F1218]"
-          style={{
-            width: '100%',
-            maxWidth: '340px',
-            aspectRatio: `${outWidth} / ${outHeight}`,
-          }}
-        >
-          {/* Canvas for photo + filter + frame */}
-          <canvas
-            ref={canvasRef}
-            className="w-full h-full object-contain block"
-            style={{ width: '100%', height: '100%' }}
-          />
+        {/* Handheld Console Bezel with Corner Screws */}
+        <div className="pixel-box-steel relative max-w-full rounded-2xl overflow-hidden p-2.5 shadow-2xl bg-[#1A1D26]">
+          <ChassisScrews />
 
-          {/* Interactive Sticker Overlay */}
-          <StickerLayer
-            stickers={stickers}
-            selectedId={selectedStickerId}
-            onSelect={setSelectedStickerId}
-            onChange={updateSticker}
-            onDelete={deleteSticker}
-            canvasWidth={outWidth}
-            canvasHeight={outHeight}
-          />
+          {/* CRT Screen Frame */}
+          <div
+            className="relative max-w-full rounded-xl overflow-hidden shadow-inner border-2 border-black bg-black"
+            style={{
+              width: '100%',
+              maxWidth: '330px',
+              aspectRatio: `${outWidth} / ${outHeight}`,
+            }}
+          >
+            {/* Subtle CRT Scanlines */}
+            <div className="crt-overlay pointer-events-none absolute inset-0 z-20 opacity-25" />
 
-          {/* Save Success Banner */}
-          {saveSuccess && (
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center text-white p-4 animate-in fade-in z-50">
-              <div className="size-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2">
-                <Check className="size-6 stroke-[3]" />
-              </div>
-              <p className="text-sm font-bold">บันทึกรูปภาพเรียบร้อยแล้ว!</p>
-              <p className="text-xs text-slate-300 text-center mt-1">รูปบันทึกลงในเครื่องของคุณแล้ว</p>
+            {/* Canvas for photo + filter + frame */}
+            <canvas
+              ref={canvasRef}
+              className="w-full h-full object-contain block relative z-10"
+              style={{ width: '100%', height: '100%' }}
+            />
+
+            {/* Interactive Sticker Overlay */}
+            <div className="relative z-15">
+              <StickerLayer
+                stickers={stickers}
+                selectedId={selectedStickerId}
+                onSelect={setSelectedStickerId}
+                onChange={updateSticker}
+                onDelete={deleteSticker}
+                canvasWidth={outWidth}
+                canvasHeight={outHeight}
+              />
             </div>
-          )}
+
+            {/* Save Success Banner with PixelFx Achievement Animation */}
+            {saveSuccess && (
+              <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center text-white p-4 animate-in fade-in z-50">
+                <PixelFxAnimation
+                  sheetSrc="/pixelfx/ui/achievement/achievement.png"
+                  jsonSrc="/pixelfx/ui/achievement/achievement.json"
+                  width={240}
+                  height={80}
+                  loop={false}
+                  speed={1.0}
+                  className="mb-2"
+                />
+                <p className="font-pixel text-xs text-amber-400">LOOT CLAIMED!</p>
+                <p className="text-xs text-white font-bold mt-1 font-pixel-text">บันทึกรูปภาพเรียบร้อยแล้ว</p>
+                <p className="text-[11px] text-slate-400 text-center mt-1">รูปภาพถูกบันทึกลงในอุปกรณ์ของคุณแล้ว</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -690,9 +716,9 @@ export default function MobilePhotoEditorPage({
       <footer className="px-5 pt-4 space-y-3">
         <button
           onClick={handleDownload}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#CE1126] hover:bg-[#e1132b] text-sm font-bold text-white transition-colors shadow-xl"
+          className="pixel-btn-action flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#CE1126] hover:bg-[#e1132b] text-sm font-bold text-white transition-all shadow-xl font-pixel-text cursor-pointer"
         >
-          <Download className="size-4" /> บันทึกรูปลงอุปกรณ์ ({outWidth}×{outHeight})
+          <Download className="size-4" /> 🎮 บันทึกรูปลงอุปกรณ์ (CLAIM LOOT)
         </button>
 
         {/* Follow the department on Instagram */}

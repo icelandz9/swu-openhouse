@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Kanit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Prompt:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Kanit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Press+Start+2P&family=Prompt:wght@400;500;600;700;800&family=Silkscreen:wght@400;700&family=VT323&display=swap");
 @import "tailwindcss";
 
 @theme {
@@ -22,6 +22,8 @@
 
   --font-sans: 'Plus Jakarta Sans', 'Prompt', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', 'Space Mono', monospace;
+  --font-pixel: 'Press Start 2P', 'Silkscreen', monospace;
+  --font-pixel-condensed: 'VT323', monospace;
   --color-cpe-red: #E50914;
   --color-swu-crimson: #D8232A;
   --color-bg-deep: #07080B;
@@ -553,4 +555,112 @@ button:focus-visible {
     radial-gradient(circle at 50% 0%, rgba(206, 17, 38, 0.14) 0%, transparent 55%),
     radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
   background-size: 100% 100%, 28px 28px;
+}
+
+/* =========================================================================
+   Retro Pixel Art & Handheld Engineering Console Styling (SWU Open House)
+   ========================================================================= */
+
+.font-pixel {
+  font-family: 'Press Start 2P', 'Silkscreen', monospace;
+}
+
+.font-pixel-text {
+  font-family: 'Silkscreen', 'Prompt', monospace;
+}
+
+.font-pixel-tall {
+  font-family: 'VT323', monospace;
+}
+
+/* Pixel Sharp Rendering for Sprites and Graphics */
+.pixel-art {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* Subtle CRT Scanlines */
+.crt-overlay {
+  pointer-events: none;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.22) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.02),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.02)
+  );
+  background-size: 100% 3px, 6px 100%;
+}
+
+/* Stepped Pixel Corners */
+.pixel-corners {
+  clip-path: polygon(
+    0 4px, 4px 4px, 4px 0,
+    calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px,
+    100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%,
+    4px 100%, 4px calc(100% - 4px), 0 calc(100% - 4px)
+  );
+}
+
+.pixel-corners-lg {
+  clip-path: polygon(
+    0 8px, 8px 8px, 8px 0,
+    calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px,
+    100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%,
+    8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px)
+  );
+}
+
+/* Retro Pixel Bevel Box */
+.pixel-box-red {
+  background-color: #0E1015;
+  border: 3px solid #CE1126;
+  box-shadow: 
+    inset 2px 2px 0 0 rgba(255, 255, 255, 0.2),
+    inset -2px -2px 0 0 rgba(0, 0, 0, 0.7),
+    0 0 15px rgba(206, 17, 38, 0.35);
+}
+
+.pixel-box-steel {
+  background-color: #161922;
+  border: 3px solid #2D3342;
+  box-shadow: 
+    inset 2px 2px 0 0 rgba(255, 255, 255, 0.12),
+    inset -2px -2px 0 0 rgba(0, 0, 0, 0.8),
+    0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Retro Handheld Metallic Screws */
+.chassis-screw {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #94A3B8, #475569 60%, #1E293B 100%);
+  border: 1px solid #0F172A;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6), 0 1px 2px rgba(0, 0, 0, 0.8);
+  position: relative;
+}
+.chassis-screw::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 1.5px;
+  background-color: #0F172A;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+/* Retro Arcade Mechanical Push Button */
+.pixel-btn-action {
+  position: relative;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  box-shadow: 0 4px 0 0 #7A0A17, 0 6px 12px rgba(0, 0, 0, 0.6);
+}
+.pixel-btn-action:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 0 #7A0A17, 0 2px 4px rgba(0, 0, 0, 0.6);
 }
