@@ -459,9 +459,8 @@ export default function ShowcaseDisplayScreen() {
             </div>
           </header>
 
-          <div className="px-panel relative mt-[1.2vw] flex min-h-0 flex-1 flex-col p-[1.5vw] [--cap-h:3.6vw] [--cap-w:5.2vw]">
-          <ConsoleCaps />
-          <div className="px-screen relative z-[2] flex min-h-0 flex-1 flex-col overflow-hidden px-[1.2vw] py-[1vw]">
+          <div className="relative mt-[1.2vw] flex min-h-0 flex-1 flex-col">
+          <div className="px-screen relative flex min-h-0 flex-1 flex-col overflow-hidden px-[1.2vw] py-[1vw]">
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[42%] opacity-60" aria-hidden>
             <PixelSkyline />
           </div>

@@ -17,6 +17,10 @@ import {
   HardHat,
   Wrench,
   Hammer,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react';
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
 import { ScreenSyncEvent, CROP_DIMENSIONS_4_3, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
@@ -811,8 +815,8 @@ export default function KioskCapturePage() {
         </div>
 
         {/* Left grip of the console: title, D-pad, player status */}
-        <aside className="kiosk-pillar px-panel absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col px-[1.1%] py-[2.6vw] [--cap-h:2.1vw] [--cap-w:3.2vw] [&>*:not(.px-cap)]:relative [&>*:not(.px-cap)]:z-[2]">
-          <ConsoleCaps corners={['tl', 'bl']} />
+        <aside className="kiosk-pillar px-panel absolute inset-y-0 left-0 z-[28] flex w-[12.5%] flex-col px-[1.1%] py-[2.6vw] [--cap-h:2.1vw] [--cap-w:3.2vw] [&>*:not(.px-cap)]:relative [&>*:not(.px-cap)]:z-[2]">
+          <ConsoleCaps corners={['bl']} />
           {/* Logo lit up on the console's title screen (it is made for dark backgrounds) */}
           <div className="px-screen px-[.6vw] pb-[.9vw] pt-[1.1vw] text-center">
             <div className="relative mx-auto w-fit">
@@ -838,10 +842,19 @@ export default function KioskCapturePage() {
 
           {/* D-pad and two small buttons, as on the poster's console */}
           <div className="flex flex-1 flex-col items-center justify-center gap-[1.6vw]" aria-hidden>
-            <div className="relative size-[6.6vw]">
-              <span className="absolute left-1/2 top-0 h-full w-[34%] -translate-x-1/2 bg-[var(--px-red-dark)] shadow-[inset_.3vw_.3vw_0_var(--px-red),0_.35vw_0_#141317]" />
-              <span className="absolute left-0 top-1/2 h-[34%] w-full -translate-y-1/2 bg-[var(--px-red-dark)] shadow-[inset_.3vw_.3vw_0_var(--px-red),0_.35vw_0_#141317]" />
-              <span className="absolute left-1/2 top-1/2 size-[16%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#3a0610]" />
+            {/* Four diamond arrow keys */}
+            <div className="relative size-[7.2vw]">
+              {[
+                { Icon: ArrowUp, pos: 'left-1/2 top-0 -translate-x-1/2' },
+                { Icon: ArrowLeft, pos: 'left-0 top-1/2 -translate-y-1/2' },
+                { Icon: ArrowRight, pos: 'right-0 top-1/2 -translate-y-1/2' },
+                { Icon: ArrowDown, pos: 'bottom-0 left-1/2 -translate-x-1/2' },
+              ].map(({ Icon, pos }, i) => (
+                <span key={i} className={`absolute ${pos} flex size-[2.6vw] items-center justify-center`}>
+                  <span className="px-dkey absolute inset-[.3vw] rotate-45 rounded-[.4vw]" />
+                  <Icon className="relative size-[1.15vw] text-white" strokeWidth={3} />
+                </span>
+              ))}
             </div>
             <div className="flex gap-[.9vw]">
               <span className="size-[1.3vw] rounded-full bg-[var(--px-steel-dark)] shadow-[0_.25vw_0_#111]" />
@@ -866,8 +879,8 @@ export default function KioskCapturePage() {
         </aside>
 
         {/* Right grip: action buttons and how to play */}
-        <aside className="kiosk-pillar px-panel absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col px-[1.1%] py-[2.6vw] [--cap-h:2.1vw] [--cap-w:3.2vw] [&>*:not(.px-cap)]:relative [&>*:not(.px-cap)]:z-[2]">
-          <ConsoleCaps corners={['tr', 'br']} />
+        <aside className="kiosk-pillar px-panel absolute inset-y-0 right-0 z-[28] flex w-[12.5%] flex-col px-[1.1%] py-[2.6vw] [--cap-h:2.1vw] [--cap-w:3.2vw] [&>*:not(.px-cap)]:relative [&>*:not(.px-cap)]:z-[2]">
+          <ConsoleCaps corners={['br']} />
           {/* Gear / hard hat / wrench / hammer, in a diamond */}
           <div className="mx-auto grid w-fit grid-cols-3 grid-rows-3 gap-[.3vw]" aria-hidden>
             <span />
