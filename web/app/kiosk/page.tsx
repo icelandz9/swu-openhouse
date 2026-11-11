@@ -904,7 +904,7 @@ export default function KioskCapturePage() {
               {/* Dialog box: what to do now */}
               {(isIdle || isDetecting) && showLiveFeed && cameraActive && (
                 <div className="kc-dialog pointer-events-none absolute inset-x-[1.2cqw] bottom-[1.2cqw] z-30 flex items-center gap-[1.2cqw] px-[1.2cqw] py-[1cqw]">
-                  <span className="flex size-[4cqw] shrink-0 items-center justify-center bg-[var(--px-red)] shadow-[inset_.2cqw_.2cqw_0_var(--px-red-hi),inset_-.2cqw_-.3cqw_0_var(--px-red-dark)]">
+                  <span className="flex size-[3.6cqw] shrink-0 items-center justify-center rounded-[.5cqw] bg-[var(--px-red)]">
                     <Hand className="size-[2.2cqw] text-white" strokeWidth={2.2} />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -920,13 +920,12 @@ export default function KioskCapturePage() {
                         <span style={{ width: `${Math.max(0, Math.min(100, holdProgress))}%` }} />
                       </div>
                     ) : (
-                      <p className="font-pixel mt-[.35cqw] text-[.72cqw] text-[var(--px-gold)]">RAISE YOUR HAND TO START</p>
+                      <p className="font-pixel mt-[.4cqw] text-[.66cqw] text-white/55">RAISE YOUR HAND TO START</p>
                     )}
                   </div>
-                  <span className="font-pixel shrink-0 text-[.95cqw] text-[var(--px-gold)]">
+                  <span className="font-pixel shrink-0 text-[.8cqw] text-[var(--px-gold)]">
                     {holdProgress > 0 ? `${Math.round(holdProgress)}%` : 'PRESS START'}
                   </span>
-                  <span className="px-blink absolute bottom-[.4cqw] right-[.9cqw] text-[.8cqw] text-[var(--px-gold)]" aria-hidden>▼</span>
                 </div>
               )}
 
