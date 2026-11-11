@@ -216,8 +216,13 @@ export default function MobilePhotoEditorPage({
 
     const win = activeFrame ? activeFrame.window : { x: 0, y: 0, w: outWidth, h: outHeight };
 
-    // Whole photo in the frame window: nobody standing at the edge of the kiosk shot gets cut off
-    drawPhotoContain(ctx, photo, win);
+    // Photo shape close to the window (within 6%, e.g. a 986x1080 "frame mode" shot in any CPE frame):
+    // fill the window, trimming at most ~3% per side, so there are no filler bands.
+    // Otherwise (e.g. a wide 4:3 group shot): keep the whole photo so nobody at the edge gets cut off.
+    const photoAspect = (photo.naturalWidth || photo.width) / (photo.naturalHeight || photo.height);
+    const closeFit = Math.abs(photoAspect / (win.w / win.h) - 1) <= 0.06;
+    if (closeFit) drawPhotoCover(ctx, photo, win);
+    else drawPhotoContain(ctx, photo, win);
     applyColorFilter(ctx, win, selectedFilter, brightness);
 
     if (activeFrame && frameImage) {
