@@ -811,7 +811,7 @@ export default function KioskCapturePage() {
         {/* Left grip of the console: the logo straight on the grey body, title, player status */}
         <aside className="kiosk-pillar px-panel absolute inset-y-0 left-0 z-[28] flex w-[12.5%] flex-col items-center px-[1.1%] py-[2.6vw] [--cap-h:2.1vw] [--cap-w:3.2vw] [&>*:not(.px-cap)]:relative [&>*:not(.px-cap)]:z-[2]">
           <ConsoleCaps corners={['bl']} />
-          <div className="flex flex-1 flex-col items-center justify-center gap-[1.6vw] text-center">
+          <div className="flex flex-1 flex-col items-center justify-start gap-[1.6vw] pt-[.6vw] text-center">
             {/* Dark pixel outline + drop shadow so the red gear and white PE stand off the grey */}
             <div className="w-[92%]">
               <CpeLogo className="px-logo-pop h-auto max-w-full" />
