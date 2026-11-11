@@ -829,8 +829,8 @@ button:focus-visible {
 /* Red corner plates with one screw each */
 .kc-cap {
   position: absolute;
-  width: 13cqw;
-  height: 7cqw;
+  width: 11.5cqw;
+  height: 6.2cqw;
   background:
     radial-gradient(circle at 2.2cqw 2.2cqw, #1c1b20 0 0.32cqw, #9a99a0 0.36cqw 0.55cqw, transparent 0.58cqw),
     linear-gradient(160deg, #d8293f 0%, var(--px-red) 40%, #8a0c20 100%);

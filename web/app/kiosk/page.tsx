@@ -762,8 +762,8 @@ export default function KioskCapturePage() {
           <span className="kc-cap kc-cap-br" aria-hidden />
 
           {/* Left: logo, D-pad, SELECT / START */}
-          <div className="absolute inset-y-0 left-0 flex w-[17.4cqw] flex-col items-center pt-[9cqw]">
-            <div className="w-[12cqw]">
+          <div className="absolute inset-y-0 left-0 flex w-[14.2cqw] flex-col items-center pt-[8.4cqw]">
+            <div className="w-[10.4cqw]">
               <CpeLogo className="px-logo-pop h-auto max-w-full" />
             </div>
             <p className="font-pixel mt-[1.1cqw] text-center text-[.78cqw] leading-[1.7] text-[#3a3a40]">
@@ -771,15 +771,15 @@ export default function KioskCapturePage() {
               <br />
               OWN FUTURE
             </p>
-            <div className="relative mt-[4.2cqw] size-[10cqw]" aria-hidden>
+            <div className="relative mt-[3.8cqw] size-[8.4cqw]" aria-hidden>
               <span className="kc-dpad absolute left-1/2 top-0 h-full w-[34%] -translate-x-1/2" />
               <span className="kc-dpad absolute left-0 top-1/2 h-[34%] w-full -translate-y-1/2" />
               <span className="absolute left-1/2 top-1/2 size-[18%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--px-red-dark)] shadow-[inset_0_.2cqw_.3cqw_rgba(0,0,0,.5)]" />
             </div>
-            <div className="mt-[3.4cqw] flex gap-[1.6cqw]" aria-hidden>
+            <div className="mt-[3cqw] flex gap-[1.2cqw]" aria-hidden>
               {['SELECT', 'START'].map((label) => (
                 <div key={label} className="flex flex-col items-center gap-[.5cqw]">
-                  <span className="kc-pill h-[1.25cqw] w-[4.4cqw]" />
+                  <span className="kc-pill h-[1.1cqw] w-[3.8cqw]" />
                   <span className="font-pixel-sm text-[.62cqw] font-bold text-[#4a4a52]">{label}</span>
                 </div>
               ))}
@@ -787,40 +787,40 @@ export default function KioskCapturePage() {
           </div>
 
           {/* Right: gear / hard hat / wrench / hammer buttons and the speaker grille */}
-          <div className="absolute inset-y-0 right-0 flex w-[17.4cqw] flex-col items-center pt-[13cqw]">
+          <div className="absolute inset-y-0 right-0 flex w-[14.2cqw] flex-col items-center pt-[13cqw]">
             <div className="grid grid-cols-3 grid-rows-3 gap-[.35cqw]" aria-hidden>
               <span />
-              <span className="px-round size-[4.6cqw]"><Cog className="size-[2cqw]" /></span>
+              <span className="px-round size-[3.8cqw]"><Cog className="size-[2cqw]" /></span>
               <span />
-              <span className="px-round size-[4.6cqw]"><HardHat className="size-[2cqw]" /></span>
+              <span className="px-round size-[3.8cqw]"><HardHat className="size-[2cqw]" /></span>
               <span />
-              <span className="px-round size-[4.6cqw]"><Wrench className="size-[2cqw]" /></span>
+              <span className="px-round size-[3.8cqw]"><Wrench className="size-[2cqw]" /></span>
               <span />
-              <span className="px-round size-[4.6cqw]"><Hammer className="size-[2cqw]" /></span>
+              <span className="px-round size-[3.8cqw]"><Hammer className="size-[2cqw]" /></span>
               <span />
             </div>
-            <div className="mt-[4cqw] ml-[3cqw] flex gap-[.9cqw]" aria-hidden>
+            <div className="mt-[3.6cqw] ml-[2cqw] flex gap-[.8cqw]" aria-hidden>
               {Array.from({ length: 5 }, (_, i) => (
-                <span key={i} className="kc-grille h-[6cqw] w-[.7cqw]" />
+                <span key={i} className="kc-grille h-[5cqw] w-[.6cqw]" />
               ))}
             </div>
           </div>
 
           {/* Screen bezel */}
-          <div className="kc-bezel absolute left-1/2 top-1/2 flex w-[59cqw] -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[2.6cqw] pb-[1cqw] pt-[1cqw]">
-            <p className="font-pixel mb-[.8cqw] text-[.82cqw] text-[#b9b9c2]">
+          <div className="kc-bezel absolute left-1/2 top-1/2 flex w-[70cqw] -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] pb-[.55cqw] pt-[.55cqw]">
+            <p className="font-pixel mb-[.45cqw] text-[.78cqw] text-[#b9b9c2]">
               SWU OPEN HOUSE <span className="text-[var(--px-red-hi)]">2026</span> · 14-15 NOV
             </p>
 
             {/* LEDs on the bezel, left of the screen */}
-            <div className="absolute left-[.7cqw] top-1/2 flex -translate-y-1/2 flex-col items-center gap-[1.4cqw]" aria-hidden>
+            <div className="absolute -left-[2.2cqw] top-1/2 flex -translate-y-1/2 flex-col items-center gap-[1.4cqw]" aria-hidden>
               {[
                 ['CAM', cameraActive],
                 ['HAND', Boolean(liveLandmarks)],
               ].map(([label, on]) => (
                 <div key={label as string} className="flex flex-col items-center gap-[.3cqw]">
-                  <span className={`size-[.8cqw] ${on ? 'bg-[var(--px-green)] shadow-[0_0_.6cqw_var(--px-green)]' : 'bg-[#2a2a30]'}`} />
-                  <span className="font-pixel-sm text-[.5cqw] text-[#8a8a94]">{label as string}</span>
+                  <span className={`size-[.8cqw] ${on ? 'bg-[var(--px-green)] shadow-[0_0_.6cqw_var(--px-green)]' : 'bg-[#6a6a72]'}`} />
+                  <span className="font-pixel-sm text-[.55cqw] font-bold text-[#4a4a52]">{label as string}</span>
                 </div>
               ))}
             </div>
@@ -968,7 +968,7 @@ export default function KioskCapturePage() {
               )}
             </div>
 
-            <p className="font-pixel mt-[.8cqw] text-[.72cqw] tracking-[.2em] text-[#8a8a94]">COMPUTER ENGINEERING</p>
+            <p className="font-pixel mt-[.45cqw] text-[.68cqw] tracking-[.2em] text-[#8a8a94]">COMPUTER ENGINEERING</p>
           </div>
         </div>
 
