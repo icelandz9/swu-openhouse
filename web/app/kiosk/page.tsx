@@ -3,8 +3,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Hand,
-  Timer,
-  QrCode,
   ShieldAlert,
   CheckCircle2,
   RefreshCw,
@@ -17,10 +15,6 @@ import {
   HardHat,
   Wrench,
   Hammer,
-  ArrowUp,
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
 } from 'lucide-react';
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
 import { ScreenSyncEvent, CROP_DIMENSIONS_4_3, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
@@ -814,56 +808,31 @@ export default function KioskCapturePage() {
           ▶ PLAYER 1 · READY
         </div>
 
-        {/* Left grip of the console: title, D-pad, player status */}
-        <aside className="kiosk-pillar px-panel absolute inset-y-0 left-0 z-[28] flex w-[12.5%] flex-col px-[1.1%] py-[2.6vw] [--cap-h:2.1vw] [--cap-w:3.2vw] [&>*:not(.px-cap)]:relative [&>*:not(.px-cap)]:z-[2]">
+        {/* Left grip of the console: the logo straight on the grey body, title, player status */}
+        <aside className="kiosk-pillar px-panel absolute inset-y-0 left-0 z-[28] flex w-[12.5%] flex-col items-center px-[1.1%] py-[2.6vw] [--cap-h:2.1vw] [--cap-w:3.2vw] [&>*:not(.px-cap)]:relative [&>*:not(.px-cap)]:z-[2]">
           <ConsoleCaps corners={['bl']} />
-          {/* Logo lit up on the console's title screen (it is made for dark backgrounds) */}
-          <div className="px-screen px-[.6vw] pb-[.9vw] pt-[1.1vw] text-center">
-            <div className="relative mx-auto w-fit">
-              <span
-                className="pointer-events-none absolute -inset-[.8vw] bg-[radial-gradient(closest-side,rgba(232,56,79,0.35),transparent)]"
-                aria-hidden
-              />
-              <CpeLogo className="relative mx-auto h-[clamp(2.2rem,3.7vw,4.4rem)] max-w-full [filter:drop-shadow(.18vw_.18vw_0_#1a0306)]" />
+          <div className="flex flex-1 flex-col items-center justify-center gap-[1.6vw] text-center">
+            {/* Dark pixel outline + drop shadow so the red gear and white PE stand off the grey */}
+            <div className="w-[92%]">
+              <CpeLogo className="px-logo-pop h-auto max-w-full" />
             </div>
-            <div className="mx-auto my-[.8vw] h-[3px] w-[80%] bg-[repeating-linear-gradient(90deg,var(--px-red)_0_6px,transparent_6px_10px)]" aria-hidden />
-            <p className="px-title text-[clamp(.46rem,.72vw,.9rem)]">ENGINEERING</p>
-            <p className="font-pixel mt-[.55vw] text-[clamp(.32rem,.44vw,.54rem)] leading-[1.8] text-white">
-              BUILD YOUR
+            <div>
+              <p className="px-title text-[clamp(.5rem,.8vw,1rem)]">ENGINEERING</p>
+              <p className="font-pixel px-menu-item mt-[.7vw] text-[clamp(.32rem,.46vw,.56rem)] leading-[1.9]">
+                BUILD YOUR
+                <br />
+                OWN FUTURE
+              </p>
+            </div>
+            <p className="font-pixel text-[clamp(.3rem,.42vw,.52rem)] leading-[1.8] text-[var(--px-cream)] [text-shadow:2px_2px_0_#2e2d33]">
+              SWU OPEN HOUSE
               <br />
-              OWN FUTURE
+              14-15 NOV 2026
             </p>
-          </div>
-          <p className="font-pixel mt-[.8vw] text-center text-[clamp(.32rem,.44vw,.54rem)] leading-[1.7] text-[var(--px-cream)] [text-shadow:2px_2px_0_#2e2d33]">
-            SWU OPEN HOUSE
-            <br />
-            14-15 NOV 2026
-          </p>
-
-          {/* D-pad and two small buttons, as on the poster's console */}
-          <div className="flex flex-1 flex-col items-center justify-center gap-[1.6vw]" aria-hidden>
-            {/* Four diamond arrow keys */}
-            <div className="relative size-[7.2vw]">
-              {[
-                { Icon: ArrowUp, pos: 'left-1/2 top-0 -translate-x-1/2' },
-                { Icon: ArrowLeft, pos: 'left-0 top-1/2 -translate-y-1/2' },
-                { Icon: ArrowRight, pos: 'right-0 top-1/2 -translate-y-1/2' },
-                { Icon: ArrowDown, pos: 'bottom-0 left-1/2 -translate-x-1/2' },
-              ].map(({ Icon, pos }, i) => (
-                <span key={i} className={`absolute ${pos} flex size-[2.6vw] items-center justify-center`}>
-                  <span className="px-dkey absolute inset-[.3vw] rotate-45 rounded-[.4vw]" />
-                  <Icon className="relative size-[1.15vw] text-white" strokeWidth={3} />
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-[.9vw]">
-              <span className="size-[1.3vw] rounded-full bg-[var(--px-steel-dark)] shadow-[0_.25vw_0_#111]" />
-              <span className="size-[1.3vw] rounded-full bg-[var(--px-red-dark)] shadow-[0_.25vw_0_#111]" />
-            </div>
           </div>
 
           {/* Player status, in words a visitor understands */}
-          <div className="px-screen px-[.65vw] py-[.7vw]">
+          <div className="px-screen w-full px-[.65vw] py-[.7vw]">
             <p className="font-pixel text-[clamp(.32rem,.44vw,.54rem)] text-[var(--px-gold)]">PLAYER 1</p>
             <div className="mt-[.6vw] space-y-[.45vw] text-[clamp(.55rem,.72vw,.88rem)] leading-tight">
               <div className="flex items-center gap-[.45vw]">
@@ -878,55 +847,19 @@ export default function KioskCapturePage() {
           </div>
         </aside>
 
-        {/* Right grip: action buttons and how to play */}
-        <aside className="kiosk-pillar px-panel absolute inset-y-0 right-0 z-[28] flex w-[12.5%] flex-col px-[1.1%] py-[2.6vw] [--cap-h:2.1vw] [--cap-w:3.2vw] [&>*:not(.px-cap)]:relative [&>*:not(.px-cap)]:z-[2]">
+        {/* Right grip: the gear / hard hat / wrench / hammer buttons, as on the poster */}
+        <aside className="kiosk-pillar px-panel absolute inset-y-0 right-0 z-[28] flex w-[12.5%] flex-col items-center justify-center px-[1.1%] py-[2.6vw] [--cap-h:2.1vw] [--cap-w:3.2vw] [&>*:not(.px-cap)]:relative [&>*:not(.px-cap)]:z-[2]">
           <ConsoleCaps corners={['br']} />
-          {/* Gear / hard hat / wrench / hammer, in a diamond */}
-          <div className="mx-auto grid w-fit grid-cols-3 grid-rows-3 gap-[.3vw]" aria-hidden>
+          <div className="grid w-fit grid-cols-3 grid-rows-3 gap-[.4vw]" aria-hidden>
             <span />
-            <span className="px-round size-[2.7vw]"><Cog className="size-[1.2vw]" /></span>
+            <span className="px-round size-[3.2vw]"><Cog className="size-[1.4vw]" /></span>
             <span />
-            <span className="px-round size-[2.7vw]"><HardHat className="size-[1.2vw]" /></span>
+            <span className="px-round size-[3.2vw]"><HardHat className="size-[1.4vw]" /></span>
             <span />
-            <span className="px-round size-[2.7vw]"><Wrench className="size-[1.2vw]" /></span>
+            <span className="px-round size-[3.2vw]"><Wrench className="size-[1.4vw]" /></span>
             <span />
-            <span className="px-round size-[2.7vw]"><Hammer className="size-[1.2vw]" /></span>
+            <span className="px-round size-[3.2vw]"><Hammer className="size-[1.4vw]" /></span>
             <span />
-          </div>
-
-          <p className="font-pixel mt-[1.6vw] text-center text-[clamp(.36rem,.5vw,.62rem)] text-white [text-shadow:2px_2px_0_#2e2d33]">
-            HOW TO PLAY
-          </p>
-          <ol className="mt-[.8vw] flex flex-1 flex-col gap-[.8vw]">
-            {[
-              { icon: Hand, line1: 'แบมือค้าง', line2: '1.5 วินาที', english: 'HOLD TO START' },
-              { icon: Timer, line1: 'โพสท่าอิสระ', line2: 'นับ 3..2..1', english: 'POSE FREELY' },
-              { icon: QrCode, line1: 'สแกนรับรูป', line2: 'ที่จอหมายเลข 2', english: 'SCAN AT SCREEN 2' },
-            ].map((step, index) => {
-              const GuideIcon = step.icon;
-              return (
-                <li key={step.english} className="px-screen flex flex-1 flex-col justify-center px-[.75vw] py-[.75vw]">
-                  <div className="flex items-center justify-between">
-                    <span className="px-btn px-btn-red px-corners-sm font-pixel size-[1.9vw] text-[clamp(.4rem,.55vw,.66rem)]">
-                      {index + 1}
-                    </span>
-                    <GuideIcon className="size-[clamp(1rem,1.5vw,1.8rem)] text-white" strokeWidth={1.75} />
-                  </div>
-                  <div className="mt-[.55vw] text-[clamp(.62rem,.86vw,1.05rem)] font-bold leading-[1.35] text-white">
-                    {step.line1}
-                    <br />
-                    {step.line2}
-                  </div>
-                  <div className="font-pixel-sm mt-[.3vw] text-[clamp(.4rem,.5vw,.6rem)] font-bold text-[var(--px-gold)]">
-                    {step.english}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-
-          <div className="font-pixel-sm mt-[.8vw] text-center text-[clamp(.36rem,.44vw,.52rem)] text-[var(--px-cream)]/75">
-            KEY: P · F · S
           </div>
         </aside>
 

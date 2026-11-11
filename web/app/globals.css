@@ -803,6 +803,17 @@ button:focus-visible {
 .px-cap-bl { bottom: 0; left: 0; transform: scaleY(-1); }
 .px-cap-br { bottom: 0; right: 0; transform: scale(-1, -1); }
 
+/* Logo straight on a light/grey surface: 1px-step dark outline all round plus a hard drop,
+   so the red gear and white letters read without a dark plate behind them */
+.px-logo-pop {
+  filter:
+    drop-shadow(2px 0 0 #1a0306)
+    drop-shadow(-2px 0 0 #1a0306)
+    drop-shadow(0 2px 0 #1a0306)
+    drop-shadow(0 -2px 0 #1a0306)
+    drop-shadow(0.25vw 0.3vw 0 rgba(26, 3, 6, 0.55));
+}
+
 /* Diamond arrow key (rotated rounded square) for the console's direction pad */
 .px-dkey {
   background: linear-gradient(135deg, var(--px-red-hi) 0%, var(--px-red) 45%, var(--px-red-dark) 100%);
