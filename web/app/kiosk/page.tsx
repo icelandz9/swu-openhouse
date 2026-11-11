@@ -814,99 +814,100 @@ export default function KioskCapturePage() {
           ▶ PLAYER 1 · READY
         </div>
 
-        {/* Left grip of the console: title, D-pad, status screen */}
-        <aside className="kiosk-pillar px-panel absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col justify-between px-[1.1%] py-[1.6%]">
-          <div>
-            <CpeLogo className="mx-auto h-[clamp(1.4rem,2.2vw,2.6rem)] max-w-full" />
-            <div className="px-screen mt-[1.4vw] px-[.5vw] py-[.8vw] text-center">
-              <p className="px-title text-[clamp(.34rem,.62vw,.74rem)]">ENGI&shy;NEERING</p>
-              <p className="font-pixel mt-[.5vw] text-[clamp(.26rem,.36vw,.44rem)] leading-[1.8] text-white">
-                BUILD YOUR
-                <br />
-                OWN FUTURE
-              </p>
-            </div>
-            <p className="font-pixel-sm mt-[.7vw] text-center text-[clamp(.4rem,.52vw,.62rem)] font-bold text-[var(--px-cream)]">
-              SWU OPEN HOUSE 2026
+        {/* Left grip of the console: title, D-pad, player status */}
+        <aside className="kiosk-pillar px-panel absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col px-[1.1%] py-[1.6%]">
+          <CpeLogo className="mx-auto h-[clamp(1.4rem,2.3vw,2.8rem)] max-w-full" />
+          <div className="px-screen mt-[1.1vw] px-[.5vw] py-[.9vw] text-center">
+            <p className="px-title text-[clamp(.5rem,.82vw,1rem)]">ENGINEERING</p>
+            <p className="font-pixel mt-[.55vw] text-[clamp(.32rem,.44vw,.54rem)] leading-[1.8] text-white">
+              BUILD YOUR
+              <br />
+              OWN FUTURE
             </p>
           </div>
+          <p className="font-pixel mt-[.8vw] text-center text-[clamp(.32rem,.44vw,.54rem)] leading-[1.7] text-[var(--px-cream)] [text-shadow:2px_2px_0_#2e2d33]">
+            SWU OPEN HOUSE
+            <br />
+            14-15 NOV 2026
+          </p>
 
           {/* D-pad and two small buttons, as on the poster's console */}
-          <div className="flex flex-col items-center gap-[1.3vw]" aria-hidden>
-            <div className="relative size-[5.4vw]">
-              <span className="absolute left-1/2 top-0 h-full w-[34%] -translate-x-1/2 bg-[var(--px-red-dark)] shadow-[inset_.25vw_.25vw_0_var(--px-red),0_.3vw_0_#141317]" />
-              <span className="absolute left-0 top-1/2 h-[34%] w-full -translate-y-1/2 bg-[var(--px-red-dark)] shadow-[inset_.25vw_.25vw_0_var(--px-red),0_.3vw_0_#141317]" />
-              <span className="absolute left-1/2 top-1/2 size-[18%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#3a0610]" />
+          <div className="flex flex-1 flex-col items-center justify-center gap-[1.6vw]" aria-hidden>
+            <div className="relative size-[6.6vw]">
+              <span className="absolute left-1/2 top-0 h-full w-[34%] -translate-x-1/2 bg-[var(--px-red-dark)] shadow-[inset_.3vw_.3vw_0_var(--px-red),0_.35vw_0_#141317]" />
+              <span className="absolute left-0 top-1/2 h-[34%] w-full -translate-y-1/2 bg-[var(--px-red-dark)] shadow-[inset_.3vw_.3vw_0_var(--px-red),0_.35vw_0_#141317]" />
+              <span className="absolute left-1/2 top-1/2 size-[16%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#3a0610]" />
             </div>
-            <div className="flex gap-[.7vw]">
-              <span className="size-[1.1vw] rounded-full bg-[var(--px-steel-dark)] shadow-[0_.2vw_0_#111]" />
-              <span className="size-[1.1vw] rounded-full bg-[var(--px-red-dark)] shadow-[0_.2vw_0_#111]" />
+            <div className="flex gap-[.9vw]">
+              <span className="size-[1.3vw] rounded-full bg-[var(--px-steel-dark)] shadow-[0_.25vw_0_#111]" />
+              <span className="size-[1.3vw] rounded-full bg-[var(--px-red-dark)] shadow-[0_.25vw_0_#111]" />
             </div>
           </div>
 
-          {/* Status screen */}
-          <div className="px-screen space-y-[.45vw] px-[.6vw] py-[.6vw] font-pixel-sm text-[clamp(.36rem,.46vw,.56rem)]">
-            {[
-              ['RES', '1440×1080', 'text-[var(--px-gold)]'],
-              ['CAM', cameraActive ? '60 FPS' : 'STANDBY', cameraActive ? 'text-[var(--px-green)]' : 'text-[var(--px-gold)]'],
-              ['HAND', detectedGestureText, 'text-[var(--px-gold)]'],
-            ].map(([label, value, color]) => (
-              <div key={label} className="flex items-center justify-between gap-[.4vw]">
-                <span className="text-[var(--px-muted)]">{label}</span>
-                <span className={`truncate font-bold uppercase ${color}`}>{value}</span>
+          {/* Player status, in words a visitor understands */}
+          <div className="px-screen px-[.65vw] py-[.7vw]">
+            <p className="font-pixel text-[clamp(.32rem,.44vw,.54rem)] text-[var(--px-gold)]">PLAYER 1</p>
+            <div className="mt-[.6vw] space-y-[.45vw] text-[clamp(.55rem,.72vw,.88rem)] leading-tight">
+              <div className="flex items-center gap-[.45vw]">
+                <span className={`size-[.5vw] shrink-0 ${cameraActive ? 'bg-[var(--px-green)]' : 'bg-[var(--px-gold)] animate-pulse'}`} />
+                <span className="text-white">{cameraActive ? 'กล้องพร้อม' : 'รอกล้อง'}</span>
               </div>
-            ))}
-            <div className="flex items-center gap-[.4vw] border-t-2 border-[var(--px-screen-line)] pt-[.45vw] text-white">
-              <span className="size-[.4vw] animate-pulse bg-[var(--px-green)]" />
-              READY
+              <div className="flex items-center gap-[.45vw]">
+                <span className={`size-[.5vw] shrink-0 ${liveLandmarks ? 'bg-[var(--px-green)]' : 'bg-[var(--px-steel-hi)]'}`} />
+                <span className="text-white">{liveLandmarks ? 'เห็นมือแล้ว' : 'ยังไม่เห็นมือ'}</span>
+              </div>
             </div>
           </div>
         </aside>
 
         {/* Right grip: action buttons and how to play */}
-        <aside className="kiosk-pillar px-panel absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col justify-between px-[1.1%] py-[1.6%]">
-          {/* Gear / hard hat / wrench / bolt, in a diamond */}
-          <div className="mx-auto grid w-fit grid-cols-3 grid-rows-3 gap-[.25vw]" aria-hidden>
+        <aside className="kiosk-pillar px-panel absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col px-[1.1%] py-[1.6%]">
+          {/* Gear / hard hat / wrench / hammer, in a diamond */}
+          <div className="mx-auto grid w-fit grid-cols-3 grid-rows-3 gap-[.3vw]" aria-hidden>
             <span />
-            <span className="px-round size-[2.3vw]"><Cog className="size-[1vw]" /></span>
+            <span className="px-round size-[2.7vw]"><Cog className="size-[1.2vw]" /></span>
             <span />
-            <span className="px-round size-[2.3vw]"><HardHat className="size-[1vw]" /></span>
+            <span className="px-round size-[2.7vw]"><HardHat className="size-[1.2vw]" /></span>
             <span />
-            <span className="px-round size-[2.3vw]"><Wrench className="size-[1vw]" /></span>
+            <span className="px-round size-[2.7vw]"><Wrench className="size-[1.2vw]" /></span>
             <span />
-            <span className="px-round size-[2.3vw]"><Hammer className="size-[1vw]" /></span>
+            <span className="px-round size-[2.7vw]"><Hammer className="size-[1.2vw]" /></span>
             <span />
           </div>
 
-          <div className="flex flex-1 flex-col justify-center gap-[.8vw] py-[1vw]">
-            <p className="font-pixel text-center text-[clamp(.32rem,.42vw,.52rem)] text-white [text-shadow:2px_2px_0_#1a0306]">HOW TO PLAY</p>
+          <p className="font-pixel mt-[1.6vw] text-center text-[clamp(.36rem,.5vw,.62rem)] text-white [text-shadow:2px_2px_0_#2e2d33]">
+            HOW TO PLAY
+          </p>
+          <ol className="mt-[.8vw] flex flex-1 flex-col gap-[.8vw]">
             {[
               { icon: Hand, line1: 'แบมือค้าง', line2: '1.5 วินาที', english: 'HOLD TO START' },
-              { icon: Timer, line1: 'โพสอิสระ', line2: 'ช่วง 3..2..1', english: 'POSE FREELY' },
-              { icon: QrCode, line1: 'รับรูปที่', line2: 'จอหมายเลข 2', english: 'SCAN AT SCREEN 2' },
+              { icon: Timer, line1: 'โพสท่าอิสระ', line2: 'นับ 3..2..1', english: 'POSE FREELY' },
+              { icon: QrCode, line1: 'สแกนรับรูป', line2: 'ที่จอหมายเลข 2', english: 'SCAN AT SCREEN 2' },
             ].map((step, index) => {
               const GuideIcon = step.icon;
               return (
-                <div key={step.english} className="px-screen px-corners px-[.55vw] py-[.6vw]">
-                  <div className="flex items-center gap-[.5vw]">
-                    <span className="px-btn px-btn-red px-corners font-pixel size-[1.5vw] shrink-0 text-[clamp(.32rem,.42vw,.5rem)]">
+                <li key={step.english} className="px-screen px-corners flex flex-1 flex-col justify-center px-[.65vw] py-[.75vw]">
+                  <div className="flex items-center justify-between">
+                    <span className="px-btn px-btn-red px-corners font-pixel size-[1.9vw] text-[clamp(.4rem,.55vw,.66rem)]">
                       {index + 1}
                     </span>
-                    <GuideIcon className="size-[clamp(.9rem,1.25vw,1.5rem)] text-white" strokeWidth={1.6} />
+                    <GuideIcon className="size-[clamp(1rem,1.5vw,1.8rem)] text-white" strokeWidth={1.75} />
                   </div>
-                  <div className="mt-[.45vw] text-[clamp(.5rem,.62vw,.75rem)] font-semibold leading-[1.45] text-white">
-                    {step.line1} {step.line2}
+                  <div className="mt-[.55vw] text-[clamp(.62rem,.86vw,1.05rem)] font-bold leading-[1.35] text-white">
+                    {step.line1}
+                    <br />
+                    {step.line2}
                   </div>
-                  <div className="font-pixel-sm mt-[.2vw] text-[clamp(.34rem,.4vw,.48rem)] font-bold text-[var(--px-gold)]">
+                  <div className="font-pixel-sm mt-[.3vw] text-[clamp(.4rem,.5vw,.6rem)] font-bold text-[var(--px-gold)]">
                     {step.english}
                   </div>
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ol>
 
-          <div className="font-pixel-sm text-center text-[clamp(.32rem,.38vw,.46rem)] leading-relaxed text-[var(--px-cream)]/70">
-            KEY: [P]ALM [F]IST [S]TAFF
+          <div className="font-pixel-sm mt-[.8vw] text-center text-[clamp(.36rem,.44vw,.52rem)] text-[var(--px-cream)]/75">
+            KEY: P · F · S
           </div>
         </aside>
 
@@ -924,16 +925,30 @@ export default function KioskCapturePage() {
           />
         )}
 
-        {/* Dynamic Tracking Status Badge - Positioned on the Side (Non-intrusive HUD Telemetry) */}
-        {(isIdle || isDetecting) && showLiveFeed && liveLandmarks && (
-          <div className="pointer-events-none absolute left-[13.8%] bottom-[3%] z-30 flex items-center">
-            <div className="font-pixel-sm flex items-center gap-2 px-card px-corners px-3.5 py-1.5 text-[clamp(.36rem,.46vw,.55rem)] text-slate-300 backdrop-blur-md shadow-lg transition-all duration-200">
-              <span className={`size-2 ${isForeground ? 'bg-[var(--px-green)] animate-pulse' : 'bg-[var(--px-gold)]'}`} />
-              <span>PRIMARY HAND · {isForeground ? `AREA ${(handAreaRatio * 100).toFixed(1)}% (OK)` : `< 3.5% (เข้าใกล้กล้องอีกนิด)`}</span>
-              <span className="text-slate-500">|</span>
-              <span className="text-[var(--px-gold)] font-bold">
-                {holdProgress > 0 ? `OPEN_PALM ${Math.round(holdProgress)}%` : detectedGestureText}
+        {/* Player prompt at the bottom of the viewfinder: what to do now, and the hold-to-start meter */}
+        {(isIdle || isDetecting) && showLiveFeed && cameraActive && (
+          <div className="pointer-events-none absolute bottom-[3.5%] left-1/2 z-30 w-[min(46%,34rem)] -translate-x-1/2">
+            <div className="px-panel px-corners flex items-center gap-[1vw] px-[1.2vw] py-[.8vw]">
+              <span className={`px-round size-[3vw] shrink-0 ${holdProgress > 0 ? '' : 'animate-pulse'}`}>
+                <Hand className="size-[1.5vw]" strokeWidth={2} />
               </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-[.6vw]">
+                  <span className="truncate text-[clamp(.8rem,1.25vw,1.5rem)] font-bold leading-tight text-white [text-shadow:2px_2px_0_#1a0306]">
+                    {holdProgress > 0
+                      ? 'ค้างไว้อีกนิด...'
+                      : liveLandmarks && !isForeground
+                        ? 'เข้ามาใกล้กล้องอีกนิด'
+                        : 'แบมือค้างไว้ เพื่อเริ่มถ่าย'}
+                  </span>
+                  <span className="font-pixel shrink-0 text-[clamp(.4rem,.6vw,.72rem)] text-[var(--px-gold)]">
+                    {holdProgress > 0 ? `${Math.round(holdProgress)}%` : 'PRESS START'}
+                  </span>
+                </div>
+                <div className="px-meter mt-[.5vw]">
+                  <span style={{ width: `${Math.max(0, Math.min(100, holdProgress))}%` }} />
+                </div>
+              </div>
             </div>
           </div>
         )}
