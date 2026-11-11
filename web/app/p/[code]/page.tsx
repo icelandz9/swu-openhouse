@@ -105,8 +105,12 @@ export default function MobilePhotoEditorPage({
   const frameImage = frame ? frameImages[frame.id] : undefined;
   // A frame whose PNG failed to load falls back to the plain photo
   const activeFrame = frame && frameImage ? frame : null;
-  const outWidth = activeFrame ? activeFrame.width : PHOTO_ONLY_SIZE.width;
-  const outHeight = activeFrame ? activeFrame.height : PHOTO_ONLY_SIZE.height;
+  // Without a frame the output is the photo itself: 1440x1080 (4:3) or 1080x1440 (3:4), whichever the kiosk took.
+  // photoLoaded re-renders once the image is in, so the ref has its real size here.
+  const photoW = (photoLoaded && baseImageRef.current?.naturalWidth) || PHOTO_ONLY_SIZE.width;
+  const photoH = (photoLoaded && baseImageRef.current?.naturalHeight) || PHOTO_ONLY_SIZE.height;
+  const outWidth = activeFrame ? activeFrame.width : photoW;
+  const outHeight = activeFrame ? activeFrame.height : photoH;
 
   // Verify Scan Token / Claim and Load Photo
   useEffect(() => {
@@ -460,8 +464,10 @@ export default function MobilePhotoEditorPage({
                 selectedFrameId === NO_FRAME_ID ? 'bg-[var(--px-red)] text-white' : 'px-card text-[var(--px-muted)] hover:text-white'
               }`}
             >
-              <span>ไม่ใส่กรอบ · รูปเต็มแนวนอน</span>
-              <span className="font-pixel-sm text-[10px]">1440×1080</span>
+              <span>ไม่ใส่กรอบ · รูปเต็ม</span>
+              <span className="font-pixel-sm text-[10px]">
+                {photoW}×{photoH}
+              </span>
             </button>
             {FRAME_GROUPS.map((group) => {
               const frames = FRAME_TEMPLATES.filter((f) => f.group === group.id);

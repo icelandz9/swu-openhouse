@@ -18,11 +18,11 @@ import {
   Heart,
 } from 'lucide-react';
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
-import { ScreenSyncEvent, CROP_DIMENSIONS_4_3, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
+import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL, PHOTO_ASPECT_RATIO, PhotoRatio } from '@/lib/contracts';
 import { generateShortCode } from '@/lib/mobile/shortCodeGenerator';
 import { classifyGesture, LandmarkPoint } from '@/lib/ai-vision/gestureRules';
 import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
-import { calculate43Crop } from '@/lib/kiosk/centerCropper';
+import { calculateCrop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
 import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
@@ -53,6 +53,8 @@ function KioskCapturePageContent() {
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number }>({ width: 16, height: 9 });
   const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.025);
+  // 4:3 landscape (wide, for groups) or 3:4 portrait (fills the frames); staff switch it in /admin
+  const [photoRatio, setPhotoRatio] = useState<PhotoRatio>(PHOTO_ASPECT_RATIO);
   const currentStreamRef = useRef<MediaStream | null>(null);
 
   // Gesture detection & tracking
@@ -140,6 +142,10 @@ function KioskCapturePageContent() {
             setHandAreaThreshold(parsed);
           }
         }
+        const savedRatio = localStorage.getItem('swu_photo_ratio');
+        if (savedRatio === '3:4' || savedRatio === '4:3') {
+          setPhotoRatio(savedRatio);
+        }
       } catch {}
     }
 
@@ -191,6 +197,13 @@ function KioskCapturePageContent() {
               try { localStorage.setItem('swu_hand_threshold', data.value.toString()); } catch {}
             }
           }
+        } else if (data.command === 'SET_PHOTO_RATIO') {
+          if (data.value === '3:4' || data.value === '4:3') {
+            setPhotoRatio(data.value);
+            if (typeof window !== 'undefined') {
+              try { localStorage.setItem('swu_photo_ratio', data.value); } catch {}
+            }
+          }
         } else if (data.command === 'SET_PUBLIC_DOMAIN') {
           if (typeof window !== 'undefined') {
             const val = typeof data.value === 'string' ? data.value.trim() : '';
@@ -234,18 +247,22 @@ function KioskCapturePageContent() {
     };
   }, [send, isPreviewing]);
 
-  // Snapshot capture function (1440x1080 center-crop of 16:9 video feed)
+  // Snapshot: centre crop of the camera feed at the current ratio (1440x1080 or 1080x1440)
   const takeCenterCropSnapshot = useCallback(() => {
     try {
       const canvas = offscreenCanvasRef.current || document.createElement('canvas');
-      canvas.width = CROP_DIMENSIONS_4_3.width;
-      canvas.height = CROP_DIMENSIONS_4_3.height;
+      const video = videoRef.current;
+      const crop = calculateCrop(
+        video && video.videoWidth > 0 ? video.videoWidth : 1920,
+        video && video.videoHeight > 0 ? video.videoHeight : 1080,
+        photoRatio
+      );
+      canvas.width = crop.dWidth;
+      canvas.height = crop.dHeight;
       const ctx = canvas.getContext('2d');
 
       if (ctx) {
-        if (videoRef.current && cameraActive && videoRef.current.videoWidth > 0) {
-          const video = videoRef.current;
-          const crop = calculate43Crop(video.videoWidth, video.videoHeight);
+        if (video && cameraActive && video.videoWidth > 0) {
 
           // Mirror horizontally for natural selfie perspective
           ctx.translate(canvas.width, 0);
@@ -294,7 +311,7 @@ function KioskCapturePageContent() {
       console.error('Error taking snapshot:', err);
     }
     return capturedPhotoUrl;
-  }, [cameraActive, capturedPhotoUrl]);
+  }, [cameraActive, capturedPhotoUrl, photoRatio]);
 
   // Confirm photo, post to API, broadcast to Screen 2, and reset
   const handleConfirmUpload = useCallback(async () => {
@@ -836,7 +853,9 @@ function KioskCapturePageContent() {
           </div>
 
           {/* Screen bezel */}
-          <div className="kc-bezel absolute left-1/2 top-1/2 flex w-[65.5cqw] -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] pb-[.8cqw] pt-[.8cqw]">
+          <div
+            style={{ width: photoRatio === '3:4' ? '38.4cqw' : '65.5cqw' }}
+            className="kc-bezel absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] pb-[.8cqw] pt-[.8cqw]">
             <p className="font-pixel mb-[.45cqw] text-[.78cqw] text-[#b9b9c2]">
               SWU OPEN HOUSE <span className="text-[var(--px-red-hi)]">2026</span> · 14-15 NOV
             </p>
@@ -855,7 +874,7 @@ function KioskCapturePageContent() {
             </div>
 
             {/* The 4:3 screen = exactly what gets captured */}
-            <div className="kc-screen relative aspect-[4/3] w-full overflow-hidden">
+            <div className={`kc-screen relative w-full overflow-hidden ${photoRatio === '3:4' ? 'aspect-[3/4]' : 'aspect-[4/3]'}`}>
               <video
                 ref={videoRef}
                 muted
@@ -870,8 +889,8 @@ function KioskCapturePageContent() {
                 <div className="absolute inset-0 z-10 flex items-center justify-center">
                   <PixelSkyline className="opacity-80" />
                   <div className="relative flex flex-col items-center px-[2cqw] text-center">
-                    <h3 className="px-title text-[4.4cqw]">ENGINEERING</h3>
-                    <p className="font-pixel px-menu-item mt-[1cqw] -rotate-2 text-[1.3cqw]">BUILD YOUR OWN FUTURE</p>
+                    <h3 className={`px-title ${photoRatio === '3:4' ? 'text-[2.7cqw]' : 'text-[4.4cqw]'}`}>ENGINEERING</h3>
+                    <p className={`font-pixel px-menu-item mt-[1cqw] -rotate-2 ${photoRatio === '3:4' ? 'text-[.95cqw]' : 'text-[1.3cqw]'}`}>BUILD YOUR OWN FUTURE</p>
                     <GameMenu className="mt-[2cqw] text-[1cqw]" />
                     <p className="mt-[1.8cqw] text-[1.05cqw] font-semibold text-white [text-shadow:2px_2px_0_#1a0306]">
                       กำลังรอกล้อง · อนุญาตการใช้กล้องในเบราว์เซอร์ หรือกดปุ่มด้านล่าง
@@ -907,7 +926,7 @@ function KioskCapturePageContent() {
                   isForeground={isForeground}
                   gestureText={detectedGestureText}
                   videoDimensions={videoDimensions}
-                  containerAspect={4 / 3}
+                  containerAspect={photoRatio === '3:4' ? 3 / 4 : 4 / 3}
                 />
               )}
 
@@ -952,7 +971,7 @@ function KioskCapturePageContent() {
                       <p className="font-pixel mt-[.4cqw] text-[.66cqw] text-white/55">RAISE YOUR HAND TO START</p>
                     )}
                   </div>
-                  <span className="font-pixel shrink-0 text-[.8cqw] text-[var(--px-gold)]">
+                  <span className={`font-pixel shrink-0 text-[.8cqw] text-[var(--px-gold)] ${photoRatio === '3:4' && holdProgress <= 0 ? 'hidden' : ''}`}>
                     {holdProgress > 0 ? `${Math.round(holdProgress)}%` : 'PRESS START'}
                   </span>
                 </div>

@@ -68,8 +68,8 @@ export type ScreenSyncEvent =
   | {
       type: "HEARTBEAT_PONG";
       sender: "KIOSK" | "DISPLAY";
-      timestamp: number;
-      pingTimestamp?: number;
+      timestamp: number;
+      pingTimestamp?: number;
       status?: Record<string, any>;
     }
   | {
@@ -152,5 +152,8 @@ export interface StoredPhotoResult {
 }
 
 // 5. Photo Capture Specifications
-export const PHOTO_ASPECT_RATIO = "4:3" as const;
-export const CROP_DIMENSIONS_4_3 = { width: 1440, height: 1080 } as const; // Center-crop from 1920x1080 webcam stream
+// Default capture ratio; staff can switch to 3:4 in /admin (sent to the kiosk as SET_PHOTO_RATIO)
+export type PhotoRatio = '4:3' | '3:4';
+export const PHOTO_ASPECT_RATIO: PhotoRatio = '4:3';
+export const CROP_DIMENSIONS_3_4 = { width: 1080, height: 1440 } as const; // 3:4 portrait: fills the 1080x1440 frames, but keeps only ~42% of the camera's width
+export const CROP_DIMENSIONS_4_3 = { width: 1440, height: 1080 } as const; // 4:3 landscape (default): keeps 75% of the camera's width

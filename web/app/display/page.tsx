@@ -359,7 +359,8 @@ function ShowcaseDisplayScreenContent() {
                 <img
                   src={activePhoto.photoUrl}
                   alt={`รูปล่าสุด ${activePhoto.code}`}
-                  className="h-full w-full object-cover"
+                  /* contain: a 3:4 portrait shot shows whole instead of being cut to the 4:3 card */
+                  className="h-full w-full object-contain"
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).style.display = 'none';
                   }}
