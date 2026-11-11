@@ -26,6 +26,37 @@ import { calculateCrop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
 import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
+
+/** Camera picked by default when several are plugged in. Override with ?cam=<part of the name>. */
+const DEFAULT_CAMERA_NAME = 'c922';
+
+/**
+ * Finds the camera whose name contains ?cam= (default "c922") and returns its deviceId,
+ * or undefined so the browser uses its default camera.
+ */
+async function findPreferredCamera(): Promise<string | undefined> {
+  try {
+    const wanted = (new URLSearchParams(window.location.search).get('cam') || DEFAULT_CAMERA_NAME).toLowerCase();
+    const listCameras = async () =>
+      (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput');
+
+    let cams = await listCameras();
+    // Camera names stay hidden until the page has camera permission, so ask once and list again.
+    if (cams.length > 0 && cams.every((d) => !d.label)) {
+      const probe = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      probe.getTracks().forEach((t) => t.stop());
+      cams = await listCameras();
+    }
+
+    console.info('[kiosk] cameras:', cams.map((d) => d.label));
+    const camId = cams.find((d) => d.label.toLowerCase().includes(wanted))?.deviceId;
+    console.info('[kiosk] want:', wanted, '→', camId ? 'found' : 'not found, using default');
+    return camId;
+  } catch (err) {
+    console.warn('[kiosk] could not list cameras, using default:', err);
+    return undefined;
+  }
+}
 import { GameMenu, PixelSkyline } from '@/components/PixelScene';
 
 function KioskCapturePageContent() {
@@ -454,22 +485,23 @@ function KioskCapturePageContent() {
         throw new Error('WebRTC not supported');
       }
 
+      const camId = await findPreferredCamera();
+
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             width: { ideal: 1920 },
             height: { ideal: 1080 },
-            facingMode: 'user',
+            ...(camId ? { deviceId: { exact: camId } } : { facingMode: 'user' }),
           },
           audio: false,
         });
       } catch (firstErr) {
         console.warn('1080p camera constraint failed, attempting basic video constraint:', firstErr);
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false,
-        });
+        stream = await navigator.mediaDevices
+          .getUserMedia({ video: camId ? { deviceId: { exact: camId } } : true, audio: false })
+          .catch(() => navigator.mediaDevices.getUserMedia({ video: true, audio: false }));
       }
 
       currentStreamRef.current = stream;
