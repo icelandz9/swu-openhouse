@@ -4,13 +4,14 @@ import React, { use, useState, useRef, useEffect, useCallback } from 'react';
 import { Download, Sparkles, Frame, Check, ShieldAlert, Sun, Sticker, Trash2, ShieldCheck, Lock, Maximize2, X, ChevronLeft } from 'lucide-react';
 import { FilterPresetId } from '@/lib/contracts';
 import { applyColorFilter } from '@/lib/mobile/colorFilters';
-import { FRAME_TEMPLATES, NO_FRAME_ID, FrameTemplate, PHOTO_ONLY_SIZE, drawPhotoCover } from '@/lib/mobile/frameTemplates';
+import { FRAME_GROUPS, FRAME_TEMPLATES, NO_FRAME_ID, FrameTemplate, PHOTO_ONLY_SIZE, drawPhotoCover } from '@/lib/mobile/frameTemplates';
 import {
   PlacedSticker,
   StickerAsset,
   STICKER_DEFAULT_WIDTH,
   drawStickers,
   groupStickers,
+  LOOSE_STICKER_GROUP,
   loadStickerCatalog,
 } from '@/lib/mobile/stickers';
 import { StickerLayer } from '@/components/StickerLayer';
@@ -446,23 +447,36 @@ export default function MobilePhotoEditorPage({
 
         {/* Frames Tab */}
         {activeTab === 'frames' && (
-          <div className="flex gap-2.5 overflow-x-auto py-1 scrollbar-none px-1">
-            {FRAME_TEMPLATES.map((tmpl) => (
-              <button
-                key={tmpl.id}
-                onClick={() => setSelectedFrameId(tmpl.id)}
-                className={`flex-shrink-0 flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
-                  selectedFrameId === tmpl.id
-                    ? 'border-[#CE1126] bg-[#CE1126]/10 text-white'
-                    : 'border-white/10 bg-[#141A26] text-slate-400 hover:text-white'
-                }`}
-              >
-                <div className="w-14 h-20 bg-slate-900 rounded-lg overflow-hidden border border-white/10 flex items-center justify-center relative">
-                  <img src={tmpl.src} alt="" className="w-full h-full object-contain pointer-events-none" />
+          <div className="space-y-2">
+            {FRAME_GROUPS.map((group) => {
+              const frames = FRAME_TEMPLATES.filter((f) => f.group === group.id);
+              if (!frames.length) return null;
+              return (
+                <div key={group.id}>
+                  <p className="px-1 text-[11px] font-semibold text-slate-400">
+                    {group.title} <span className="font-normal text-slate-500">· {frames.length} แบบ</span>
+                  </p>
+                  <div className="flex gap-2.5 overflow-x-auto py-1 scrollbar-none px-1">
+                    {frames.map((tmpl) => (
+                      <button
+                        key={tmpl.id}
+                        onClick={() => setSelectedFrameId(tmpl.id)}
+                        className={`flex-shrink-0 flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
+                          selectedFrameId === tmpl.id
+                            ? 'border-[#CE1126] bg-[#CE1126]/10 text-white'
+                            : 'border-white/10 bg-[#141A26] text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <div className="w-14 h-20 bg-slate-900 rounded-lg overflow-hidden border border-white/10 flex items-center justify-center relative">
+                          <img src={tmpl.src} alt="" className="w-full h-full object-contain pointer-events-none" loading="lazy" />
+                        </div>
+                        <span className="text-[10px] font-medium max-w-[64px] truncate">{tmpl.name}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <span className="text-[10px] font-medium max-w-[64px] truncate">{tmpl.name}</span>
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -584,9 +598,9 @@ export default function MobilePhotoEditorPage({
           >
             {(() => {
               const groups = groupStickers(stickerCatalog);
-              const hearts = groups.find((g) => g.id === 'hearts');
-              const others = groups.find((g) => g.id === 'others')?.stickers ?? [];
-              const inHearts = openStickerGroup === 'hearts' && hearts;
+              const folders = groups.filter((g) => g.id !== LOOSE_STICKER_GROUP);
+              const others = groups.find((g) => g.id === LOOSE_STICKER_GROUP)?.stickers ?? [];
+              const openFolder = folders.find((g) => g.id === openStickerGroup);
               const closeSheet = () => {
                 setStickerSheetOpen(false);
                 setOpenStickerGroup(null);
@@ -609,7 +623,7 @@ export default function MobilePhotoEditorPage({
                 <>
                   <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
                     <div className="flex min-w-0 items-center gap-2">
-                      {inHearts && (
+                      {openFolder && (
                         <button
                           onClick={() => setOpenStickerGroup(null)}
                           aria-label="กลับ"
@@ -619,9 +633,9 @@ export default function MobilePhotoEditorPage({
                         </button>
                       )}
                       <div className="min-w-0">
-                        <h2 className="truncate text-sm font-bold text-white">{inHearts ? hearts.title : 'สติกเกอร์ทั้งหมด'}</h2>
+                        <h2 className="truncate text-sm font-bold text-white">{openFolder ? openFolder.title : 'สติกเกอร์ทั้งหมด'}</h2>
                         <p className="text-[11px] text-slate-400">
-                          {inHearts ? `${hearts.stickers.length} แบบ · แตะเพื่อวางบนรูป` : 'แตะเพื่อวางบนรูป'}
+                          {openFolder ? `${openFolder.stickers.length} แบบ · แตะเพื่อวางบนรูป` : 'แตะเพื่อวางบนรูป'}
                         </p>
                       </div>
                     </div>
@@ -634,19 +648,19 @@ export default function MobilePhotoEditorPage({
                     </button>
                   </div>
                   <div className="grid grid-cols-3 gap-3 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                    {inHearts ? (
-                      hearts.stickers.map(stickerButton)
+                    {openFolder ? (
+                      openFolder.stickers.map(stickerButton)
                     ) : (
                       <>
-                        {hearts && (
-                          // Folder: all the "วิศวะรัก..." hearts live inside this one tile
+                        {folders.map((folder) => (
+                          // Folder tile: the cover in front, two more of the folder's stickers fanned behind
                           <button
-                            onClick={() => setOpenStickerGroup('hearts')}
+                            key={folder.id}
+                            onClick={() => setOpenStickerGroup(folder.id)}
                             className="relative flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-[#CE1126]/50 bg-[#CE1126]/10 p-2 transition-colors hover:bg-[#CE1126]/20 active:scale-95"
                           >
                             <span className="relative block h-[62%] w-[80%]">
-                              {/* Two other hearts fanned out behind, เภสัช in front */}
-                              {hearts.stickers.slice(1, 3).map((st, i) => (
+                              {folder.stickers.slice(1, 3).map((st, i) => (
                                 <img
                                   key={st.src}
                                   src={st.src}
@@ -657,18 +671,18 @@ export default function MobilePhotoEditorPage({
                                 />
                               ))}
                               <img
-                                src={hearts.cover.src}
+                                src={folder.cover.src}
                                 alt=""
                                 draggable={false}
                                 className="absolute inset-0 h-full w-full object-contain drop-shadow-[0_4px_6px_rgba(0,0,0,0.5)]"
                               />
                             </span>
-                            <span className="text-[12px] font-bold text-white">{hearts.title}</span>
+                            <span className="max-w-full truncate text-[12px] font-bold text-white">{folder.title}</span>
                             <span className="absolute right-1.5 top-1.5 rounded-full bg-[#CE1126] px-1.5 py-0.5 text-[10px] font-bold text-white">
-                              {hearts.stickers.length}
+                              {folder.stickers.length}
                             </span>
                           </button>
-                        )}
+                        ))}
                         {others.map(stickerButton)}
                       </>
                     )}
