@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { Camera, Monitor, Settings, Smartphone, Cog, HardHat, Wrench, Hammer } from 'lucide-react';
 import { CpeLogo } from '@/components/CpeLogo';
+import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
 
 // Start menu: each screen of the booth is a "stage". Keys 1-4 open them in a new tab.
 const STAGES = [
@@ -40,7 +41,7 @@ const STAGES = [
   },
 ] as const;
 
-export default function MasterHub() {
+function MasterHubContent() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -143,5 +144,13 @@ export default function MasterHub() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function MasterHub() {
+  return (
+    <SafeErrorBoundary fallbackTitle="หน้าหลัก Launchpad พบข้อขัดข้องชั่วคราว">
+      <MasterHubContent />
+    </SafeErrorBoundary>
   );
 }
