@@ -140,6 +140,7 @@ function StaffAdminScreen() {
   // Settings & Tuners
   const [sensitivity, setSensitivity] = useState<number>(2.5);
   const [countdownDuration, setCountdownDuration] = useState<number>(3);
+  const [photoRatio, setPhotoRatio] = useState<'3:4' | '4:3'>('3:4');
   const [publicDomain, setPublicDomain] = useState<string>('');
   const [instantPurgeCode, setInstantPurgeCode] = useState<string>('');
   const [currentTime, setCurrentTime] = useState<string>('--:--');
@@ -269,6 +270,12 @@ function StaffAdminScreen() {
         if (!isNaN(parsed) && parsed >= 0.005 && parsed <= 0.1) {
           setSensitivity(parsed * 100);
         }
+      }
+
+      // Load saved photo capture ratio (defaults to 3:4 portrait for CPE frame fit)
+      const savedRatio = localStorage.getItem('swu_photo_ratio');
+      if (savedRatio === '3:4' || savedRatio === '4:3') {
+        setPhotoRatio(savedRatio);
       }
     }
   }, []);
@@ -1612,9 +1619,9 @@ function StaffAdminScreen() {
                 </div>
               </div>
 
-              {/* Minimal Tuners (Clean, Compact 3-Column) */}
+              {/* Minimal Tuners (Clean, Compact 4-Column) */}
               <div className="border-t border-slate-800/40 pt-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                   {/* Tuner 1: Sensitivity (Hand Detection Range) */}
                   <div className={`p-3.5 rounded-xl border space-y-2.5 ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                     <div className="flex justify-between items-center text-xs">
@@ -1725,7 +1732,53 @@ function StaffAdminScreen() {
                     </div>
                   </div>
 
-                  {/* Tuner 3: Purge by Code */}
+                  {/* Tuner 3: Photo Aspect Ratio */}
+                  <div className={`p-3.5 rounded-xl border space-y-2 ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className="flex justify-between text-xs">
+                      <span className="font-semibold text-slate-400">สัดส่วนภาพถ่าย</span>
+                      <span className="font-mono text-cyan-400 font-bold bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded-md text-[11px]">
+                        {photoRatio === '3:4' ? '3:4 พอดีกรอบ' : '4:3 แนวนอน'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhotoRatio('3:4');
+                          sendCommand('SET_PHOTO_RATIO', 'สลับสัดส่วนภาพ 3:4 แนวตั้ง', '3:4');
+                          if (typeof window !== 'undefined') {
+                            try { localStorage.setItem('swu_photo_ratio', '3:4'); } catch {}
+                          }
+                        }}
+                        className={`py-1 px-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                          photoRatio === '3:4'
+                            ? 'bg-cyan-500 text-black font-bold shadow-xs'
+                            : isDark ? 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800' : 'bg-white text-slate-700 border border-slate-200'
+                        }`}
+                      >
+                        📱 3:4 (แนะนำ)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhotoRatio('4:3');
+                          sendCommand('SET_PHOTO_RATIO', 'สลับสัดส่วนภาพ 4:3 แนวนอน', '4:3');
+                          if (typeof window !== 'undefined') {
+                            try { localStorage.setItem('swu_photo_ratio', '4:3'); } catch {}
+                          }
+                        }}
+                        className={`py-1 px-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                          photoRatio === '4:3'
+                            ? 'bg-cyan-500 text-black font-bold shadow-xs'
+                            : isDark ? 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800' : 'bg-white text-slate-700 border border-slate-200'
+                        }`}
+                      >
+                        🖼️ 4:3 กว้าง
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Tuner 4: Purge by Code */}
                   <div className={`p-3.5 rounded-xl border space-y-2 ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                     <div className="text-xs font-semibold text-slate-400">ลบรูปด่วน (PDPA)</div>
                     <div className="flex gap-1.5">
