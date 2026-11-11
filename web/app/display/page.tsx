@@ -392,14 +392,14 @@ export default function ShowcaseDisplayScreen() {
               {activePhoto ? '▼ SCAN TO GET YOUR PHOTO ▼' : '▼ FOLLOW US ▼'}
             </p>
             <div className="qr-card px-corners flex w-fit shrink-0 flex-col items-center justify-center bg-white px-[1.3vw] pb-[1.1vw] pt-[.9vw] text-center shadow-[inset_0_0_0_6px_var(--px-red),inset_0_0_0_10px_var(--px-red-dark)]">
-              <div className="mb-[.5vw] text-[clamp(.9rem,1.2vw,1.5rem)] font-extrabold text-[#0F172A]">
+              <div className="mb-[.6vw] font-['Kanit'] text-[clamp(1rem,1.45vw,1.8rem)] font-bold leading-none text-[#1a0306] [text-shadow:.12vw_.12vw_0_rgba(200,16,46,0.22)]">
                 {activePhoto ? (
                   <>
-                    สแกนรับ<span className="text-[#CE1126]">รูป</span>
+                    สแกนรับ<span className="text-[var(--px-red)]">รูป</span>
                   </>
                 ) : (
                   <>
-                    ติดตาม<span className="text-[#CE1126]">เรา</span>
+                    ติดตาม<span className="text-[var(--px-red)]">เรา</span>
                   </>
                 )}
               </div>
