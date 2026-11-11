@@ -26,6 +26,7 @@ import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
 import { calculate43Crop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
+import { ConsoleCaps, GameMenu, PixelSkyline } from '@/components/PixelScene';
 
 export default function KioskCapturePage() {
   const {
@@ -766,21 +767,16 @@ export default function KioskCapturePage() {
         {/* Fallback Simulation View if camera not open */}
         {!cameraActive && showLiveFeed && (
           <div className="absolute inset-0 h-full w-full flex items-center justify-center z-10">
-            <div className="engineering-grid absolute inset-0 opacity-40" />
-            <div className="text-center space-y-4 z-10 max-w-md px-6">
-              <div className="px-round size-16 mx-auto">
-                <Camera className="size-8" strokeWidth={1.8} />
-              </div>
-              <div>
-                <p className="font-pixel px-blink mb-3 text-xs text-[var(--px-gold)]">INSERT COIN</p>
-                <h3 className="text-lg font-bold text-white tracking-tight">
-                  ระบบกล้องกำลังเชื่อมต่อ (Camera Standby)
-                </h3>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  กรุณาอนุญาตการเข้าถึงกล้องบนเบราว์เซอร์ หรือกดปุ่มด้านล่างเพื่อเชื่อมต่อกล้อง
-                </p>
-              </div>
-              <div className="flex items-center justify-center gap-3 pt-2">
+            <PixelSkyline className="opacity-70" />
+            {/* Title screen, like the poster: ENGINEERING / BUILD YOUR OWN FUTURE / Start Game */}
+            <div className="relative z-10 flex max-w-2xl flex-col items-center px-6 text-center">
+              <h3 className="px-title text-[clamp(1.6rem,4.6vw,5rem)]">ENGINEERING</h3>
+              <p className="font-pixel px-menu-item mt-[1.2vw] -rotate-2 text-[clamp(.6rem,1.4vw,1.5rem)]">BUILD YOUR OWN FUTURE</p>
+              <GameMenu className="mt-[2.4vw] text-[clamp(.55rem,1vw,1.1rem)]" />
+              <p className="mt-[2vw] text-sm font-semibold text-white [text-shadow:2px_2px_0_#1a0306]">
+                กำลังรอกล้อง · อนุญาตการใช้กล้องในเบราว์เซอร์ หรือกดปุ่มด้านล่าง
+              </p>
+              <div className="flex items-center justify-center gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => initCamera()}
@@ -790,7 +786,7 @@ export default function KioskCapturePage() {
                   <span>เชื่อมต่อกล้องทันที</span>
                 </button>
               </div>
-              <div className="mono text-[11px] text-slate-500 pt-2">
+              <div className="pt-3 text-[11px] text-[var(--px-cream)]/70">
                 โหมดทดสอบ: กดปุ่ม P เพื่อจำลองแบมือ หรือ S เพื่อถ่ายภาพ
               </div>
             </div>
@@ -815,7 +811,8 @@ export default function KioskCapturePage() {
         </div>
 
         {/* Left grip of the console: title, D-pad, player status */}
-        <aside className="kiosk-pillar px-panel absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col px-[1.1%] py-[1.6%]">
+        <aside className="kiosk-pillar px-panel absolute inset-y-0 left-0 z-20 flex w-[12.5%] flex-col px-[1.1%] py-[2.6vw] [--cap-h:2.1vw] [--cap-w:3.2vw] [&>*:not(.px-cap)]:relative [&>*:not(.px-cap)]:z-[2]">
+          <ConsoleCaps corners={['tl', 'bl']} />
           {/* Logo lit up on the console's title screen (it is made for dark backgrounds) */}
           <div className="px-screen px-[.6vw] pb-[.9vw] pt-[1.1vw] text-center">
             <div className="relative mx-auto w-fit">
@@ -869,7 +866,8 @@ export default function KioskCapturePage() {
         </aside>
 
         {/* Right grip: action buttons and how to play */}
-        <aside className="kiosk-pillar px-panel absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col px-[1.1%] py-[1.6%]">
+        <aside className="kiosk-pillar px-panel absolute inset-y-0 right-0 z-20 flex w-[12.5%] flex-col px-[1.1%] py-[2.6vw] [--cap-h:2.1vw] [--cap-w:3.2vw] [&>*:not(.px-cap)]:relative [&>*:not(.px-cap)]:z-[2]">
+          <ConsoleCaps corners={['tr', 'br']} />
           {/* Gear / hard hat / wrench / hammer, in a diamond */}
           <div className="mx-auto grid w-fit grid-cols-3 grid-rows-3 gap-[.3vw]" aria-hidden>
             <span />

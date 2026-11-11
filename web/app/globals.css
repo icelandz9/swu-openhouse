@@ -785,6 +785,32 @@ button:focus-visible {
   }
 }
 
+/* Red corner plates of the handheld console, each with a screw (see ConsoleCaps) */
+.px-cap {
+  position: absolute;
+  z-index: 1;
+  width: var(--cap-w, 3.4vw);
+  height: var(--cap-h, 2.6vw);
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 28% 34%, #1c1b20 0 0.16vw, var(--px-steel-hi) 0.2vw 0.3vw, transparent 0.32vw),
+    linear-gradient(150deg, var(--px-red-hi) 0%, var(--px-red) 30%, var(--px-red-dark) 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 34%, 46% 100%, 0 100%);
+  box-shadow: inset 0.2vw 0.2vw 0 rgba(255, 255, 255, 0.18);
+}
+.px-cap-tl { top: 0; left: 0; }
+.px-cap-tr { top: 0; right: 0; transform: scaleX(-1); }
+.px-cap-bl { bottom: 0; left: 0; transform: scaleY(-1); }
+.px-cap-br { bottom: 0; right: 0; transform: scale(-1, -1); }
+
+/* "Start Game" menu lettering: white pixel type with a dark outline, as on the poster */
+.px-menu-item {
+  color: #fff;
+  text-shadow:
+    2px 0 0 #1a0306, -2px 0 0 #1a0306, 0 2px 0 #1a0306, 0 -2px 0 #1a0306,
+    3px 3px 0 #1a0306;
+}
+
 /* Pixel HUD progress bar (HP / loading) */
 .px-meter {
   height: 14px;

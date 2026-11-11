@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
 import { CpeLogo } from '@/components/CpeLogo';
+import { ConsoleCaps, GameMenu, PixelSkyline } from '@/components/PixelScene';
 
 interface GalleryItem {
   code: string;
@@ -343,8 +344,9 @@ export default function ShowcaseDisplayScreen() {
           </div>
 
           {/* Console with the photo */}
-          <div className="px-panel px-corners p-[.8vw] pb-[.6vw]">
-            <div className="relative aspect-[4/3] overflow-hidden px-screen">
+          <div className="px-panel px-corners relative p-[1.1vw] pb-[.8vw] [--cap-h:1.9vw] [--cap-w:2.6vw]">
+            <ConsoleCaps corners={['tl', 'tr']} />
+            <div className="relative z-[2] aspect-[4/3] overflow-hidden px-screen">
               {activePhoto ? (
                 <img
                   src={activePhoto.photoUrl}
@@ -355,11 +357,14 @@ export default function ShowcaseDisplayScreen() {
                   }}
                 />
               ) : (
-                <div className="flex h-full flex-col items-center justify-center gap-[.8vw]">
-                  <p className="px-title text-[clamp(.7rem,1.25vw,1.5rem)]">ENGINEERING</p>
-                  <p className="font-pixel text-[clamp(.3rem,.42vw,.52rem)] text-white">BUILD YOUR OWN FUTURE</p>
-                  <p className="font-pixel px-blink mt-[.6vw] text-[clamp(.34rem,.48vw,.6rem)] text-[var(--px-gold)]">▶ PRESS START</p>
-                </div>
+                <>
+                  <PixelSkyline />
+                  <div className="relative flex h-full flex-col items-center justify-start gap-[.7vw] pt-[1.6vw]">
+                    <p className="px-title text-[clamp(.8rem,1.45vw,1.75rem)]">ENGINEERING</p>
+                    <p className="font-pixel px-menu-item text-[clamp(.32rem,.46vw,.56rem)]">BUILD YOUR OWN FUTURE</p>
+                    <GameMenu className="mt-[.8vw] text-[clamp(.34rem,.5vw,.62rem)]" />
+                  </div>
+                </>
               )}
               {activePhoto && (
                 <span className="font-pixel absolute left-[.5vw] top-[.5vw] bg-[var(--px-red)] px-[.45vw] py-[.25vw] text-[clamp(.32rem,.42vw,.52rem)] text-white">
@@ -367,7 +372,7 @@ export default function ShowcaseDisplayScreen() {
                 </span>
               )}
             </div>
-            <div className="mt-[.6vw] flex items-center justify-between">
+            <div className="relative z-[2] mt-[.6vw] flex items-center justify-between">
               <div>
                 <div className="font-['Kanit'] text-[clamp(.7rem,1vw,1.2rem)] font-bold leading-tight text-white [text-shadow:2px_2px_0_#1a0306]">
                   {activePhoto ? 'รูปล่าสุด' : 'ยินดีต้อนรับ'}
@@ -454,7 +459,13 @@ export default function ShowcaseDisplayScreen() {
             </div>
           </header>
 
-          <div className="mt-[1.2vw] flex min-h-0 flex-1 flex-col">
+          <div className="px-panel relative mt-[1.2vw] flex min-h-0 flex-1 flex-col p-[1.5vw] [--cap-h:3.6vw] [--cap-w:5.2vw]">
+          <ConsoleCaps />
+          <div className="px-screen relative z-[2] flex min-h-0 flex-1 flex-col overflow-hidden px-[1.2vw] py-[1vw]">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[42%] opacity-60" aria-hidden>
+            <PixelSkyline />
+          </div>
+          <div className="relative flex min-h-0 flex-1 flex-col">
             <div className="font-pixel flex items-center gap-[.8vw] text-[clamp(.38rem,.55vw,.68rem)] text-[var(--px-red-hi)]">
               <span>▶ HIGH SCORES</span>
               <span className="h-1 flex-1 bg-[repeating-linear-gradient(90deg,var(--px-red-dark)_0_8px,transparent_8px_14px)]" />
@@ -493,7 +504,7 @@ export default function ShowcaseDisplayScreen() {
                 })}
                 {/* Empty slots so the wall never looks bare */}
                 {Array.from({ length: Math.max(0, 12 - photos.length) }, (_, i) => (
-                  <div key={`slot-${i}`} className="flex aspect-[4/3] flex-col items-center justify-center gap-[.5vw] px-corners px-card opacity-70">
+                  <div key={`slot-${i}`} className="flex aspect-[4/3] flex-col items-center justify-center gap-[.5vw] px-corners px-card">
                     <span className="font-pixel text-[clamp(.9rem,1.6vw,2rem)] text-[var(--px-screen-line)]">?</span>
                     <span className="font-pixel-sm text-[clamp(.34rem,.46vw,.56rem)] text-[var(--px-muted)]/70">
                       {i === 0 ? 'NEXT PLAYER' : 'EMPTY SLOT'}
@@ -502,6 +513,8 @@ export default function ShowcaseDisplayScreen() {
                 ))}
               </div>
             </div>
+          </div>
+          </div>
           </div>
         </section>
       </div>
