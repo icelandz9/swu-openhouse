@@ -12,8 +12,9 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { CpeLogo } from '@/components/CpeLogo';
+import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
 
-export default function MasterHub() {
+function MasterHubContent() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   // Load theme preference from query param or localStorage
@@ -304,5 +305,13 @@ export default function MasterHub() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function MasterHub() {
+  return (
+    <SafeErrorBoundary fallbackTitle="หน้าหลัก Launchpad พบข้อขัดข้องชั่วคราว">
+      <MasterHubContent />
+    </SafeErrorBoundary>
   );
 }

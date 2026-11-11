@@ -15,15 +15,16 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
-import { ScreenSyncEvent, CROP_DIMENSIONS_4_3, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
+import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
 import { generateShortCode } from '@/lib/mobile/shortCodeGenerator';
 import { classifyGesture, LandmarkPoint } from '@/lib/ai-vision/gestureRules';
 import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
-import { calculate43Crop } from '@/lib/kiosk/centerCropper';
+import { calculateCrop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
+import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
 
-export default function KioskCapturePage() {
+function KioskCapturePageContent() {
   const {
     send,
     state,
@@ -47,7 +48,8 @@ export default function KioskCapturePage() {
   const [isAiVisionReady, setIsAiVisionReady] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number }>({ width: 16, height: 9 });
-  const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.035);
+  const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.025);
+  const [photoRatio, setPhotoRatio] = useState<'3:4' | '4:3'>('3:4');
   const currentStreamRef = useRef<MediaStream | null>(null);
 
   // Gesture detection & tracking
@@ -126,6 +128,22 @@ export default function KioskCapturePage() {
 
   // Initialize BroadcastChannel & listen to admin / display events
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedThreshold = localStorage.getItem('swu_hand_threshold');
+        if (savedThreshold) {
+          const parsed = parseFloat(savedThreshold);
+          if (!isNaN(parsed) && parsed >= 0.005 && parsed <= 0.1) {
+            setHandAreaThreshold(parsed);
+          }
+        }
+        const savedRatio = localStorage.getItem('swu_photo_ratio');
+        if (savedRatio === '3:4' || savedRatio === '4:3') {
+          setPhotoRatio(savedRatio);
+        }
+      } catch {}
+    }
+
     const channel = new BroadcastChannel(SCREEN_SYNC_CHANNEL);
     channelRef.current = channel;
 
@@ -170,6 +188,16 @@ export default function KioskCapturePage() {
         } else if (data.command === 'SET_THRESHOLD') {
           if (typeof data.value === 'number') {
             setHandAreaThreshold(data.value);
+            if (typeof window !== 'undefined') {
+              try { localStorage.setItem('swu_hand_threshold', data.value.toString()); } catch {}
+            }
+          }
+        } else if (data.command === 'SET_PHOTO_RATIO') {
+          if (data.value === '3:4' || data.value === '4:3') {
+            setPhotoRatio(data.value);
+            if (typeof window !== 'undefined') {
+              try { localStorage.setItem('swu_photo_ratio', data.value); } catch {}
+            }
           }
         } else if (data.command === 'SET_PUBLIC_DOMAIN') {
           if (typeof window !== 'undefined') {
@@ -214,19 +242,21 @@ export default function KioskCapturePage() {
     };
   }, [send, isPreviewing]);
 
-  // Snapshot capture function (1440x1080 center-crop of 16:9 video feed)
+  // Snapshot capture function (Center-crop according to photoRatio: 3:4 portrait or 4:3 landscape)
   const takeCenterCropSnapshot = useCallback(() => {
     try {
       const canvas = offscreenCanvasRef.current || document.createElement('canvas');
-      canvas.width = CROP_DIMENSIONS_4_3.width;
-      canvas.height = CROP_DIMENSIONS_4_3.height;
+      const video = videoRef.current;
+      const vw = video && video.videoWidth > 0 ? video.videoWidth : 1920;
+      const vh = video && video.videoHeight > 0 ? video.videoHeight : 1080;
+      const crop = calculateCrop(vw, vh, photoRatio);
+
+      canvas.width = crop.dWidth;
+      canvas.height = crop.dHeight;
       const ctx = canvas.getContext('2d');
 
       if (ctx) {
-        if (videoRef.current && cameraActive && videoRef.current.videoWidth > 0) {
-          const video = videoRef.current;
-          const crop = calculate43Crop(video.videoWidth, video.videoHeight);
-
+        if (video && cameraActive && video.videoWidth > 0) {
           // Mirror horizontally for natural selfie perspective
           ctx.translate(canvas.width, 0);
           ctx.scale(-1, 1);
@@ -274,7 +304,7 @@ export default function KioskCapturePage() {
       console.error('Error taking snapshot:', err);
     }
     return capturedPhotoUrl;
-  }, [cameraActive, capturedPhotoUrl]);
+  }, [cameraActive, capturedPhotoUrl, photoRatio]);
 
   // Confirm photo, post to API, broadcast to Screen 2, and reset
   const handleConfirmUpload = useCallback(async () => {
@@ -481,24 +511,28 @@ export default function KioskCapturePage() {
 
         if (!active) return;
 
+        const landmarkerOptions = {
+          baseOptions: {
+            modelAssetPath: '/mediapipe/hand_landmarker.task',
+            delegate: 'GPU' as const,
+          },
+          runningMode: 'VIDEO' as const,
+          numHands: 2,
+          minHandDetectionConfidence: 0.35,
+          minHandPresenceConfidence: 0.35,
+          minTrackingConfidence: 0.35,
+        };
+
         let landmarker: any = null;
         try {
-          landmarker = await HandLandmarker.createFromOptions(vision, {
-            baseOptions: {
-              modelAssetPath: '/mediapipe/hand_landmarker.task',
-              delegate: 'GPU',
-            },
-            runningMode: 'VIDEO',
-            numHands: 2,
-          });
+          landmarker = await HandLandmarker.createFromOptions(vision, landmarkerOptions);
         } catch {
           landmarker = await HandLandmarker.createFromOptions(vision, {
+            ...landmarkerOptions,
             baseOptions: {
-              modelAssetPath: '/mediapipe/hand_landmarker.task',
+              ...landmarkerOptions.baseOptions,
               delegate: 'CPU',
             },
-            runningMode: 'VIDEO',
-            numHands: 2,
           });
         }
 
@@ -801,9 +835,16 @@ export default function KioskCapturePage() {
           </div>
         )}
 
-        {/* Captured 4:3 Snapshot in Preview / Sent States */}
+        {/* Captured Snapshot in Preview / Sent States */}
         {!showLiveFeed && (
-          <div className="absolute inset-y-0 left-[12.5%] h-full w-3/4 overflow-hidden bg-black flex items-center justify-center z-15">
+          <div
+            style={
+              photoRatio === '3:4'
+                ? { left: '28.9%', width: '42.2%' }
+                : { left: '12.5%', width: '75%' }
+            }
+            className="absolute inset-y-0 h-full overflow-hidden bg-black flex items-center justify-center z-15"
+          >
             <img
               src={capturedPhotoUrl}
               alt="ภาพถ่ายตัวอย่าง"
@@ -812,10 +853,19 @@ export default function KioskCapturePage() {
           </div>
         )}
 
-        {/* 4:3 Capture Zone Overlay & Bracket Boundaries */}
-        <div className="kiosk-capture-zone pointer-events-none absolute inset-y-0 left-[12.5%] z-20 w-3/4 border-x-[1.5px] border-[#CE1126]/60" />
-        <div className="mono pointer-events-none absolute left-1/2 top-[1.4%] z-30 -translate-x-1/2 border border-[#CE1126]/40 bg-black/90 px-[.9vw] py-[.38vw] text-[clamp(.38rem,.48vw,.58rem)] tracking-[.14em] text-white/90 backdrop-blur">
-          4:3 CAPTURE ZONE · 1440×1080 RAW
+        {/* Capture Zone Overlay & Bracket Boundaries */}
+        <div
+          style={
+            photoRatio === '3:4'
+              ? { left: '28.9%', width: '42.2%' }
+              : { left: '12.5%', width: '75%' }
+          }
+          className="kiosk-capture-zone pointer-events-none absolute inset-y-0 z-20 border-x-[2px] border-[#CE1126]/70 transition-all duration-300"
+        />
+        <div className="mono pointer-events-none absolute left-1/2 top-[1.4%] z-30 -translate-x-1/2 border border-[#CE1126]/50 bg-black/90 px-[.9vw] py-[.38vw] text-[clamp(.38rem,.48vw,.58rem)] tracking-[.14em] text-white/90 backdrop-blur rounded-full shadow-lg">
+          {photoRatio === '3:4'
+            ? '3:4 PORTRAIT ZONE · 1080×1440 (FITS FRAME)'
+            : '4:3 LANDSCAPE ZONE · 1440×1080 RAW'}
         </div>
 
         {/* Left Pillar (12.5%): Branding & Telemetry */}
@@ -837,9 +887,11 @@ export default function KioskCapturePage() {
 
           <div className="space-y-[1.2vw]">
             <div className="border-l border-cyan-400/50 pl-[.7vw]">
-              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-cyan-300">1440×1080</div>
+              <div className="mono text-[clamp(.4rem,.52vw,.62rem)] text-cyan-300">
+                {photoRatio === '3:4' ? '1080×1440' : '1440×1080'}
+              </div>
               <div className="mt-1 text-[clamp(.38rem,.45vw,.54rem)] font-bold tracking-[.12em] text-slate-500">
-                RAW · 4:3
+                {photoRatio === '3:4' ? 'FRAME · 3:4' : 'RAW · 4:3'}
               </div>
             </div>
             <div className="border-l border-emerald-400/50 pl-[.7vw]">
@@ -1033,5 +1085,13 @@ export default function KioskCapturePage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function KioskCapturePage() {
+  return (
+    <SafeErrorBoundary fallbackTitle="หน้าจอสัมผัส Kiosk พบข้อขัดข้องชั่วคราว">
+      <KioskCapturePageContent />
+    </SafeErrorBoundary>
   );
 }

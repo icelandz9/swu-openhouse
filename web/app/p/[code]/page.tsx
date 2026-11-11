@@ -104,8 +104,14 @@ export default function MobilePhotoEditorPage({
   const frameImage = frame ? frameImages[frame.id] : undefined;
   // A frame whose PNG failed to load falls back to the plain photo
   const activeFrame = frame && frameImage ? frame : null;
-  const outWidth = activeFrame ? activeFrame.width : PHOTO_ONLY_SIZE.width;
-  const outHeight = activeFrame ? activeFrame.height : PHOTO_ONLY_SIZE.height;
+  const naturalWidth = (baseImageRef.current?.naturalWidth && baseImageRef.current.naturalWidth > 0)
+    ? baseImageRef.current.naturalWidth
+    : 1080;
+  const naturalHeight = (baseImageRef.current?.naturalHeight && baseImageRef.current.naturalHeight > 0)
+    ? baseImageRef.current.naturalHeight
+    : 1440;
+  const outWidth = activeFrame ? activeFrame.width : naturalWidth;
+  const outHeight = activeFrame ? activeFrame.height : naturalHeight;
 
   // Verify Scan Token / Claim and Load Photo
   useEffect(() => {

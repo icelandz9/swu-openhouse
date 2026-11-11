@@ -3,8 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "doctor": "node scripts/doctor.mjs",
+    "doctor:fix": "node scripts/doctor.mjs --kill-port && node scripts/setup-assets.mjs && node scripts/build-sticker-manifest.mjs",
+    "kill-port": "node scripts/kill-port.mjs 3000",
     "setup-assets": "node scripts/setup-assets.mjs",
-    "predev": "node scripts/setup-assets.mjs && node scripts/build-sticker-manifest.mjs",
+    "predev": "node scripts/kill-port.mjs 3000 && node scripts/setup-assets.mjs && node scripts/build-sticker-manifest.mjs",
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "prebuild": "node scripts/setup-assets.mjs && node scripts/build-sticker-manifest.mjs",
     "build": "next build",

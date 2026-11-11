@@ -17,6 +17,35 @@ flowchart LR
 
 ---
 
+## ⚡ วิธีใช้งานแบบรวดเร็วที่สุด (1-Click Zero-Friction Launcher)
+
+สำหรับ Windows สามารถเริ่มใช้งานได้ทันทีโดยไม่ต้องจำคำสั่ง:
+
+1. **ดับเบิลคลิกที่ไฟล์ `start.bat`** (อยู่ที่โฟลเดอร์หลักของโปรเจกต์)
+   - สคริปต์จะตรวจสอบ Node.js
+   - ปลดล็อก PowerShell Policy ให้อัตโนมัติ
+   - เคลียร์ Port 3000 ที่อาจค้างอยู่จากการรันครั้งก่อน
+   - ติดตั้ง dependencies และดึงโมเดล AI MediaPipe ให้อัตโนมัติหากยังไม่มี
+   - เปิด Google Chrome ไปยังหน้าศูนย์รวมหน้าจอ `http://localhost:3000/launchpad` ให้ทันที!
+
+*(หรือรันผ่าน PowerShell ด้วยคำสั่ง `.\run-booth.ps1`)*
+
+---
+
+## 🩺 เครื่องมือตรวจสุขภาพระบบ (Diagnostic Doctor)
+
+ก่อนเริ่มงาน หากต้องการตรวจเช็คความพร้อมของทั้งระบบ สามารถรันคำสั่ง:
+
+```powershell
+npm run doctor
+```
+หรือหากต้องการสั่งซ่อมแซม เคลียร์พอร์ต และสร้างโมเดล/สติกเกอร์ใหม่อัตโนมัติ:
+```powershell
+npm run doctor:fix
+```
+
+---
+
 ## วิธีใช้งานผ่าน CLI (Clone / Pull & Run)
 
 เปิด Terminal หรือ PowerShell แล้วรันคำสั่งผ่าน CLI ได้ทันที:
@@ -196,8 +225,9 @@ node poc/validate_mermaid.mjs
 
 | อาการ | สาเหตุและวิธีแก้ |
 |---|---|
-| `npm error Missing script: "build"` หรือ `"dev"` | รันผิดโฟลเดอร์ ให้ `cd web` ก่อน |
-| `Port 3000 is in use` | มีเซิร์ฟเวอร์เปิดค้างอยู่ ปิดหน้าต่าง PowerShell เดิม หรือกด `Ctrl + C` ในหน้าต่างนั้น |
+| `npm : File ... cannot be loaded because running scripts is disabled` | Windows ปิดกั้นการรันสคริปต์ PowerShell: ให้เปิด PowerShell แล้วรัน `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force` หรือดับเบิลคลิก `start.bat` |
+| `Port 3000 is in use` / `EADDRINUSE: 3000` | มีโปรเซสค้าง: รันคำสั่ง `npm run kill-port` หรือดับเบิลคลิก `start.bat` ระบบจะเคลียร์พอร์ตให้อัตโนมัติ |
+| `Failed to execute postMessage on BroadcastChannel: Channel is closed` | แก้ไขแล้วในเวอร์ชันล่าสุด (Commit `8e6a1c0`+): รัน `git pull` เพื่ออัปเดตโค้ด |
 | หน้าตู้ขึ้นว่าไม่พบกล้อง | ตรวจว่าเสียบกล้องแล้ว ปิดโปรแกรมอื่นที่ใช้กล้องอยู่ (Zoom, Teams, Camera) และกดอนุญาตกล้องที่ไอคอนแม่กุญแจหน้า URL |
 | กล้องเปิดได้เมื่อใช้ `localhost` แต่ใช้ IP ไม่ได้ | เบราว์เซอร์ให้ใช้กล้องเฉพาะ `localhost` หรือ `https` ให้เปิด `/kiosk` ด้วย `localhost` บนเครื่องตู้ แล้วตั้ง Public Domain ใน `/admin` เป็น IP หรือลิงก์ tunnel แทน |
 | สแกน QR แล้วมือถือเปิดไม่ได้ | ตรวจว่ามือถือต่อ Wi-Fi วงเดียวกับคอม, กด Allow ใน Firewall แล้ว, และ QR ไม่ได้ชี้ไปที่ `localhost` |
