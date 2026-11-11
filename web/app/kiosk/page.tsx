@@ -854,9 +854,9 @@ function KioskCapturePageContent() {
 
           {/* Screen bezel */}
           <div
-            style={{ width: photoRatio === '3:4' ? '52cqw' : '65.5cqw' }}
-            className="kc-bezel absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] pb-[.8cqw] pt-[.8cqw]">
-            <p className="font-pixel mb-[.45cqw] text-[.78cqw] text-[#b9b9c2]">
+            style={{ width: photoRatio === '3:4' ? '45.8cqw' : '65.5cqw' }}
+            className={`kc-bezel absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] ${photoRatio === '3:4' ? 'py-[.35cqw]' : 'py-[.8cqw]'}`}>
+            <p className={`font-pixel text-[.78cqw] text-[#b9b9c2] ${photoRatio === '3:4' ? 'mb-[.3cqw]' : 'mb-[.45cqw]'}`}>
               SWU OPEN HOUSE <span className="text-[var(--px-red-hi)]">2026</span> · 14-15 NOV
             </p>
 
@@ -873,8 +873,8 @@ function KioskCapturePageContent() {
               ))}
             </div>
 
-            {/* The 4:3 screen = exactly what gets captured */}
-            <div className={`kc-screen relative w-full overflow-hidden ${photoRatio === '3:4' ? 'aspect-square' : 'aspect-[4/3]'}`}>
+            {/* 4:3 mode: the screen is the capture. 3:4 mode: a 5:6 screen with the 3:4 capture box in it. */}
+            <div className={`kc-screen relative w-full overflow-hidden ${photoRatio === '3:4' ? 'aspect-[5/6]' : 'aspect-[4/3]'}`}>
               <video
                 ref={videoRef}
                 muted
@@ -889,7 +889,7 @@ function KioskCapturePageContent() {
                 <div className="absolute inset-0 z-10 flex items-center justify-center">
                   <PixelSkyline className="opacity-80" />
                   <div className="relative flex flex-col items-center px-[2cqw] text-center">
-                    <h3 className={`px-title ${photoRatio === '3:4' ? 'text-[3.4cqw]' : 'text-[4.4cqw]'}`}>ENGINEERING</h3>
+                    <h3 className={`px-title ${photoRatio === '3:4' ? 'text-[2.9cqw]' : 'text-[4.4cqw]'}`}>ENGINEERING</h3>
                     <p className="font-pixel px-menu-item mt-[1cqw] -rotate-2 text-[1.3cqw]">BUILD YOUR OWN FUTURE</p>
                     <GameMenu className="mt-[2cqw] text-[1cqw]" />
                     <p className="mt-[1.8cqw] text-[1.05cqw] font-semibold text-white [text-shadow:2px_2px_0_#1a0306]">
@@ -926,7 +926,7 @@ function KioskCapturePageContent() {
                   isForeground={isForeground}
                   gestureText={detectedGestureText}
                   videoDimensions={videoDimensions}
-                  containerAspect={photoRatio === '3:4' ? 1 : 4 / 3}
+                  containerAspect={photoRatio === '3:4' ? 5 / 6 : 4 / 3}
                 />
               )}
 
@@ -947,11 +947,11 @@ function KioskCapturePageContent() {
                   </div>
                   {photoRatio === '3:4' ? (
                     <>
-                      {/* 3:4 capture area. The square screen shows the camera's centre square (1080 px wide
-                          for a 1920x1080 camera); the 3:4 crop is 810 px = 75% of it, centred (12.5% each side). */}
-                      <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-[12.5%] bg-black/55" aria-hidden />
-                      <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-[12.5%] bg-black/55" aria-hidden />
-                      <div className="pointer-events-none absolute inset-y-0 left-[12.5%] z-20 w-[75%] shadow-[inset_0_0_0_.25cqw_rgba(255,255,255,.9)]" aria-hidden>
+                      {/* 3:4 capture area. The 5:6 screen shows the camera's centre 5:6 slice (900 px wide for a
+                          1920x1080 camera); the 3:4 crop is 810 px = 90% of it, centred (5% each side). */}
+                      <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-[5%] bg-black/60" aria-hidden />
+                      <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-[5%] bg-black/60" aria-hidden />
+                      <div className="pointer-events-none absolute inset-y-0 left-[5%] z-20 w-[90%] shadow-[inset_0_0_0_.25cqw_rgba(255,255,255,.9)]" aria-hidden>
                         <div className="kc-brackets absolute inset-[1.2cqw]" />
                         <span className="font-pixel absolute bottom-[9.6cqw] left-1/2 -translate-x-1/2 whitespace-nowrap bg-black/60 px-[.6cqw] py-[.3cqw] text-[.7cqw] text-white">
                           3:4 · พื้นที่ถ่าย
@@ -1031,7 +1031,7 @@ function KioskCapturePageContent() {
               )}
             </div>
 
-            <p className="font-pixel mt-[.45cqw] text-[.68cqw] tracking-[.2em] text-[#8a8a94]">COMPUTER ENGINEERING</p>
+            <p className={`font-pixel text-[.68cqw] tracking-[.2em] text-[#8a8a94] ${photoRatio === '3:4' ? 'mt-[.3cqw]' : 'mt-[.45cqw]'}`}>COMPUTER ENGINEERING</p>
           </div>
         </div>
 
