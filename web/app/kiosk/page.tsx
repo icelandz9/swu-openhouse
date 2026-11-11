@@ -807,13 +807,13 @@ export default function KioskCapturePage() {
           </div>
 
           {/* Screen bezel */}
-          <div className="kc-bezel absolute left-1/2 top-1/2 flex w-[70cqw] -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] pb-[.55cqw] pt-[.55cqw]">
+          <div className="kc-bezel absolute left-1/2 top-1/2 flex w-[65.5cqw] -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] pb-[.8cqw] pt-[.8cqw]">
             <p className="font-pixel mb-[.45cqw] text-[.78cqw] text-[#b9b9c2]">
               SWU OPEN HOUSE <span className="text-[var(--px-red-hi)]">2026</span> · 14-15 NOV
             </p>
 
             {/* LEDs on the bezel, left of the screen */}
-            <div className="absolute -left-[2.2cqw] top-1/2 flex -translate-y-1/2 flex-col items-center gap-[1.4cqw]" aria-hidden>
+            <div className="absolute -left-[2.6cqw] top-1/2 flex -translate-y-1/2 flex-col items-center gap-[1.4cqw]" aria-hidden>
               {[
                 ['CAM', cameraActive],
                 ['HAND', Boolean(liveLandmarks)],
