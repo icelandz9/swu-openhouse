@@ -814,6 +814,103 @@ button:focus-visible {
     drop-shadow(0.25vw 0.3vw 0 rgba(26, 3, 6, 0.55));
 }
 
+/* ---- Kiosk handheld console (sized in cqw of the 16:9 stage) ---- */
+.kc-body {
+  border-radius: 3.2cqw;
+  background:
+    radial-gradient(120% 90% at 50% 0%, #d6d5da 0%, #c3c2c8 55%, #aeadb3 100%);
+  box-shadow:
+    inset 0 0.35cqw 0 rgba(255, 255, 255, 0.55),
+    inset 0 -0.6cqw 0 rgba(0, 0, 0, 0.22),
+    0 0.6cqw 0 #6f6e74,
+    0 1.2cqw 2.4cqw rgba(0, 0, 0, 0.55);
+}
+
+/* Red corner plates with one screw each */
+.kc-cap {
+  position: absolute;
+  width: 13cqw;
+  height: 7cqw;
+  background:
+    radial-gradient(circle at 2.2cqw 2.2cqw, #1c1b20 0 0.32cqw, #9a99a0 0.36cqw 0.55cqw, transparent 0.58cqw),
+    linear-gradient(160deg, #d8293f 0%, var(--px-red) 40%, #8a0c20 100%);
+  box-shadow:
+    inset 0.25cqw 0.25cqw 0 rgba(255, 255, 255, 0.25),
+    inset -0.3cqw -0.4cqw 0 rgba(0, 0, 0, 0.3);
+}
+/* Drawn as the top-left plate, mirrored into the other corners */
+.kc-cap { border-radius: 3.2cqw 0 1.6cqw 0; }
+.kc-cap-tl { top: 0; left: 0; }
+.kc-cap-tr { top: 0; right: 0; transform: scaleX(-1); }
+.kc-cap-bl { bottom: 0; left: 0; transform: scaleY(-1); }
+.kc-cap-br { bottom: 0; right: 0; transform: scale(-1, -1); }
+
+/* Dark screen bezel around the 4:3 camera screen */
+.kc-bezel {
+  border-radius: 2cqw;
+  background: linear-gradient(180deg, #4a4a52 0%, #34343a 100%);
+  box-shadow:
+    inset 0 0.25cqw 0 rgba(255, 255, 255, 0.12),
+    inset 0 -0.3cqw 0 rgba(0, 0, 0, 0.35),
+    0 0 0 0.35cqw #8e8d94;
+}
+
+.kc-screen {
+  background: #0c0305;
+  box-shadow: 0 0 0 0.3cqw #1a1a1f;
+}
+
+/* Red cross D-pad arm */
+.kc-dpad {
+  border-radius: 0.6cqw;
+  background: linear-gradient(180deg, #d8293f 0%, var(--px-red) 50%, #9c0e24 100%);
+  box-shadow:
+    inset 0 0.25cqw 0 rgba(255, 255, 255, 0.3),
+    0 0.4cqw 0 #6e0a19;
+}
+
+/* SELECT / START pill */
+.kc-pill {
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #3d3d44, #26262b);
+  box-shadow: inset 0 0.15cqw 0 rgba(255, 255, 255, 0.18), 0 0.2cqw 0 #7a797f;
+  transform: rotate(-8deg);
+}
+
+/* Speaker grille slot */
+.kc-grille {
+  border-radius: 9999px;
+  background: #8f8e95;
+  box-shadow: inset 0.15cqw 0.15cqw 0 rgba(0, 0, 0, 0.35);
+  transform: rotate(30deg);
+}
+
+/* Viewfinder corner brackets */
+.kc-brackets {
+  --b: 0.32cqw;
+  --l: 2.4cqw;
+  background:
+    linear-gradient(#fff, #fff) top left / var(--l) var(--b) no-repeat,
+    linear-gradient(#fff, #fff) top left / var(--b) var(--l) no-repeat,
+    linear-gradient(#fff, #fff) top right / var(--l) var(--b) no-repeat,
+    linear-gradient(#fff, #fff) top right / var(--b) var(--l) no-repeat,
+    linear-gradient(#fff, #fff) bottom left / var(--l) var(--b) no-repeat,
+    linear-gradient(#fff, #fff) bottom left / var(--b) var(--l) no-repeat,
+    linear-gradient(#fff, #fff) bottom right / var(--l) var(--b) no-repeat,
+    linear-gradient(#fff, #fff) bottom right / var(--b) var(--l) no-repeat;
+  filter: drop-shadow(0 0 0.15cqw rgba(0, 0, 0, 0.6));
+}
+
+/* RPG-style dialog box: navy with a double white frame */
+.kc-dialog {
+  background: #1b1f5c;
+  box-shadow:
+    inset 0 0 0 0.25cqw #fff,
+    inset 0 0 0 0.45cqw #1b1f5c,
+    inset 0 0 0 0.55cqw #8a90d8,
+    0 0.3cqw 0 rgba(0, 0, 0, 0.5);
+}
+
 /* Diamond arrow key (rotated rounded square) for the console's direction pad */
 .px-dkey {
   background: linear-gradient(135deg, var(--px-red-hi) 0%, var(--px-red) 45%, var(--px-red-dark) 100%);

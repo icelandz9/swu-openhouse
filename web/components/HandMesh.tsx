@@ -45,6 +45,8 @@ export interface HandMeshProps {
   isForeground?: boolean;
   gestureText?: string;
   videoDimensions?: { width: number; height: number };
+  /** Width / height of the box the overlay covers (the video is object-cover in it). */
+  containerAspect?: number;
 }
 
 /**
@@ -65,6 +67,7 @@ export function HandMesh({
   isForeground = true,
   gestureText = 'NONE',
   videoDimensions,
+  containerAspect = 16 / 9,
 }: HandMeshProps) {
   const hasLandmarks = landmarks && landmarks.length >= 21;
 
@@ -73,7 +76,6 @@ export function HandMesh({
     const vw = videoDimensions?.width || 16;
     const vh = videoDimensions?.height || 9;
     const videoAspect = vw / vh;
-    const containerAspect = 16 / 9;
 
     let scaleX = 1;
     let scaleY = 1;
