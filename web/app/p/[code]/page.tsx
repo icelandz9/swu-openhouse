@@ -4,7 +4,7 @@ import React, { use, useState, useRef, useEffect, useCallback } from 'react';
 import { Download, Sparkles, Frame, Check, ShieldAlert, Sun, Sticker, Trash2, ShieldCheck, Lock, Maximize2, X, ChevronLeft } from 'lucide-react';
 import { FilterPresetId } from '@/lib/contracts';
 import { applyColorFilter } from '@/lib/mobile/colorFilters';
-import { FRAME_GROUPS, FRAME_TEMPLATES, NO_FRAME_ID, FrameTemplate, PHOTO_ONLY_SIZE, drawPhotoCover } from '@/lib/mobile/frameTemplates';
+import { FRAME_GROUPS, FRAME_TEMPLATES, NO_FRAME_ID, FrameTemplate, PHOTO_ONLY_SIZE, drawPhotoContain, drawPhotoCover } from '@/lib/mobile/frameTemplates';
 import {
   PlacedSticker,
   StickerAsset,
@@ -212,7 +212,8 @@ export default function MobilePhotoEditorPage({
 
     const win = activeFrame ? activeFrame.window : { x: 0, y: 0, w: outWidth, h: outHeight };
 
-    drawPhotoCover(ctx, photo, win);
+    // Whole photo in the frame window: nobody standing at the edge of the kiosk shot gets cut off
+    drawPhotoContain(ctx, photo, win);
     applyColorFilter(ctx, win, selectedFilter, brightness);
 
     if (activeFrame && frameImage) {
@@ -451,6 +452,17 @@ export default function MobilePhotoEditorPage({
         {/* Frames Tab */}
         {activeTab === 'frames' && (
           <div className="space-y-2">
+            {/* No frame: the original 4:3 photo, edge to edge */}
+            <button
+              onClick={() => setSelectedFrameId(NO_FRAME_ID)}
+              aria-pressed={selectedFrameId === NO_FRAME_ID}
+              className={`px-corners flex w-full items-center justify-between px-3 py-2 text-xs font-bold transition-colors ${
+                selectedFrameId === NO_FRAME_ID ? 'bg-[var(--px-red)] text-white' : 'px-card text-[var(--px-muted)] hover:text-white'
+              }`}
+            >
+              <span>ไม่ใส่กรอบ · รูปเต็มแนวนอน</span>
+              <span className="font-pixel-sm text-[10px]">1440×1080</span>
+            </button>
             {FRAME_GROUPS.map((group) => {
               const frames = FRAME_TEMPLATES.filter((f) => f.group === group.id);
               if (!frames.length) return null;

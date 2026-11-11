@@ -78,6 +78,50 @@ export const FRAME_TEMPLATES: FrameTemplate[] = [
 ];
 
 /**
+ * Draws the whole photo inside `win` (like CSS object-fit: contain), so nobody at the edge of the
+ * kiosk shot is cut off. The leftover bands are filled with a soft, darkened, blown-up copy of the
+ * same photo instead of empty space.
+ *
+ * The blur is made by shrinking the photo to a tiny canvas and scaling it back up, because
+ * `ctx.filter` does nothing on older iOS Safari.
+ */
+export function drawPhotoContain(ctx: CanvasRenderingContext2D, img: HTMLImageElement | HTMLCanvasElement, win: PhotoWindow): void {
+  const iw = (img as HTMLImageElement).naturalWidth || img.width;
+  const ih = (img as HTMLImageElement).naturalHeight || img.height;
+  if (!iw || !ih) return;
+
+  // 1. Background: cover-fit, blurred by down/up-scaling, then darkened
+  const pad = 4;
+  const bx = win.x - pad;
+  const by = win.y - pad;
+  const bw = win.w + pad * 2;
+  const bh = win.h + pad * 2;
+  const tiny = document.createElement('canvas');
+  tiny.width = Math.max(1, Math.round(bw / 24));
+  tiny.height = Math.max(1, Math.round(bh / 24));
+  const tctx = tiny.getContext('2d');
+  if (tctx) {
+    const s = Math.max(tiny.width / iw, tiny.height / ih);
+    const sw = tiny.width / s;
+    const sh = tiny.height / s;
+    tctx.drawImage(img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, 0, 0, tiny.width, tiny.height);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(tiny, bx, by, bw, bh);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.restore();
+  }
+
+  // 2. The whole photo, centred
+  const scale = Math.min(win.w / iw, win.h / ih);
+  const dw = iw * scale;
+  const dh = ih * scale;
+  ctx.drawImage(img, 0, 0, iw, ih, win.x + (win.w - dw) / 2, win.y + (win.h - dh) / 2, dw, dh);
+}
+
+/**
  * Draws the photo so it fills `win` (like CSS object-fit: cover), centred.
  * The window is grown by a few px so no gap shows under the frame's soft edge.
  */
