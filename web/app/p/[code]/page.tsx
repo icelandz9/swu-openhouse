@@ -216,12 +216,13 @@ export default function MobilePhotoEditorPage({
 
     const win = activeFrame ? activeFrame.window : { x: 0, y: 0, w: outWidth, h: outHeight };
 
-    // Photo shape close to the window (within 6%, e.g. a 986x1080 "frame mode" shot in any CPE frame):
-    // fill the window, trimming at most ~3% per side, so there are no filler bands.
-    // Otherwise (e.g. a wide 4:3 group shot): keep the whole photo so nobody at the edge gets cut off.
+    // Portrait "frame mode" shots (986x1080) fill every frame window: no filler bands. In the CPE frames
+    // that trims at most ~3% per side; in the square / landscape pixel windows it trims top and bottom.
+    // A photo whose shape is within 6% of the window is treated the same way.
+    // Wide 4:3 group shots keep the whole photo so nobody at the edge gets cut off.
     const photoAspect = (photo.naturalWidth || photo.width) / (photo.naturalHeight || photo.height);
     const closeFit = Math.abs(photoAspect / (win.w / win.h) - 1) <= 0.06;
-    if (closeFit) drawPhotoCover(ctx, photo, win);
+    if (closeFit || photoAspect < 1) drawPhotoCover(ctx, photo, win);
     else drawPhotoContain(ctx, photo, win);
     applyColorFilter(ctx, win, selectedFilter, brightness);
 
