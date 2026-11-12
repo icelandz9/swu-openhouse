@@ -47,6 +47,12 @@ yarn-error.log*
 .env*.local
 .env
 
+# Git worktrees for isolated development
+.worktrees/
+.worktrees
+worktrees/
+worktrees
+
 # MediaPipe model downloaded by scripts/model-training
 hand_landmarker.task
 pose_landmarker_lite.task
