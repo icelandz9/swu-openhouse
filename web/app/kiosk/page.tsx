@@ -16,6 +16,7 @@ import {
   Wrench,
   Hammer,
   Heart,
+  Sparkles,
 } from 'lucide-react';
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
 import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL, PHOTO_ASPECT_RATIO, PhotoRatio, toPhotoRatio, FRAME_PHOTO_ASPECT } from '@/lib/contracts';
@@ -27,6 +28,13 @@ import { calculateCrop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
 import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
+import {
+  IndustrialScrew,
+  IndustrialGear,
+  BoltIcon,
+  EngineeringBadges,
+  MechaPixelAccent,
+} from '@/components/ConsoleArtwork';
 
 // The console screen is always 4:3. In frame mode the 934:1023 capture box sits centred in it:
 // box width = (934/1023) / (4/3) = 68.5% of the screen, 15.8% dimmed on each side.
@@ -856,75 +864,112 @@ function KioskCapturePageContent() {
       <div className="kiosk-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden [container-type:inline-size]">
         {/* Handheld console body */}
         <div className="kc-body kc-px absolute inset-[.8cqw]">
-          <span className="kc-cap kc-px kc-cap-tl" aria-hidden />
-          <span className="kc-cap kc-px kc-cap-tr" aria-hidden />
-          <span className="kc-cap kc-px kc-cap-bl" aria-hidden />
-          <span className="kc-cap kc-px kc-cap-br" aria-hidden />
+          {/* Crimson corner plates with authentic industrial screws */}
+          <div className="kc-cap kc-px kc-cap-tl" aria-hidden>
+            <IndustrialScrew className="absolute left-[1.6cqw] top-[1.6cqw] size-[1.4cqw]" />
+          </div>
+          <div className="kc-cap kc-px kc-cap-tr" aria-hidden>
+            <IndustrialScrew className="absolute right-[1.6cqw] top-[1.6cqw] size-[1.4cqw]" />
+          </div>
+          <div className="kc-cap kc-px kc-cap-bl" aria-hidden>
+            <IndustrialScrew className="absolute bottom-[1.6cqw] left-[1.6cqw] size-[1.4cqw]" />
+          </div>
+          <div className="kc-cap kc-px kc-cap-br" aria-hidden>
+            <IndustrialScrew className="absolute bottom-[1.6cqw] right-[1.6cqw] size-[1.4cqw]" />
+          </div>
 
-          {/* Left: logo, D-pad, SELECT / START */}
-          <div className="absolute inset-y-0 left-0 flex w-[15.2cqw] flex-col items-center pt-[8.4cqw]">
-            <div className="w-[10.4cqw]">
-              <CpeLogo className="px-logo-pop h-auto max-w-full" />
-            </div>
-            <p className="font-pixel mt-[1.1cqw] text-center text-[.78cqw] leading-[1.7] text-[#3a3a40]">
+          {/* Left Wing: SMO Engineering Logos, D-pad, SELECT / START, Industrial Gear */}
+          <div className="absolute inset-y-0 left-0 flex w-[15.8cqw] flex-col items-center pt-[2.2cqw]">
+            <EngineeringBadges className="scale-[0.88] origin-center" />
+            
+            <p className="font-pixel mt-[1.4cqw] text-center text-[.74cqw] leading-[1.6] text-[#b3b8c5] [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
               BUILD YOUR
               <br />
-              OWN FUTURE
+              <span className="text-[var(--px-red-hi)]">OWN FUTURE</span>
             </p>
-            <div className="relative mt-[3.8cqw] size-[8.4cqw]" aria-hidden>
-              <span className="kc-dpad absolute left-1/2 top-0 h-full w-[34%] -translate-x-1/2" />
-              <span className="kc-dpad absolute left-0 top-1/2 h-[34%] w-full -translate-y-1/2" />
-              <span className="absolute left-1/2 top-1/2 size-[18%] -translate-x-1/2 -translate-y-1/2 bg-[var(--px-red-dark)]" />
+
+            {/* Tactile 3D Maroon D-Pad */}
+            <div className="relative mt-[2.6cqw] size-[8.6cqw]" aria-hidden>
+              <span className="kc-dpad absolute left-1/2 top-0 h-full w-[34%] -translate-x-1/2 rounded-[.1cqw]" />
+              <span className="kc-dpad absolute left-0 top-1/2 h-[34%] w-full -translate-y-1/2 rounded-[.1cqw]" />
+              <span className="absolute left-1/2 top-1/2 size-[20%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#4a0810] border border-[#6b0f19] shadow-[inset_0_1px_3px_rgba(0,0,0,0.9)]" />
             </div>
-            <div className="mt-[3cqw] flex gap-[1.2cqw]" aria-hidden>
+
+            {/* SELECT / START Buttons */}
+            <div className="mt-[2cqw] flex gap-[1.2cqw]" aria-hidden>
               {['SELECT', 'START'].map((label) => (
-                <div key={label} className="flex flex-col items-center gap-[.5cqw]">
+                <div key={label} className="flex flex-col items-center gap-[.4cqw]">
                   <span className="kc-pill kc-px h-[1.1cqw] w-[3.8cqw]" />
-                  <span className="font-pixel-sm text-[.62cqw] font-bold text-[#4a4a52]">{label}</span>
+                  <span className="font-pixel-sm text-[.6cqw] font-bold text-[#838999] tracking-wider">{label}</span>
                 </div>
               ))}
             </div>
-            {/* Status LEDs (outside the bezel: its pixel corners would clip anything hanging off it) */}
-            <div className="mt-[2.4cqw] flex gap-[1.6cqw]" aria-hidden>
+
+            {/* Industrial Gear graphic (as seen in Image 2) */}
+            <div className="mt-[1.6cqw] flex items-center justify-center" aria-hidden>
+              <IndustrialGear className="size-[3.6cqw] animate-[spin_35s_linear_infinite] drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]" />
+            </div>
+
+            {/* Status LEDs */}
+            <div className="mt-[1.6cqw] flex gap-[1.6cqw]" aria-hidden>
               {[
-                ['CAM', cameraActive],
-                ['HAND', Boolean(liveLandmarks)],
-              ].map(([label, on]) => (
+                ['CAM', cameraActive, 'bg-[#10b981] shadow-[0_0_8px_#10b981,inset_0_1px_1px_#a7f3d0]'],
+                ['HAND', Boolean(liveLandmarks), 'bg-[#06b6d4] shadow-[0_0_8px_#06b6d4,inset_0_1px_1px_#a5f3fc]'],
+              ].map(([label, on, onStyle]) => (
                 <div key={label as string} className="flex flex-col items-center gap-[.3cqw]">
-                  <span className={`size-[.8cqw] ${on ? 'bg-[var(--px-green)] shadow-[inset_-.15cqw_-.15cqw_0_#2f8a45]' : 'bg-[#6a6a72] shadow-[inset_-.15cqw_-.15cqw_0_#4a4a52]'}`} />
-                  <span className="font-pixel-sm text-[.6cqw] font-bold text-[#4a4a52]">{label as string}</span>
+                  <span className={`size-[.8cqw] rounded-[.15cqw] border border-black/80 transition-all ${on ? onStyle : 'bg-[#2b2d35] shadow-[inset_0_1px_2px_rgba(0,0,0,0.8)]'}`} />
+                  <span className="font-pixel-sm text-[.56cqw] font-bold text-[#6f7584]">{label as string}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Right: gear / hard hat / wrench / hammer buttons and the speaker grille */}
-          <div className="absolute inset-y-[6.2cqw] right-0 flex w-[15.2cqw] flex-col items-center justify-center">
-            <div className="grid grid-cols-3 grid-rows-3 gap-[.35cqw]" aria-hidden>
+          {/* Right Wing: SWU Open House title, 4 Engineering Action buttons, Speaker grille, Mecha accent */}
+          <div className="absolute inset-y-0 right-0 flex w-[15.8cqw] flex-col items-center pt-[2.4cqw]">
+            <span className="font-pixel text-[.82cqw] font-bold text-white tracking-wider [text-shadow:2px_2px_0_#000,3px_3px_0_#8b1522]">
+              SWU OPEN HOUSE
+            </span>
+            <span className="font-pixel-sm text-[.52cqw] text-[#9ca3af] tracking-widest mt-[.2cqw]">
+              ENGINEERING 2026
+            </span>
+
+            {/* 4 Action Buttons in Diamond arrangement (Gear, Helmet, Wrench, Bolt - Image 3) */}
+            <div className="grid grid-cols-3 grid-rows-3 gap-[.4cqw] mt-[2cqw]" aria-hidden>
               <span />
-              <span className="kc-btn size-[3.8cqw]"><Cog className="size-[2cqw]" /></span>
+              <span className="kc-btn size-[3.8cqw]" title="Gear (Cog)"><Cog className="size-[2cqw] drop-shadow" /></span>
               <span />
-              <span className="kc-btn size-[3.8cqw]"><HardHat className="size-[2cqw]" /></span>
+              <span className="kc-btn size-[3.8cqw]" title="Safety Helmet"><HardHat className="size-[2cqw] drop-shadow" /></span>
               <span />
-              <span className="kc-btn size-[3.8cqw]"><Wrench className="size-[2cqw]" /></span>
+              <span className="kc-btn size-[3.8cqw]" title="Wrench"><Wrench className="size-[2cqw] drop-shadow" /></span>
               <span />
-              <span className="kc-btn size-[3.8cqw]"><Hammer className="size-[2cqw]" /></span>
+              <span className="kc-btn size-[3.8cqw]" title="Screw / Bolt"><BoltIcon className="size-[2cqw] drop-shadow" /></span>
               <span />
             </div>
-            <div className="mt-[3.6cqw] grid grid-cols-5 gap-[.55cqw]" aria-hidden>
+
+            {/* Speaker Grille Matrix */}
+            <div className="mt-[2.2cqw] grid grid-cols-5 gap-[.5cqw]" aria-hidden>
               {Array.from({ length: 20 }, (_, i) => (
-                <span key={i} className="kc-grille size-[.75cqw]" />
+                <span key={i} className="kc-grille size-[.72cqw] rounded-[.1cqw]" />
               ))}
+            </div>
+
+            {/* Pixel Art Mecha / Robot Mascot sitting on console chassis (as in Image 3) */}
+            <div className="mt-[1.2cqw] flex justify-center">
+              <MechaPixelAccent />
             </div>
           </div>
 
           {/* Screen bezel */}
           <div
             style={{ width: '66cqw' }}
-            className="kc-bezel kc-px absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] pb-[.55cqw] pt-[.55cqw]">
-            <p className="font-pixel mb-[.45cqw] text-[.78cqw] text-[#b9b9c2]">
-              SWU OPEN HOUSE <span className="text-[var(--px-red-hi)]">2026</span> · 14-15 NOV
-            </p>
+            className="kc-bezel kc-px absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] pb-[.6cqw] pt-[.6cqw]">
+            <div className="flex items-center justify-between w-full px-[.6cqw] mb-[.45cqw] font-pixel text-[.74cqw]">
+              <span className="text-[#cbd5e1] tracking-wider">
+                SWU OPEN HOUSE <span className="text-[var(--px-red-hi)]">2026</span>
+              </span>
+              <span className="text-[#64748b] text-[.6cqw]">· FACULTY OF ENGINEERING ·</span>
+              <span className="text-[#94a3b8] text-[.62cqw]">14-15 NOV</span>
+            </div>
 
             {/* The 4:3 screen = exactly what gets captured */}
             <div className="kc-screen relative aspect-[4/3] w-full overflow-hidden">
@@ -983,34 +1028,55 @@ function KioskCapturePageContent() {
                 />
               )}
 
-              {/* HUD: player + lives, LIVE, viewfinder corners */}
+              {/* HUD: player + lives, LIVE, camera tool, viewfinder corners */}
               {showLiveFeed && cameraActive && (
                 <>
-                  {/* Smaller badges; in frame mode they sit inside the white box, between its corner brackets */}
+                  {/* PLAYER 1 + Hearts (Top-Left Badge) */}
                   <div
-                    style={photoRatio === 'frame' ? { left: `calc(${CAPTURE_SIDE_PCT}% + 4.4cqw)`, top: '1.5cqw' } : { left: '1.2cqw', top: '1.1cqw' }}
-                    className="font-pixel pointer-events-none absolute z-30 flex items-center gap-[.4cqw] bg-black/55 px-[.5cqw] py-[.3cqw] text-[.62cqw] text-white"
+                    style={photoRatio === 'frame' ? { left: `calc(${CAPTURE_SIDE_PCT}% + 3.8cqw)`, top: '1.4cqw' } : { left: '1.2cqw', top: '1.1cqw' }}
+                    className="kc-hud-pill font-pixel pointer-events-none absolute z-30 flex items-center gap-[.45cqw] px-[.65cqw] py-[.35cqw] text-[.64cqw] text-white rounded-[.35cqw]"
                   >
-                    PLAYER 1
-                    <span className="flex gap-[.15cqw] text-[var(--px-red-hi)]">
+                    <span className="tracking-wider">PLAYER 1</span>
+                    <span className="flex gap-[.18cqw] text-[var(--px-red-hi)]">
                       {[0, 1, 2].map((i) => (
-                        <Heart key={i} className="size-[.65cqw]" fill="currentColor" strokeWidth={0} />
+                        <Heart key={i} className="size-[.68cqw] drop-shadow-[0_0_4px_#ff2a4b]" fill="currentColor" strokeWidth={0} />
                       ))}
                     </span>
                   </div>
+
+                  {/* Top-Center Camera Quick-Control Pill (as seen in Image 1) */}
                   <div
-                    style={photoRatio === 'frame' ? { right: `calc(${CAPTURE_SIDE_PCT}% + 4.4cqw)`, top: '1.5cqw' } : { right: '1.2cqw', top: '1.1cqw' }}
-                    className="font-pixel pointer-events-none absolute z-30 flex items-center gap-[.35cqw] bg-black/55 px-[.5cqw] py-[.3cqw] text-[.62cqw] text-white"
+                    style={{ left: '50%', top: '1.4cqw' }}
+                    className="kc-hud-pill pointer-events-auto absolute z-30 flex -translate-x-1/2 items-center gap-[.4cqw] px-[.6cqw] py-[.3cqw] rounded-[.35cqw]"
                   >
-                    <span className="size-[.5cqw] animate-pulse bg-[var(--px-red-hi)]" />
-                    LIVE
+                    <button
+                      type="button"
+                      onClick={() => initCamera()}
+                      title="สลับกล้อง / เชื่อมต่อใหม่"
+                      className="flex items-center justify-center p-[.2cqw] text-[#cbd5e1] hover:text-white transition-colors"
+                    >
+                      <Camera className="size-[1.1cqw]" />
+                    </button>
+                    <span className="h-[1cqw] w-px bg-white/20" />
+                    <div className="flex items-center gap-[.2cqw] text-[.55cqw] font-pixel text-[#94a3b8]">
+                      <Sparkles className="size-[.9cqw] text-[var(--px-gold)]" />
+                    </div>
                   </div>
+
+                  {/* LIVE Status Badge (Top-Right Badge) */}
+                  <div
+                    style={photoRatio === 'frame' ? { right: `calc(${CAPTURE_SIDE_PCT}% + 3.8cqw)`, top: '1.4cqw' } : { right: '1.2cqw', top: '1.1cqw' }}
+                    className="kc-hud-pill font-pixel pointer-events-none absolute z-30 flex items-center gap-[.4cqw] px-[.65cqw] py-[.35cqw] text-[.64cqw] text-white rounded-[.35cqw]"
+                  >
+                    <span className="size-[.55cqw] animate-pulse rounded-[.1cqw] bg-[#ff2a4b] shadow-[0_0_8px_#ff2a4b]" />
+                    <span className="tracking-widest">LIVE</span>
+                  </div>
+
                   {photoRatio === 'frame' ? (
                     <>
-                      {/* Capture area. The square screen shows the camera's centre square; the frame-shaped crop
-                          (934:1023) is 91.3% of its width, centred (4.35% each side). */}
-                      <div style={{ width: `${CAPTURE_SIDE_PCT}%` }} className="pointer-events-none absolute inset-y-0 left-0 z-20 bg-black/55" aria-hidden />
-                      <div style={{ width: `${CAPTURE_SIDE_PCT}%` }} className="pointer-events-none absolute inset-y-0 right-0 z-20 bg-black/55" aria-hidden />
+                      {/* Capture area. Frame crop (934:1023) is centered with dimmed pillarboxes */}
+                      <div style={{ width: `${CAPTURE_SIDE_PCT}%` }} className="pointer-events-none absolute inset-y-0 left-0 z-20 bg-black/60 backdrop-blur-[1px]" aria-hidden />
+                      <div style={{ width: `${CAPTURE_SIDE_PCT}%` }} className="pointer-events-none absolute inset-y-0 right-0 z-20 bg-black/60 backdrop-blur-[1px]" aria-hidden />
                       <div
                         style={{ left: `${CAPTURE_SIDE_PCT}%`, width: `${CAPTURE_BOX_PCT}%` }}
                         className="pointer-events-none absolute inset-y-0 z-20 shadow-[inset_0_0_0_.25cqw_rgba(255,255,255,.9)]"
@@ -1025,22 +1091,21 @@ function KioskCapturePageContent() {
                 </>
               )}
 
-              {/* Dialog box: what to do now */}
+              {/* Dialog box: what to do now (Image 1 Composition) */}
               {(isIdle || isDetecting) && showLiveFeed && cameraActive && (
-                // Compact prompt, kept inside the capture area (inside the white box in frame mode)
                 <div
                   style={
                     photoRatio === 'frame'
                       ? { left: `calc(${CAPTURE_SIDE_PCT}% + 1.6cqw)`, right: `calc(${CAPTURE_SIDE_PCT}% + 1.6cqw)` }
                       : { left: '3cqw', right: '3cqw' }
                   }
-                  className="kc-dialog kc-px pointer-events-none absolute bottom-[2.2cqw] z-30 flex items-center gap-[.8cqw] px-[.9cqw] py-[.6cqw]"
+                  className="kc-dialog kc-px pointer-events-none absolute bottom-[2.2cqw] z-30 flex items-center gap-[.9cqw] px-[1cqw] py-[.7cqw]"
                 >
-                  <span className="flex size-[2.5cqw] shrink-0 items-center justify-center rounded-[.4cqw] bg-[var(--px-red)]">
-                    <Hand className="size-[1.5cqw] text-white" strokeWidth={2.2} />
+                  <span className="flex size-[2.8cqw] shrink-0 items-center justify-center rounded-[.5cqw] bg-gradient-to-br from-[#e63946] to-[#8b1522] shadow-[inset_0_2px_0_rgba(255,255,255,0.35),0_3px_8px_rgba(0,0,0,0.6)]">
+                    <Hand className="size-[1.7cqw] text-white drop-shadow" strokeWidth={2.4} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[1.2cqw] font-bold leading-tight text-white">
+                    <p className="truncate text-[1.25cqw] font-bold leading-tight text-white drop-shadow">
                       {holdProgress > 0
                         ? 'ค้างไว้อีกนิด...'
                         : liveLandmarks && !isForeground
@@ -1048,14 +1113,17 @@ function KioskCapturePageContent() {
                           : 'ชูมือ 5 นิ้ว เพื่อเริ่มถ่ายรูป'}
                     </p>
                     {holdProgress > 0 ? (
-                      <div className="px-meter mt-[.35cqw]">
-                        <span style={{ width: `${Math.max(0, Math.min(100, holdProgress))}%` }} />
+                      <div className="px-meter mt-[.35cqw] h-[.8cqw] bg-[#11141c] border border-[#3b4252] rounded-[.2cqw] p-[.1cqw]">
+                        <span
+                          className="block h-full bg-gradient-to-r from-[var(--px-red)] via-[var(--px-gold)] to-[var(--px-green)] transition-all duration-75 shadow-[0_0_8px_rgba(255,204,0,0.6)]"
+                          style={{ width: `${Math.max(0, Math.min(100, holdProgress))}%` }}
+                        />
                       </div>
                     ) : (
-                      <p className="font-pixel mt-[.3cqw] truncate text-[.5cqw] text-white/55">RAISE YOUR HAND TO START</p>
+                      <p className="font-pixel mt-[.3cqw] truncate text-[.52cqw] text-[#94a3b8] tracking-wider">RAISE YOUR HAND TO START</p>
                     )}
                   </div>
-                  <span className="font-pixel shrink-0 text-[.6cqw] text-[var(--px-gold)]">
+                  <span className="font-pixel shrink-0 text-[.68cqw] text-[var(--px-gold)] animate-pulse [text-shadow:0_0_8px_rgba(255,204,0,0.6)]">
                     {holdProgress > 0 ? `${Math.round(holdProgress)}%` : 'PRESS START'}
                   </span>
                 </div>
