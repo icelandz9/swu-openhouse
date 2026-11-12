@@ -7,15 +7,15 @@ export interface LandmarkPoint {
 }
 
 // Thresholds calibrated for robust, responsive palm detection
-// wrist->tip / wrist->PIP is 0.61-0.83 for folded fingers and 1.05+ for extended ones.
-const FINGER_EXTENDED_RATIO = 1.05;
+// wrist->tip / wrist->PIP is 0.61-0.83 for folded fingers and 1.10+ for extended ones.
+const FINGER_EXTENDED_RATIO = 1.10;
 const FINGER_FOLDED_RATIO = 1.0;
-// Thumb tip->Pinky MCP / Thumb MCP->Pinky MCP is 0.65-0.88 tucked and 0.95+ extended.
-const THUMB_EXTENDED_RATIO = 0.95;
+// Thumb tip->Pinky MCP / Thumb MCP->Pinky MCP is 0.65-0.88 tucked and 1.00+ extended.
+const THUMB_EXTENDED_RATIO = 1.00;
 // A fist tolerates a loosely held thumb; a thumbs-up measures 1.35+.
 const FIST_THUMB_MAX_RATIO = 1.2;
 // Below this the hand is too edge-on to tell its palm from its back.
-const PALM_MIN_FACING = 0.08;
+const PALM_MIN_FACING = 0.12;
 
 const WRIST = 0;
 const THUMB_MCP = 2;
@@ -103,9 +103,10 @@ export function classifyGesture(
     if (ratios.every(isExtended) && thumbRatio >= THUMB_EXTENDED_RATIO) {
       const nz = palmNormalZ(landmarks, frameAspect);
       const isLeft = (handedness ?? '').trim().toLowerCase().startsWith('l');
-      // MediaPipe reports back-of-hand as nz > PALM_MIN_FACING for Right, or nz < -PALM_MIN_FACING for Left
-      const facesBackOfHand = isLeft ? nz < -PALM_MIN_FACING : nz > PALM_MIN_FACING;
-      return !facesBackOfHand ? 'OPEN_PALM' : 'NONE';
+      // MediaPipe reports palms as Right with nz < -PALM_MIN_FACING and Left with nz > PALM_MIN_FACING
+      // (Opposite sign indicates back of hand, while |nz| <= PALM_MIN_FACING indicates edge-on / ambiguous)
+      const facesCamera = isLeft ? nz > PALM_MIN_FACING : nz < -PALM_MIN_FACING;
+      return facesCamera ? 'OPEN_PALM' : 'NONE';
     }
 
     const [index, middle, ring, pinky] = ratios;

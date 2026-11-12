@@ -119,6 +119,7 @@ function KioskCapturePageContent() {
   const prevHoldProgressIntRef = useRef<number>(0);
   const previewGestureLockRef = useRef<boolean>(false);
   const previewEnterTimeRef = useRef<number>(0);
+  const fistHoldStartTimeRef = useRef<number | null>(null);
 
   const [countdown, setCountdown] = useState<number>(3);
   const defaultCountdownRef = useRef<number>(3);
@@ -206,6 +207,7 @@ function KioskCapturePageContent() {
       if (data.type === 'SCREEN1_RESET') {
         send({ type: 'FORCE_RESET' });
         holdStartTimeRef.current = null;
+        fistHoldStartTimeRef.current = null;
         setHoldProgress(0);
         previewGestureLockRef.current = false;
         setIsPaused(false);
@@ -216,6 +218,7 @@ function KioskCapturePageContent() {
           send({ type: 'FORCE_RESET' });
           setHoldProgress(0);
           holdStartTimeRef.current = null;
+          fistHoldStartTimeRef.current = null;
           setIsPaused(false);
         } else if (data.command === 'SKIP_PREVIEW') {
           if (isPreviewing) {
@@ -486,6 +489,7 @@ function KioskCapturePageContent() {
     previewGestureLockRef.current = false;
     setHoldProgress(0);
     holdStartTimeRef.current = null;
+    fistHoldStartTimeRef.current = null;
     setCountdown(3);
     setPreviewSeconds(10);
     send({ type: 'GESTURE_RETAKE_FIST' });
@@ -708,7 +712,7 @@ function KioskCapturePageContent() {
                   }
                 } else {
                   const timeSinceLast = performance.now() - (lastPalmSeenTimeRef.current || 0);
-                  if (timeSinceLast > 250) {
+                  if (timeSinceLast > 500) {
                     if (holdStartTimeRef.current !== null) {
                       holdStartTimeRef.current = null;
                       setHoldProgress(0);
@@ -718,12 +722,21 @@ function KioskCapturePageContent() {
                 }
               } else if (isPreviewing && !previewGestureLockRef.current) {
                 const timeInPreview = performance.now() - previewEnterTimeRef.current;
-                // Grace period: ignore first 1.2s of preview so lingering posing hand does not accidentally trigger upload
-                if (timeInPreview > 1200) {
+                // Grace period: ignore first 1.5s of preview so lingering posing hand does not accidentally trigger retake/confirm
+                if (timeInPreview > 1500) {
                   if (detected === 'FIST') {
-                    previewGestureLockRef.current = true;
-                    handleRetake();
+                    holdStartTimeRef.current = null;
+                    if (fistHoldStartTimeRef.current === null) {
+                      fistHoldStartTimeRef.current = performance.now();
+                    }
+                    const fistHold = performance.now() - fistHoldStartTimeRef.current;
+                    if (fistHold >= 800) {
+                      previewGestureLockRef.current = true;
+                      fistHoldStartTimeRef.current = null;
+                      handleRetake();
+                    }
                   } else if (detected === 'OPEN_PALM') {
+                    fistHoldStartTimeRef.current = null;
                     // Require deliberate hold (800ms) during preview to confirm
                     if (holdStartTimeRef.current === null) {
                       holdStartTimeRef.current = performance.now();
@@ -731,9 +744,11 @@ function KioskCapturePageContent() {
                     const palmHold = performance.now() - holdStartTimeRef.current;
                     if (palmHold >= 800) {
                       previewGestureLockRef.current = true;
+                      holdStartTimeRef.current = null;
                       handleConfirmUploadRef.current();
                     }
                   } else {
+                    fistHoldStartTimeRef.current = null;
                     holdStartTimeRef.current = null;
                   }
                 }
@@ -744,7 +759,7 @@ function KioskCapturePageContent() {
               setHandAreaRatio(0);
               setIsForeground(true);
               const timeSinceLast = performance.now() - (lastPalmSeenTimeRef.current || 0);
-              if (timeSinceLast > 250) {
+              if (timeSinceLast > 500) {
                 if (holdStartTimeRef.current !== null) {
                   holdStartTimeRef.current = null;
                   setHoldProgress(0);
@@ -803,6 +818,8 @@ function KioskCapturePageContent() {
     if (isPreviewing) {
       previewEnterTimeRef.current = performance.now();
       previewGestureLockRef.current = false;
+      holdStartTimeRef.current = null;
+      fistHoldStartTimeRef.current = null;
       let remaining = 10;
       setPreviewSeconds(remaining);
 
