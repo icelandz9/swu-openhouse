@@ -920,7 +920,7 @@ function KioskCapturePageContent() {
 
           {/* Screen bezel */}
           <div
-            style={{ width: '68cqw' }}
+            style={{ width: '66cqw' }}
             className="kc-bezel kc-px absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] pb-[.55cqw] pt-[.55cqw]">
             <p className="font-pixel mb-[.45cqw] text-[.78cqw] text-[#b9b9c2]">
               SWU OPEN HOUSE <span className="text-[var(--px-red-hi)]">2026</span> · 14-15 NOV

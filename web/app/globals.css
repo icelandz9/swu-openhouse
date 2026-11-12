@@ -844,7 +844,7 @@ button:focus-visible {
 .kc-cap {
   --s: 0.7cqw;
   position: absolute;
-  width: 15.2cqw;
+  width: 13.5cqw;
   height: 6.2cqw;
   background:
     /* screw: dark centre, grey ring, both square */
