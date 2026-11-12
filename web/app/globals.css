@@ -985,16 +985,15 @@ button:focus-visible {
 
 /* Pixel HUD progress bar (HP / loading) */
 .px-meter {
-  height: 14px;
-  background: #0a0203;
-  box-shadow: inset 0 0 0 2px #3a1218;
-  padding: 3px;
+  position: relative;
+  overflow: hidden;
+  background: #0e1118;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 
 .px-meter > span {
   display: block;
   height: 100%;
-  background: repeating-linear-gradient(90deg, var(--px-green) 0 8px, transparent 8px 10px);
 }
 }
 

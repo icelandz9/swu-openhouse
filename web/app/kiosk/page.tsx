@@ -1113,9 +1113,9 @@ function KioskCapturePageContent() {
                           : 'ชูมือ 5 นิ้ว เพื่อเริ่มถ่ายรูป'}
                     </p>
                     {holdProgress > 0 ? (
-                      <div className="px-meter mt-[.35cqw] h-[.8cqw] bg-[#11141c] border border-[#3b4252] rounded-[.2cqw] p-[.1cqw]">
+                      <div className="px-meter mt-[.35cqw] h-[.8cqw] w-full bg-[#0d1017] border border-[#333d4e] rounded-[.25cqw] p-[.1cqw]">
                         <span
-                          className="block h-full bg-gradient-to-r from-[var(--px-red)] via-[var(--px-gold)] to-[var(--px-green)] transition-all duration-75 shadow-[0_0_8px_rgba(255,204,0,0.6)]"
+                          className="block h-full rounded-[.15cqw] bg-gradient-to-r from-[#ef4444] via-[#f59e0b] to-[#10b981] shadow-[0_0_10px_rgba(16,185,129,0.55)]"
                           style={{ width: `${Math.max(0, Math.min(100, holdProgress))}%` }}
                         />
                       </div>
@@ -1123,7 +1123,13 @@ function KioskCapturePageContent() {
                       <p className="font-pixel mt-[.3cqw] truncate text-[.52cqw] text-[#94a3b8] tracking-wider">RAISE YOUR HAND TO START</p>
                     )}
                   </div>
-                  <span className="font-pixel shrink-0 text-[.68cqw] text-[var(--px-gold)] animate-pulse [text-shadow:0_0_8px_rgba(255,204,0,0.6)]">
+                  <span
+                    className={`font-pixel shrink-0 text-[.68cqw] tabular-nums ${
+                      holdProgress > 0
+                        ? 'text-[var(--px-gold)] [text-shadow:0_0_8px_rgba(255,204,0,0.85)]'
+                        : 'text-[var(--px-gold)] animate-pulse [text-shadow:0_0_8px_rgba(255,204,0,0.6)]'
+                    }`}
+                  >
                     {holdProgress > 0 ? `${Math.round(holdProgress)}%` : 'PRESS START'}
                   </span>
                 </div>
