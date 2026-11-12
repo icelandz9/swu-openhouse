@@ -31,8 +31,11 @@ function formatPhotoDate(iso: string) {
   };
 }
 
-// Wait a moment after a new photo arrives (so the upload has finished) before reloading.
-const RELOAD_AFTER_PHOTO_MS = 1500;
+// How often the display asks the server for the newest photo. Covers a display that runs on another
+// machine or browser, where the kiosk's BroadcastChannel message never arrives.
+const POLL_LATEST_MS = 3000;
+// Only photos taken this recently count as "new" when found by polling (older ones are history).
+const NEW_PHOTO_WINDOW_MS = 60000;
 
 function ShowcaseDisplayScreenContent() {
   const [photos, setPhotos] = useState<GalleryItem[]>(DEFAULT_SEEDS);
@@ -44,7 +47,8 @@ function ShowcaseDisplayScreenContent() {
   const [hostOrigin, setHostOrigin] = useState<string>('');
   const channelRef = useRef<BroadcastChannel | null>(null);
   const queueTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const reloadTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Codes already shown, so the BroadcastChannel event and the poll don't announce the same photo twice
+  const seenCodesRef = useRef<Set<string>>(new Set());
 
   // Activates a photo on the left showcase for 30s. If next photo arrives, resets timer immediately.
   const showPhotoInQueue = useCallback((photo: GalleryItem) => {
@@ -56,6 +60,24 @@ function ShowcaseDisplayScreenContent() {
       setActivePhoto(null); // Return to Standby mode (Black photo + IG QR)
     }, 30000); // 30 seconds
   }, []);
+
+  // A new photo arrived: show it on the left with its QR and add it to the wall, without reloading the page.
+  const receiveNewPhoto = useCallback(
+    (item: GalleryItem) => {
+      seenCodesRef.current.add(item.code);
+      setNewestCode(item.code);
+      showPhotoInQueue(item); // 30 s on the left; replaces the previous one
+      setPhotos((prev) => [item, ...prev.filter((p) => p.code !== item.code)].slice(0, 50));
+      try {
+        const rawGallery = localStorage.getItem('swu_photo_gallery') || '[]';
+        const gallery: GalleryItem[] = JSON.parse(rawGallery);
+        const updated = [item, ...gallery.filter((p) => p?.code !== item.code)].slice(0, 50);
+        localStorage.setItem('swu_photo_gallery', JSON.stringify(updated));
+        localStorage.setItem('swu_latest_photo', JSON.stringify(item));
+      } catch {}
+    },
+    [showPhotoInQueue]
+  );
 
   // Mount tracking and host resolution for hydration safety
   useEffect(() => {
@@ -141,6 +163,50 @@ function ShowcaseDisplayScreenContent() {
       .catch(() => {});
   }, []);
 
+  // Poll the server for the newest photo, so a new shot appears without a page refresh even when the
+  // kiosk runs in another browser or on another machine (BroadcastChannel only reaches the same browser).
+  useEffect(() => {
+    let stopped = false;
+    let firstPoll = true;
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/photos?latest=1', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const latest = data?.photo as (GalleryItem & { token?: string }) | null;
+        if (stopped || !latest?.code) return;
+        let deleted: string[] = [];
+        try {
+          deleted = JSON.parse(localStorage.getItem('swu_deleted_codes') || '[]');
+        } catch {}
+        const isFresh = Date.now() - new Date(latest.createdAt).getTime() < NEW_PHOTO_WINDOW_MS;
+        // The first answer only records what is already there; later answers announce new photos.
+        if (firstPoll || seenCodesRef.current.has(latest.code) || deleted.includes(latest.code) || !isFresh) {
+          seenCodesRef.current.add(latest.code);
+          return;
+        }
+        receiveNewPhoto({
+          code: latest.code,
+          qrUrl: latest.qrUrl,
+          token: latest.token,
+          photoUrl: latest.photoUrl,
+          createdAt: latest.createdAt,
+          style: 'NEURAL RED',
+        });
+      } catch {
+        // offline or not staff: the BroadcastChannel path still works
+      } finally {
+        firstPoll = false;
+      }
+    };
+    poll();
+    const id = setInterval(poll, POLL_LATEST_MS);
+    return () => {
+      stopped = true;
+      clearInterval(id);
+    };
+  }, [receiveNewPhoto]);
+
   // Listen to live capture events from Screen 1 (Kiosk)
   useEffect(() => {
     const channel = new BroadcastChannel(SCREEN_SYNC_CHANNEL);
@@ -151,35 +217,14 @@ function ShowcaseDisplayScreenContent() {
       if (!data) return;
 
       if (data.type === 'PHOTO_READY_FOR_DISPLAY') {
-        const newItem: GalleryItem = {
+        receiveNewPhoto({
           code: data.code,
           qrUrl: data.qrUrl,
           token: data.token,
           photoUrl: data.photoUrl,
           createdAt: data.createdAt,
           style: 'NEURAL RED',
-        };
-
-        setNewestCode(data.code);
-        showPhotoInQueue(newItem); // Starts 30s display; immediately replaces previous queue
-
-        setPhotos((prev) => {
-          const filtered = prev.filter((p) => p.code !== data.code);
-          return [newItem, ...filtered].slice(0, 50);
         });
-
-        // Save the new photo first, then reload the page so it shows up for sure.
-        // After the reload, the start-up code reads these back and keeps the photo on the
-        // left showcase for the rest of its 30 seconds.
-        try {
-          const rawGallery = localStorage.getItem('swu_photo_gallery') || '[]';
-          const gallery: GalleryItem[] = JSON.parse(rawGallery);
-          const updated = [newItem, ...gallery.filter((p) => p?.code !== data.code)].slice(0, 50);
-          localStorage.setItem('swu_photo_gallery', JSON.stringify(updated));
-          localStorage.setItem('swu_latest_photo', JSON.stringify(newItem));
-        } catch {}
-        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
-        reloadTimerRef.current = setTimeout(() => window.location.reload(), RELOAD_AFTER_PHOTO_MS);
       } else if (data.type === 'KIOSK_COMMAND' && data.command === 'SET_PUBLIC_DOMAIN') {
         if (typeof window !== 'undefined') {
           const val = typeof data.value === 'string' ? data.value.trim() : '';
@@ -290,11 +335,8 @@ function ShowcaseDisplayScreenContent() {
       if (queueTimerRef.current) {
         clearTimeout(queueTimerRef.current);
       }
-      if (reloadTimerRef.current) {
-        clearTimeout(reloadTimerRef.current);
-      }
     };
-  }, [showPhotoInQueue]);
+  }, [showPhotoInQueue, receiveNewPhoto]);
 
   // Compute clean QR URL (Hydration-safe with hostOrigin fallback)
   const cleanHostOrigin = hostOrigin?.trim().replace(/\/+$/, '');

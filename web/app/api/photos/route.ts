@@ -26,6 +26,17 @@ export async function GET(req: NextRequest) {
   if (denied) return denied;
   try {
     const photos = await photoStorageService.getAllPhotos();
+
+    // ?latest=1: just the newest photo, with a fresh QR token. The display polls this so a new shot
+    // shows up even when it runs on another machine/browser where the kiosk's BroadcastChannel can't reach.
+    if (req.nextUrl.searchParams.get('latest') === '1') {
+      const latest = photos[0] ?? null;
+      return NextResponse.json(
+        { success: true, photo: latest ? { ...latest, token: generatePhotoToken(latest.code).token } : null },
+        { headers: { ...CORS_HEADERS, 'Cache-Control': 'no-store' } }
+      );
+    }
+
     return NextResponse.json(
       {
         success: true,
