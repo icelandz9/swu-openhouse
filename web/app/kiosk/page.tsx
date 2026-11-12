@@ -22,10 +22,19 @@ import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL, PHOTO
 import { generateShortCode } from '@/lib/mobile/shortCodeGenerator';
 import { classifyGesture, LandmarkPoint } from '@/lib/ai-vision/gestureRules';
 import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
+import { pickNearestHandInCapture, type CaptureArea } from '@/lib/ai-vision/handPicker';
 import { calculateCrop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
 import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
+
+/** The capture crop as fractions of the camera frame: the area the kiosk screen marks as the photo. */
+function captureAreaOf(videoWidth: number, videoHeight: number, ratio: PhotoRatio): CaptureArea {
+  const vw = videoWidth || 1920;
+  const vh = videoHeight || 1080;
+  const crop = calculateCrop(vw, vh, ratio);
+  return { left: crop.sx / vw, right: (crop.sx + crop.sWidth) / vw, top: crop.sy / vh, bottom: (crop.sy + crop.sHeight) / vh };
+}
 
 /** Camera picked by default when several are plugged in. Override with ?cam=<part of the name>. */
 const DEFAULT_CAMERA_NAME = 'c922';
@@ -86,6 +95,9 @@ function KioskCapturePageContent() {
   const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.025);
   // 'frame' (default: the CPE frames' photo shape, 986x1080) or 4:3 landscape (wide, for groups); staff switch it in /admin
   const [photoRatio, setPhotoRatio] = useState<PhotoRatio>(PHOTO_ASPECT_RATIO);
+  // Read by the hand-tracking loop, which does not re-subscribe when the ratio changes
+  const photoRatioRef = useRef<PhotoRatio>(PHOTO_ASPECT_RATIO);
+  photoRatioRef.current = photoRatio;
   const currentStreamRef = useRef<MediaStream | null>(null);
 
   // Gesture detection & tracking
@@ -623,10 +635,15 @@ function KioskCapturePageContent() {
             const tStart = performance.now();
             const results = landmarker.detectForVideo(video, tStart);
             lastAiLatencyRef.current = Math.max(1, Math.round(performance.now() - tStart));
-            if (results && results.landmarks && results.landmarks.length > 0) {
-              const primaryHand = results.landmarks[0];
-              const worldHand = results.worldLandmarks?.[0];
-              const handedness = results.handedness?.[0]?.[0]?.categoryName ?? 'Right';
+            // Only hands inside the capture area (the part of the camera the kiosk screen shows) count,
+            // and of those the nearest one: the biggest on screen is the one closest to the camera.
+            const pickIdx = results?.landmarks?.length
+              ? pickNearestHandInCapture(results.landmarks, captureAreaOf(video.videoWidth, video.videoHeight, photoRatioRef.current))
+              : -1;
+            if (pickIdx >= 0) {
+              const primaryHand = results.landmarks[pickIdx];
+              const worldHand = results.worldLandmarks?.[pickIdx];
+              const handedness = results.handedness?.[pickIdx]?.[0]?.categoryName ?? 'Right';
               const aspect = video.videoWidth > 0 && video.videoHeight > 0
                 ? video.videoWidth / video.videoHeight
                 : 4 / 3;
