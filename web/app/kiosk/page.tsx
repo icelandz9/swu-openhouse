@@ -1059,23 +1059,31 @@ function KioskCapturePageContent() {
 
               {/* Review: retake / timer / confirm */}
               {isPreviewing && (
-                <div className="kc-dialog absolute inset-x-[1.2cqw] bottom-[1.2cqw] z-40 flex items-center justify-between gap-[1.2cqw] px-[1.2cqw] py-[.9cqw]">
-                  <button type="button" onClick={handleRetake} className="group px-btn px-corners gap-[.8cqw] px-[1.2cqw] py-[.7cqw]">
-                    <RotateCcw className="size-[1.4cqw] transition-transform group-hover:rotate-[-45deg]" />
+                // Compact review bar, kept inside the photo (which is centred in the screen in frame mode)
+                <div
+                  style={
+                    photoRatio === 'frame'
+                      ? { left: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 1.6cqw)`, right: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 1.6cqw)` }
+                      : { left: '3cqw', right: '3cqw' }
+                  }
+                  className="kc-dialog absolute bottom-[2.2cqw] z-40 flex items-center justify-between gap-[.8cqw] px-[.8cqw] py-[.6cqw]"
+                >
+                  <button type="button" onClick={handleRetake} className="group px-btn px-corners gap-[.5cqw] px-[.8cqw] py-[.5cqw]">
+                    <RotateCcw className="size-[1cqw] transition-transform group-hover:rotate-[-45deg]" />
                     <span className="text-left">
-                      <span className="block text-[1.05cqw] font-bold text-white">กำมือ เพื่อถ่ายใหม่</span>
-                      <span className="font-pixel-sm block text-[.7cqw] text-white/80">CONTINUE?</span>
+                      <span className="block text-[.8cqw] font-bold text-white">กำมือ เพื่อถ่ายใหม่</span>
+                      <span className="font-pixel-sm block text-[.5cqw] text-white/80">CONTINUE?</span>
                     </span>
                   </button>
                   <div className="text-center">
-                    <div className="font-pixel text-[1.6cqw] text-[var(--px-gold)] tabular-nums">{previewSeconds}s</div>
-                    <div className="font-pixel-sm text-[.65cqw] font-bold text-white/70">TIME</div>
+                    <div className="font-pixel text-[1.15cqw] text-[var(--px-gold)] tabular-nums">{previewSeconds}s</div>
+                    <div className="font-pixel-sm text-[.48cqw] font-bold text-white/70">TIME</div>
                   </div>
-                  <button type="button" onClick={handleConfirmUpload} className="px-btn px-btn-red px-corners gap-[.8cqw] px-[1.4cqw] py-[.7cqw]">
-                    <Check className="size-[1.6cqw]" strokeWidth={2.5} />
+                  <button type="button" onClick={handleConfirmUpload} className="px-btn px-btn-red px-corners gap-[.5cqw] px-[.9cqw] py-[.5cqw]">
+                    <Check className="size-[1.1cqw]" strokeWidth={2.5} />
                     <span className="text-left">
-                      <span className="block text-[1.05cqw] font-bold text-white">แบมือ ยืนยันรูปนี้</span>
-                      <span className="font-pixel-sm block text-[.7cqw] text-white/90">PRESS START</span>
+                      <span className="block text-[.8cqw] font-bold text-white">แบมือ ยืนยันรูปนี้</span>
+                      <span className="font-pixel-sm block text-[.5cqw] text-white/90">PRESS START</span>
                     </span>
                   </button>
                 </div>
