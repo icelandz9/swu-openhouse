@@ -192,8 +192,10 @@ export function HandMesh({
               strokeLinecap="round"
               transform="rotate(-90)"
             />
-            {/* Center percentage label */}
+            {/* Center percentage label. The whole SVG is mirrored (scale-x-[-1]) and stretched to the
+                container (preserveAspectRatio none), so flip the text back and undo the stretch. */}
             <text
+              transform={`scale(${-1 / containerAspect}, 1)`}
               x="0"
               y="0.8"
               fill="#FFFFFF"
