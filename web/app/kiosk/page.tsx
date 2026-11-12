@@ -18,7 +18,7 @@ import {
   Heart,
 } from 'lucide-react';
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
-import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL, PHOTO_ASPECT_RATIO, PhotoRatio, toPhotoRatio, FRAME_PHOTO_ASPECT, CROP_DIMENSIONS_FRAME } from '@/lib/contracts';
+import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL, PHOTO_ASPECT_RATIO, PhotoRatio, toPhotoRatio, FRAME_PHOTO_ASPECT } from '@/lib/contracts';
 import { generateShortCode } from '@/lib/mobile/shortCodeGenerator';
 import { classifyGesture, LandmarkPoint } from '@/lib/ai-vision/gestureRules';
 import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
@@ -1017,9 +1017,6 @@ function KioskCapturePageContent() {
                         aria-hidden
                       >
                         <div className="kc-brackets absolute inset-[1.2cqw]" />
-                        <span className="font-pixel absolute bottom-[9.6cqw] left-1/2 -translate-x-1/2 whitespace-nowrap bg-black/60 px-[.6cqw] py-[.3cqw] text-[.7cqw] text-white">
-                          พื้นที่ถ่าย · พอดีกรอบ {CROP_DIMENSIONS_FRAME.width}×{CROP_DIMENSIONS_FRAME.height}
-                        </span>
                       </div>
                     </>
                   ) : (
