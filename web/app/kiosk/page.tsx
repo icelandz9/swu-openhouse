@@ -30,9 +30,13 @@ import { CpeLogo } from '@/components/CpeLogo';
 import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
 import {
   IndustrialScrew,
-  IndustrialGear,
   BoltIcon,
-  EngineeringBadges,
+  StereoSpeakerGrille,
+  LeftWingHeader,
+  RightWingHeader,
+  TwinConsolePills,
+  TwinStatusLeds,
+  MechaGearDrive,
   MechaPixelAccent,
 } from '@/components/ConsoleArtwork';
 
@@ -878,83 +882,80 @@ function KioskCapturePageContent() {
             <IndustrialScrew className="absolute bottom-[1.6cqw] right-[1.6cqw] size-[1.4cqw]" />
           </div>
 
-          {/* Left Wing: SMO Engineering Logos, D-pad, SELECT / START, Industrial Gear */}
-          <div className="absolute inset-y-0 left-0 flex w-[15.8cqw] flex-col items-center pt-[2.2cqw]">
-            <EngineeringBadges className="scale-[0.88] origin-center" />
-            
-            <p className="font-pixel mt-[1.4cqw] text-center text-[.74cqw] leading-[1.6] text-[#b3b8c5] [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
-              BUILD YOUR
-              <br />
-              <span className="text-[var(--px-red-hi)]">OWN FUTURE</span>
-            </p>
-
-            {/* Tactile 3D Maroon D-Pad */}
-            <div className="relative mt-[2.6cqw] size-[8.6cqw]" aria-hidden>
-              <span className="kc-dpad absolute left-1/2 top-0 h-full w-[34%] -translate-x-1/2 rounded-[.1cqw]" />
-              <span className="kc-dpad absolute left-0 top-1/2 h-[34%] w-full -translate-y-1/2 rounded-[.1cqw]" />
-              <span className="absolute left-1/2 top-1/2 size-[20%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#4a0810] border border-[#6b0f19] shadow-[inset_0_1px_3px_rgba(0,0,0,0.9)]" />
+          {/* Left Wing: Perfectly Symmetrical 6-Tier Console Layout */}
+          <div className="absolute inset-y-0 left-0 flex w-[17cqw] flex-col items-center justify-between pt-[2.6cqw] pb-[4.4cqw] px-[1cqw]">
+            {/* Tier 1: Header (SMO Engineering Logo + Slogan) */}
+            <div className="flex h-[5.4cqw] items-center justify-center">
+              <LeftWingHeader />
             </div>
 
-            {/* SELECT / START Buttons */}
-            <div className="mt-[2cqw] flex gap-[1.2cqw]" aria-hidden>
-              {['SELECT', 'START'].map((label) => (
-                <div key={label} className="flex flex-col items-center gap-[.4cqw]">
-                  <span className="kc-pill kc-px h-[1.1cqw] w-[3.8cqw]" />
-                  <span className="font-pixel-sm text-[.6cqw] font-bold text-[#838999] tracking-wider">{label}</span>
-                </div>
-              ))}
+            {/* Tier 2: Primary Controls (Tactile 3D D-Pad in Recessed Well) */}
+            <div className="relative flex size-[8.6cqw] shrink-0 items-center justify-center rounded-full bg-[#141720] border border-[#2b3140] shadow-[inset_0_2px_5px_rgba(0,0,0,0.85),0_1px_0_rgba(255,255,255,0.05)]" aria-hidden>
+              <div className="relative size-[7.6cqw]">
+                <span className="kc-dpad absolute left-1/2 top-0 h-full w-[33%] -translate-x-1/2 rounded-[.1cqw]" />
+                <span className="kc-dpad absolute left-0 top-1/2 h-[33%] w-full -translate-y-1/2 rounded-[.1cqw]" />
+                <span className="absolute left-1/2 top-1/2 size-[22%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#4a0810] border border-[#6b0f19] shadow-[inset_0_1px_3px_rgba(0,0,0,0.9)]" />
+              </div>
             </div>
 
-            {/* Industrial Gear graphic (as seen in Image 2) */}
-            <div className="mt-[1.6cqw] flex items-center justify-center" aria-hidden>
-              <IndustrialGear className="size-[3.6cqw] animate-[spin_35s_linear_infinite] drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]" />
+            {/* Tier 3: Secondary Controls (Tactile Console Pills: SELECT / START) */}
+            <div className="flex h-[2.8cqw] items-center justify-center">
+              <TwinConsolePills pill1="SELECT" pill2="START" />
             </div>
 
-            {/* Status LEDs */}
-            <div className="mt-[1.6cqw] flex gap-[1.6cqw]" aria-hidden>
-              {[
-                ['CAM', cameraActive, 'bg-[#10b981] shadow-[0_0_8px_#10b981,inset_0_1px_1px_#a7f3d0]'],
-                ['HAND', Boolean(liveLandmarks), 'bg-[#06b6d4] shadow-[0_0_8px_#06b6d4,inset_0_1px_1px_#a5f3fc]'],
-              ].map(([label, on, onStyle]) => (
-                <div key={label as string} className="flex flex-col items-center gap-[.3cqw]">
-                  <span className={`size-[.8cqw] rounded-[.15cqw] border border-black/80 transition-all ${on ? onStyle : 'bg-[#2b2d35] shadow-[inset_0_1px_2px_rgba(0,0,0,0.8)]'}`} />
-                  <span className="font-pixel-sm text-[.56cqw] font-bold text-[#6f7584]">{label as string}</span>
-                </div>
-              ))}
+            {/* Tier 4: Stereo Acoustic Speaker Grille & Status LEDs (CAM / HAND) */}
+            <div className="flex flex-col items-center gap-[.8cqw]">
+              <StereoSpeakerGrille />
+              <TwinStatusLeds
+                led1={{ label: 'CAM', on: cameraActive, color: 'bg-[#10b981]', shadow: 'shadow-[0_0_8px_#10b981,inset_0_1px_1px_#a7f3d0]' }}
+                led2={{ label: 'HAND', on: Boolean(liveLandmarks), color: 'bg-[#06b6d4]', shadow: 'shadow-[0_0_8px_#06b6d4,inset_0_1px_1px_#a5f3fc]' }}
+              />
+            </div>
+
+            {/* Tier 5: Signature Anchor Artwork (Mecha Gear Drive) */}
+            <div className="flex items-end justify-center">
+              <MechaGearDrive />
             </div>
           </div>
 
-          {/* Right Wing: SWU Open House title, 4 Engineering Action buttons, Speaker grille, Mecha accent */}
-          <div className="absolute inset-y-0 right-0 flex w-[15.8cqw] flex-col items-center pt-[2.4cqw]">
-            <span className="font-pixel text-[.82cqw] font-bold text-white tracking-wider [text-shadow:2px_2px_0_#000,3px_3px_0_#8b1522]">
-              SWU OPEN HOUSE
-            </span>
-            <span className="font-pixel-sm text-[.52cqw] text-[#9ca3af] tracking-widest mt-[.2cqw]">
-              ENGINEERING 2026
-            </span>
-
-            {/* 4 Action Buttons in Diamond arrangement (Gear, Helmet, Wrench, Bolt - Image 3) */}
-            <div className="grid grid-cols-3 grid-rows-3 gap-[.4cqw] mt-[2cqw]" aria-hidden>
-              <span />
-              <span className="kc-btn size-[3.8cqw]" title="Gear (Cog)"><Cog className="size-[2cqw] drop-shadow" /></span>
-              <span />
-              <span className="kc-btn size-[3.8cqw]" title="Safety Helmet"><HardHat className="size-[2cqw] drop-shadow" /></span>
-              <span />
-              <span className="kc-btn size-[3.8cqw]" title="Wrench"><Wrench className="size-[2cqw] drop-shadow" /></span>
-              <span />
-              <span className="kc-btn size-[3.8cqw]" title="Screw / Bolt"><BoltIcon className="size-[2cqw] drop-shadow" /></span>
-              <span />
+          {/* Right Wing: Perfectly Symmetrical 6-Tier Console Layout */}
+          <div className="absolute inset-y-0 right-0 flex w-[17cqw] flex-col items-center justify-between pt-[2.6cqw] pb-[4.4cqw] px-[1cqw]">
+            {/* Tier 1: Header (SWU Open House Badge + Slogan) */}
+            <div className="flex h-[5.4cqw] items-center justify-center">
+              <RightWingHeader />
             </div>
 
-            {/* Speaker Grille Matrix */}
-            <div className="mt-[2.2cqw] grid grid-cols-5 gap-[.5cqw]" aria-hidden>
-              {Array.from({ length: 20 }, (_, i) => (
-                <span key={i} className="kc-grille size-[.72cqw] rounded-[.1cqw]" />
-              ))}
+            {/* Tier 2: Primary Controls (4 Engineering Action Buttons in Recessed Well) */}
+            <div className="relative flex size-[8.6cqw] shrink-0 items-center justify-center rounded-full bg-[#141720] border border-[#2b3140] shadow-[inset_0_2px_5px_rgba(0,0,0,0.85),0_1px_0_rgba(255,255,255,0.05)]" aria-hidden>
+              <div className="grid grid-cols-3 grid-rows-3 gap-[.25cqw] size-[7.6cqw]">
+                <span />
+                <span className="kc-btn size-[2.35cqw]" title="Gear (Cog)"><Cog className="size-[1.3cqw] drop-shadow" /></span>
+                <span />
+                <span className="kc-btn size-[2.35cqw]" title="Safety Helmet"><HardHat className="size-[1.3cqw] drop-shadow" /></span>
+                <span />
+                <span className="kc-btn size-[2.35cqw]" title="Wrench"><Wrench className="size-[1.3cqw] drop-shadow" /></span>
+                <span />
+                <span className="kc-btn size-[2.35cqw]" title="Screw / Bolt"><BoltIcon className="size-[1.3cqw] drop-shadow" /></span>
+                <span />
+              </div>
             </div>
 
-            {/* Pixel Art Mecha / Robot Mascot sitting on console chassis (as in Image 3) */}
-            <div className="mt-[1.2cqw] flex justify-center">
+            {/* Tier 3: Secondary Controls (Tactile Console Pills: RESET / TURBO) */}
+            <div className="flex h-[2.8cqw] items-center justify-center">
+              <TwinConsolePills pill1="RESET" pill2="TURBO" />
+            </div>
+
+            {/* Tier 4: Stereo Acoustic Speaker Grille & Status LEDs (LIVE / AI) */}
+            <div className="flex flex-col items-center gap-[.8cqw]">
+              <StereoSpeakerGrille />
+              <TwinStatusLeds
+                led1={{ label: 'LIVE', on: cameraActive, color: 'bg-[#ef4444]', shadow: 'shadow-[0_0_8px_#ef4444,inset_0_1px_1px_#fca5a5]' }}
+                led2={{ label: 'AI', on: Boolean(liveLandmarks || isDetecting), color: 'bg-[#f59e0b]', shadow: 'shadow-[0_0_8px_#f59e0b,inset_0_1px_1px_#fde68a]' }}
+              />
+            </div>
+
+            {/* Tier 5: Signature Anchor Artwork (Mecha Mascot) */}
+            <div className="flex items-end justify-center">
               <MechaPixelAccent />
             </div>
           </div>

@@ -63,72 +63,169 @@ export function BoltIcon({ className = 'size-[1.8cqw]' }: { className?: string }
   );
 }
 
-/** SMO Engineering and Faculty of Engineering logos header (as seen in Image 2) */
-export function EngineeringBadges({ className = '' }: { className?: string }) {
+/** Stereo speaker grille (balanced 2x5 acoustic dots) */
+export function StereoSpeakerGrille({ className = '' }: { className?: string }) {
   return (
-    <div className={`flex items-center gap-[.6cqw] ${className}`}>
-      {/* SMO Engineering Badge */}
-      <div className="flex items-center gap-[.3cqw] bg-[#12141a]/90 border border-[#373e4d] px-[.5cqw] py-[.25cqw] rounded-[.3cqw]">
-        <div className="flex flex-col items-center">
-          <span className="font-pixel text-[.7cqw] font-bold text-white tracking-wider leading-none">SMO</span>
-          <span className="font-pixel-sm text-[.4cqw] text-[var(--px-red-hi)] font-bold tracking-widest leading-none mt-[.15cqw]">ENGINEERING</span>
-        </div>
-      </div>
-
-      {/* SWU Engineering Seal Icon */}
-      <div className="flex size-[2.4cqw] items-center justify-center rounded-full bg-[#8b1522] border border-[#e63946] shadow-[0_0_8px_rgba(230,57,70,0.4)]">
-        <svg viewBox="0 0 24 24" className="size-[1.6cqw] text-white" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4" opacity="0.6" strokeWidth="1.2" />
-          <circle cx="12" cy="12" r="3" fill="#ffffff" />
-        </svg>
-      </div>
-
-      {/* Faculty Name */}
-      <div className="flex flex-col text-left">
-        <span className="text-[.6cqw] font-bold text-white leading-tight">Faculty of Engineering</span>
-        <span className="font-pixel-sm text-[.42cqw] text-[#9ca3af] leading-tight">SRINAKHARINWIROT UNIVERSITY</span>
-      </div>
+    <div className={`grid grid-cols-5 gap-[.45cqw] ${className}`} aria-hidden>
+      {Array.from({ length: 10 }, (_, i) => (
+        <span
+          key={i}
+          className="size-[.65cqw] rounded-full bg-[#0a0c12] border border-[#1e2330] shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.95),0_0.05cqw_0.1cqw_rgba(255,255,255,0.08)]"
+        />
+      ))}
     </div>
   );
 }
 
-/** Pixel Art Mecha / Robot Accent (matching Image 3 right-wing artwork) */
+/** Left wing header: SMO Engineering logo + SWU seal + Slogan */
+export function LeftWingHeader() {
+  return (
+    <div className="flex flex-col items-center text-center">
+      <div className="flex items-center gap-[.4cqw] bg-[#12151d] border border-[#2f3644] px-[.7cqw] py-[.25cqw] rounded-[.3cqw] shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+        {/* SWU Seal */}
+        <div className="flex size-[1.6cqw] items-center justify-center rounded-full bg-[#8b1522] border border-[#e63946] shadow-[0_0_6px_rgba(230,57,70,0.4)]">
+          <svg viewBox="0 0 24 24" className="size-[1.1cqw] text-white" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 3v18M3 12h18" strokeWidth="1.6" />
+            <circle cx="12" cy="12" r="2.8" fill="#ffffff" />
+          </svg>
+        </div>
+        <div className="flex flex-col items-start leading-none">
+          <span className="font-pixel text-[.64cqw] font-bold text-white tracking-wider">SMO</span>
+          <span className="font-pixel-sm text-[.38cqw] text-[var(--px-red-hi)] font-bold tracking-widest mt-[.08cqw]">ENGINEERING</span>
+        </div>
+      </div>
+      <p className="font-pixel mt-[.65cqw] text-[.64cqw] leading-[1.45] text-[#cbd5e1] [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]">
+        BUILD YOUR
+        <br />
+        <span className="text-[var(--px-red-hi)]">OWN FUTURE</span>
+      </p>
+    </div>
+  );
+}
+
+/** Right wing header: SWU OPEN HOUSE title + 2026 seal + Subtitle (mirror height of Left Wing) */
+export function RightWingHeader() {
+  return (
+    <div className="flex flex-col items-center text-center">
+      <div className="flex items-center gap-[.4cqw] bg-[#12151d] border border-[#2f3644] px-[.7cqw] py-[.25cqw] rounded-[.3cqw] shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+        {/* Open House Badge */}
+        <div className="flex size-[1.6cqw] items-center justify-center rounded-full bg-[#8b1522] border border-[#e63946] shadow-[0_0_6px_rgba(230,57,70,0.4)]">
+          <span className="font-pixel text-[.6cqw] font-bold text-white">26</span>
+        </div>
+        <div className="flex flex-col items-start leading-none">
+          <span className="font-pixel text-[.64cqw] font-bold text-white tracking-wider">SWU</span>
+          <span className="font-pixel-sm text-[.38cqw] text-[var(--px-gold)] font-bold tracking-widest mt-[.08cqw]">OPEN HOUSE</span>
+        </div>
+      </div>
+      <p className="font-pixel mt-[.65cqw] text-[.64cqw] leading-[1.45] text-[#cbd5e1] [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]">
+        ENGINEERING
+        <br />
+        <span className="text-[var(--px-gold)]">SWU 2026</span>
+      </p>
+    </div>
+  );
+}
+
+/** Twin console pill buttons (e.g. SELECT / START or RESET / TURBO) */
+export function TwinConsolePills({ pill1, pill2 }: { pill1: string; pill2: string }) {
+  return (
+    <div className="flex gap-[1cqw]" aria-hidden>
+      {[pill1, pill2].map((label) => (
+        <div key={label} className="flex flex-col items-center gap-[.3cqw]">
+          <span className="kc-pill kc-px h-[1cqw] w-[3.5cqw]" />
+          <span className="font-pixel-sm text-[.52cqw] font-bold text-[#838999] tracking-wider">{label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Twin status LEDs */
+export function TwinStatusLeds({
+  led1,
+  led2,
+}: {
+  led1: { label: string; on: boolean; color: string; shadow: string };
+  led2: { label: string; on: boolean; color: string; shadow: string };
+}) {
+  return (
+    <div className="flex gap-[1.4cqw]" aria-hidden>
+      {[led1, led2].map(({ label, on, color, shadow }) => (
+        <div key={label} className="flex flex-col items-center gap-[.25cqw]">
+          <span
+            className={`size-[.75cqw] rounded-[.15cqw] border border-black/80 transition-all ${
+              on ? `${color} ${shadow}` : 'bg-[#2b2d35] shadow-[inset_0_1px_2px_rgba(0,0,0,0.8)]'
+            }`}
+          />
+          <span className="font-pixel-sm text-[.52cqw] font-bold text-[#94a3b8]">{label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Left wing mechanical drive pedestal (balancing the right-wing Mecha mascot) */
+export function MechaGearDrive({ className = '' }: { className?: string }) {
+  return (
+    <div className={`flex flex-col items-center ${className}`} aria-hidden>
+      <div className="relative flex size-[5.8cqw] items-center justify-center rounded-[.5cqw] bg-[#12151e] border border-[#2b3345] shadow-[inset_0_2px_4px_rgba(0,0,0,0.8),0_3px_8px_rgba(0,0,0,0.6)]">
+        {/* Corner micro-screws */}
+        <span className="absolute left-[.35cqw] top-[.35cqw] size-[.35cqw] rounded-full bg-[#475569] shadow-[inset_0_1px_0_#94a3b8]" />
+        <span className="absolute right-[.35cqw] top-[.35cqw] size-[.35cqw] rounded-full bg-[#475569] shadow-[inset_0_1px_0_#94a3b8]" />
+        <span className="absolute bottom-[.35cqw] left-[.35cqw] size-[.35cqw] rounded-full bg-[#475569] shadow-[inset_0_1px_0_#94a3b8]" />
+        <span className="absolute bottom-[.35cqw] right-[.35cqw] size-[.35cqw] rounded-full bg-[#475569] shadow-[inset_0_1px_0_#94a3b8]" />
+        
+        {/* Rotating Industrial Gear */}
+        <IndustrialGear className="size-[3.8cqw] animate-[spin_35s_linear_infinite] drop-shadow-[0_2px_6px_rgba(0,0,0,0.7)]" />
+      </div>
+      <span className="font-pixel-sm mt-[.35cqw] text-[.48cqw] font-bold text-[#94a3b8] tracking-widest [text-shadow:0_1px_2px_rgba(0,0,0,0.8)]">
+        CORE // DRIVE
+      </span>
+    </div>
+  );
+}
+
+/** Pixel Art Mecha / Robot Mascot (matching Image 3 right-wing artwork) */
 export function MechaPixelAccent({ className = '' }: { className?: string }) {
   return (
     <div className={`pointer-events-none relative flex flex-col items-center select-none ${className}`} aria-hidden>
-      {/* Mecha head / torso pixel silhouette */}
-      <svg viewBox="0 0 64 64" className="w-[10.5cqw] h-auto drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]" shapeRendering="crispEdges">
-        {/* Antennas / V-fin (Yellow & Crimson) */}
-        <path d="M22 6h4v4h-4z M38 6h4v4h-4z M26 10h12v4H26z" fill="#f59e0b" />
-        <rect x="29" y="10" width="6" height="4" fill="#dc2626" />
-        {/* Helmet / Head (White & Dark Grey) */}
-        <path d="M20 14h24v12H20z" fill="#f8fafc" />
-        <path d="M18 16h2v10h-2z M44 16h2v10h-2z" fill="#94a3b8" />
-        {/* Eyes (Green LED visor) */}
-        <rect x="24" y="20" width="6" height="3" fill="#10b981" />
-        <rect x="34" y="20" width="6" height="3" fill="#10b981" />
-        {/* Face plate (Red & White) */}
-        <rect x="29" y="22" width="6" height="6" fill="#dc2626" />
-        <rect x="25" y="24" width="14" height="4" fill="#f1f5f9" />
-        {/* Torso & Shoulders (Crimson, Navy & Dark Titanium) */}
-        <rect x="14" y="28" width="36" height="18" fill="#881337" />
-        <rect x="8" y="28" width="8" height="14" fill="#f8fafc" />
-        <rect x="48" y="28" width="8" height="14" fill="#f8fafc" />
-        <rect x="22" y="32" width="20" height="8" fill="#1e293b" />
-        {/* Chest Vents (Yellow) */}
-        <rect x="24" y="34" width="6" height="2" fill="#fbbf24" />
-        <rect x="34" y="34" width="6" height="2" fill="#fbbf24" />
-        <rect x="24" y="38" width="6" height="2" fill="#fbbf24" />
-        <rect x="34" y="38" width="6" height="2" fill="#fbbf24" />
-        {/* Cockpit Hatch (Red) */}
-        <rect x="28" y="33" width="8" height="11" fill="#e11d48" />
-        {/* Arms & Lower Base (White, Grey, Navy) */}
-        <rect x="10" y="44" width="10" height="14" fill="#e2e8f0" />
-        <rect x="44" y="44" width="10" height="14" fill="#e2e8f0" />
-        <rect x="20" y="46" width="24" height="12" fill="#0f172a" />
-        <rect x="26" y="48" width="12" height="6" fill="#e11d48" />
-      </svg>
+      <div className="flex size-[5.8cqw] items-center justify-center">
+        <svg viewBox="0 0 64 64" className="w-[5.8cqw] h-auto drop-shadow-[0_4px_10px_rgba(0,0,0,0.85)]" shapeRendering="crispEdges">
+          {/* Antennas / V-fin (Yellow & Crimson) */}
+          <path d="M22 6h4v4h-4z M38 6h4v4h-4z M26 10h12v4H26z" fill="#f59e0b" />
+          <rect x="29" y="10" width="6" height="4" fill="#dc2626" />
+          {/* Helmet / Head (White & Grey) */}
+          <path d="M20 14h24v12H20z" fill="#f8fafc" />
+          <path d="M18 16h2v10h-2z M44 16h2v10h-2z" fill="#94a3b8" />
+          {/* Eyes (Green LED visor) */}
+          <rect x="24" y="20" width="6" height="3" fill="#10b981" />
+          <rect x="34" y="20" width="6" height="3" fill="#10b981" />
+          {/* Face plate (Red & White) */}
+          <rect x="29" y="22" width="6" height="6" fill="#dc2626" />
+          <rect x="25" y="24" width="14" height="4" fill="#f1f5f9" />
+          {/* Torso & Shoulders (Crimson, Navy & Dark Titanium) */}
+          <rect x="14" y="28" width="36" height="18" fill="#881337" />
+          <rect x="8" y="28" width="8" height="14" fill="#f8fafc" />
+          <rect x="48" y="28" width="8" height="14" fill="#f8fafc" />
+          <rect x="22" y="32" width="20" height="8" fill="#1e293b" />
+          {/* Chest Vents (Yellow) */}
+          <rect x="24" y="34" width="6" height="2" fill="#fbbf24" />
+          <rect x="34" y="34" width="6" height="2" fill="#fbbf24" />
+          <rect x="24" y="38" width="6" height="2" fill="#fbbf24" />
+          <rect x="34" y="38" width="6" height="2" fill="#fbbf24" />
+          {/* Cockpit Hatch (Red) */}
+          <rect x="28" y="33" width="8" height="11" fill="#e11d48" />
+          {/* Arms & Lower Base (White, Grey, Navy) */}
+          <rect x="10" y="44" width="10" height="14" fill="#e2e8f0" />
+          <rect x="44" y="44" width="10" height="14" fill="#e2e8f0" />
+          <rect x="20" y="46" width="24" height="12" fill="#0f172a" />
+          <rect x="26" y="48" width="12" height="6" fill="#e11d48" />
+        </svg>
+      </div>
+      <span className="font-pixel-sm mt-[.35cqw] text-[.48cqw] font-bold text-[#94a3b8] tracking-widest [text-shadow:0_1px_2px_rgba(0,0,0,0.8)]">
+        UNIT // 01-SWU
+      </span>
     </div>
   );
 }
