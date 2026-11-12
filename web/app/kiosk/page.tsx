@@ -28,6 +28,11 @@ import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
 import { SafeErrorBoundary } from '@/components/SafeErrorBoundary';
 
+// The console screen is always 4:3. In frame mode the 934:1023 capture box sits centred in it:
+// box width = (934/1023) / (4/3) = 68.5% of the screen, 15.8% dimmed on each side.
+const CAPTURE_BOX_PCT = (FRAME_PHOTO_ASPECT / (4 / 3)) * 100;
+const CAPTURE_SIDE_PCT = (100 - CAPTURE_BOX_PCT) / 2;
+
 /** The capture crop as fractions of the camera frame: the area the kiosk screen marks as the photo. */
 function captureAreaOf(videoWidth: number, videoHeight: number, ratio: PhotoRatio): CaptureArea {
   const vw = videoWidth || 1920;
@@ -850,14 +855,14 @@ function KioskCapturePageContent() {
       {/* 16:9 stage; everything inside is sized in cqw (1% of the stage width) so it scales as one console */}
       <div className="kiosk-stage relative aspect-video h-auto max-h-dvh w-full max-w-[calc(100dvh*16/9)] overflow-hidden [container-type:inline-size]">
         {/* Handheld console body */}
-        <div className="kc-body absolute inset-[.8cqw]">
-          <span className="kc-cap kc-cap-tl" aria-hidden />
-          <span className="kc-cap kc-cap-tr" aria-hidden />
-          <span className="kc-cap kc-cap-bl" aria-hidden />
-          <span className="kc-cap kc-cap-br" aria-hidden />
+        <div className="kc-body kc-px absolute inset-[.8cqw]">
+          <span className="kc-cap kc-px kc-cap-tl" aria-hidden />
+          <span className="kc-cap kc-px kc-cap-tr" aria-hidden />
+          <span className="kc-cap kc-px kc-cap-bl" aria-hidden />
+          <span className="kc-cap kc-px kc-cap-br" aria-hidden />
 
           {/* Left: logo, D-pad, SELECT / START */}
-          <div className="absolute inset-y-0 left-0 flex w-[14.2cqw] flex-col items-center pt-[8.4cqw]">
+          <div className="absolute inset-y-0 left-0 flex w-[15.2cqw] flex-col items-center pt-[8.4cqw]">
             <div className="w-[10.4cqw]">
               <CpeLogo className="px-logo-pop h-auto max-w-full" />
             </div>
@@ -869,61 +874,61 @@ function KioskCapturePageContent() {
             <div className="relative mt-[3.8cqw] size-[8.4cqw]" aria-hidden>
               <span className="kc-dpad absolute left-1/2 top-0 h-full w-[34%] -translate-x-1/2" />
               <span className="kc-dpad absolute left-0 top-1/2 h-[34%] w-full -translate-y-1/2" />
-              <span className="absolute left-1/2 top-1/2 size-[18%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--px-red-dark)] shadow-[inset_0_.2cqw_.3cqw_rgba(0,0,0,.5)]" />
+              <span className="absolute left-1/2 top-1/2 size-[18%] -translate-x-1/2 -translate-y-1/2 bg-[var(--px-red-dark)]" />
             </div>
             <div className="mt-[3cqw] flex gap-[1.2cqw]" aria-hidden>
               {['SELECT', 'START'].map((label) => (
                 <div key={label} className="flex flex-col items-center gap-[.5cqw]">
-                  <span className="kc-pill h-[1.1cqw] w-[3.8cqw]" />
+                  <span className="kc-pill kc-px h-[1.1cqw] w-[3.8cqw]" />
                   <span className="font-pixel-sm text-[.62cqw] font-bold text-[#4a4a52]">{label}</span>
+                </div>
+              ))}
+            </div>
+            {/* Status LEDs (outside the bezel: its pixel corners would clip anything hanging off it) */}
+            <div className="mt-[2.4cqw] flex gap-[1.6cqw]" aria-hidden>
+              {[
+                ['CAM', cameraActive],
+                ['HAND', Boolean(liveLandmarks)],
+              ].map(([label, on]) => (
+                <div key={label as string} className="flex flex-col items-center gap-[.3cqw]">
+                  <span className={`size-[.8cqw] ${on ? 'bg-[var(--px-green)] shadow-[inset_-.15cqw_-.15cqw_0_#2f8a45]' : 'bg-[#6a6a72] shadow-[inset_-.15cqw_-.15cqw_0_#4a4a52]'}`} />
+                  <span className="font-pixel-sm text-[.6cqw] font-bold text-[#4a4a52]">{label as string}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Right: gear / hard hat / wrench / hammer buttons and the speaker grille */}
-          <div className="absolute inset-y-0 right-0 flex w-[14.2cqw] flex-col items-center pt-[13cqw]">
+          <div className="absolute inset-y-[6.2cqw] right-0 flex w-[15.2cqw] flex-col items-center justify-center">
             <div className="grid grid-cols-3 grid-rows-3 gap-[.35cqw]" aria-hidden>
               <span />
-              <span className="px-round size-[3.8cqw]"><Cog className="size-[2cqw]" /></span>
+              <span className="kc-btn size-[3.8cqw]"><Cog className="size-[2cqw]" /></span>
               <span />
-              <span className="px-round size-[3.8cqw]"><HardHat className="size-[2cqw]" /></span>
+              <span className="kc-btn size-[3.8cqw]"><HardHat className="size-[2cqw]" /></span>
               <span />
-              <span className="px-round size-[3.8cqw]"><Wrench className="size-[2cqw]" /></span>
+              <span className="kc-btn size-[3.8cqw]"><Wrench className="size-[2cqw]" /></span>
               <span />
-              <span className="px-round size-[3.8cqw]"><Hammer className="size-[2cqw]" /></span>
+              <span className="kc-btn size-[3.8cqw]"><Hammer className="size-[2cqw]" /></span>
               <span />
             </div>
-            <div className="mt-[3.6cqw] ml-[2cqw] flex gap-[.8cqw]" aria-hidden>
-              {Array.from({ length: 5 }, (_, i) => (
-                <span key={i} className="kc-grille h-[5cqw] w-[.6cqw]" />
+            <div className="mt-[3.6cqw] grid grid-cols-5 gap-[.55cqw]" aria-hidden>
+              {Array.from({ length: 20 }, (_, i) => (
+                <span key={i} className="kc-grille size-[.75cqw]" />
               ))}
             </div>
           </div>
 
           {/* Screen bezel */}
           <div
-            style={{ width: photoRatio === 'frame' ? '52cqw' : '65.5cqw' }}
-            className="kc-bezel absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] pb-[.8cqw] pt-[.8cqw]">
+            style={{ width: '68cqw' }}
+            className="kc-bezel kc-px absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center px-[1.8cqw] pb-[.55cqw] pt-[.55cqw]">
             <p className="font-pixel mb-[.45cqw] text-[.78cqw] text-[#b9b9c2]">
               SWU OPEN HOUSE <span className="text-[var(--px-red-hi)]">2026</span> · 14-15 NOV
             </p>
 
-            {/* LEDs on the bezel, left of the screen */}
-            <div className="absolute -left-[2.6cqw] top-1/2 flex -translate-y-1/2 flex-col items-center gap-[1.4cqw]" aria-hidden>
-              {[
-                ['CAM', cameraActive],
-                ['HAND', Boolean(liveLandmarks)],
-              ].map(([label, on]) => (
-                <div key={label as string} className="flex flex-col items-center gap-[.3cqw]">
-                  <span className={`size-[.8cqw] ${on ? 'bg-[var(--px-green)] shadow-[0_0_.6cqw_var(--px-green)]' : 'bg-[#6a6a72]'}`} />
-                  <span className="font-pixel-sm text-[.55cqw] font-bold text-[#4a4a52]">{label as string}</span>
-                </div>
-              ))}
-            </div>
-
             {/* The 4:3 screen = exactly what gets captured */}
-            <div className={`kc-screen relative w-full overflow-hidden ${photoRatio === 'frame' ? 'aspect-square' : 'aspect-[4/3]'}`}>
+            <div className="kc-screen relative aspect-[4/3] w-full overflow-hidden">
+              <div className="kc-scanlines pointer-events-none absolute inset-0 z-[22]" aria-hidden />
               <video
                 ref={videoRef}
                 muted
@@ -938,7 +943,7 @@ function KioskCapturePageContent() {
                 <div className="absolute inset-0 z-10 flex items-center justify-center">
                   <PixelSkyline className="opacity-80" />
                   <div className="relative flex flex-col items-center px-[2cqw] text-center">
-                    <h3 className={`px-title ${photoRatio === 'frame' ? 'text-[3.4cqw]' : 'text-[4.4cqw]'}`}>ENGINEERING</h3>
+                    <h3 className="px-title text-[4.4cqw]">ENGINEERING</h3>
                     <p className="font-pixel px-menu-item mt-[1cqw] -rotate-2 text-[1.3cqw]">BUILD YOUR OWN FUTURE</p>
                     <GameMenu className="mt-[2cqw] text-[1cqw]" />
                     <p className="mt-[1.8cqw] text-[1.05cqw] font-semibold text-white [text-shadow:2px_2px_0_#1a0306]">
@@ -975,7 +980,7 @@ function KioskCapturePageContent() {
                   isForeground={isForeground}
                   gestureText={detectedGestureText}
                   videoDimensions={videoDimensions}
-                  containerAspect={photoRatio === 'frame' ? 1 : 4 / 3}
+                  containerAspect={4 / 3}
                 />
               )}
 
@@ -984,7 +989,7 @@ function KioskCapturePageContent() {
                 <>
                   {/* Smaller badges; in frame mode they sit inside the white box, between its corner brackets */}
                   <div
-                    style={photoRatio === 'frame' ? { left: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 4.4cqw)`, top: '1.5cqw' } : { left: '1.2cqw', top: '1.1cqw' }}
+                    style={photoRatio === 'frame' ? { left: `calc(${CAPTURE_SIDE_PCT}% + 4.4cqw)`, top: '1.5cqw' } : { left: '1.2cqw', top: '1.1cqw' }}
                     className="font-pixel pointer-events-none absolute z-30 flex items-center gap-[.4cqw] bg-black/55 px-[.5cqw] py-[.3cqw] text-[.62cqw] text-white"
                   >
                     PLAYER 1
@@ -995,7 +1000,7 @@ function KioskCapturePageContent() {
                     </span>
                   </div>
                   <div
-                    style={photoRatio === 'frame' ? { right: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 4.4cqw)`, top: '1.5cqw' } : { right: '1.2cqw', top: '1.1cqw' }}
+                    style={photoRatio === 'frame' ? { right: `calc(${CAPTURE_SIDE_PCT}% + 4.4cqw)`, top: '1.5cqw' } : { right: '1.2cqw', top: '1.1cqw' }}
                     className="font-pixel pointer-events-none absolute z-30 flex items-center gap-[.35cqw] bg-black/55 px-[.5cqw] py-[.3cqw] text-[.62cqw] text-white"
                   >
                     <span className="size-[.5cqw] animate-pulse bg-[var(--px-red-hi)]" />
@@ -1005,10 +1010,10 @@ function KioskCapturePageContent() {
                     <>
                       {/* Capture area. The square screen shows the camera's centre square; the frame-shaped crop
                           (934:1023) is 91.3% of its width, centred (4.35% each side). */}
-                      <div style={{ width: `${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}%` }} className="pointer-events-none absolute inset-y-0 left-0 z-20 bg-black/55" aria-hidden />
-                      <div style={{ width: `${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}%` }} className="pointer-events-none absolute inset-y-0 right-0 z-20 bg-black/55" aria-hidden />
+                      <div style={{ width: `${CAPTURE_SIDE_PCT}%` }} className="pointer-events-none absolute inset-y-0 left-0 z-20 bg-black/55" aria-hidden />
+                      <div style={{ width: `${CAPTURE_SIDE_PCT}%` }} className="pointer-events-none absolute inset-y-0 right-0 z-20 bg-black/55" aria-hidden />
                       <div
-                        style={{ left: `${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}%`, width: `${FRAME_PHOTO_ASPECT * 100}%` }}
+                        style={{ left: `${CAPTURE_SIDE_PCT}%`, width: `${CAPTURE_BOX_PCT}%` }}
                         className="pointer-events-none absolute inset-y-0 z-20 shadow-[inset_0_0_0_.25cqw_rgba(255,255,255,.9)]"
                         aria-hidden
                       >
@@ -1030,10 +1035,10 @@ function KioskCapturePageContent() {
                 <div
                   style={
                     photoRatio === 'frame'
-                      ? { left: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 1.6cqw)`, right: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 1.6cqw)` }
+                      ? { left: `calc(${CAPTURE_SIDE_PCT}% + 1.6cqw)`, right: `calc(${CAPTURE_SIDE_PCT}% + 1.6cqw)` }
                       : { left: '3cqw', right: '3cqw' }
                   }
-                  className="kc-dialog pointer-events-none absolute bottom-[2.2cqw] z-30 flex items-center gap-[.8cqw] px-[.9cqw] py-[.6cqw]"
+                  className="kc-dialog kc-px pointer-events-none absolute bottom-[2.2cqw] z-30 flex items-center gap-[.8cqw] px-[.9cqw] py-[.6cqw]"
                 >
                   <span className="flex size-[2.5cqw] shrink-0 items-center justify-center rounded-[.4cqw] bg-[var(--px-red)]">
                     <Hand className="size-[1.5cqw] text-white" strokeWidth={2.2} />
@@ -1064,7 +1069,7 @@ function KioskCapturePageContent() {
               {isCountingDown && (
                 <div className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/25">
                   <span className="px-title text-[12cqw] leading-none tabular-nums">{countdown}</span>
-                  <div className="kc-dialog mt-[1.6cqw] px-[1.6cqw] py-[.7cqw] text-[1.3cqw] font-bold text-white">
+                  <div className="kc-dialog kc-px mt-[1.6cqw] px-[1.6cqw] py-[.7cqw] text-[1.3cqw] font-bold text-white">
                     <span className="font-pixel mr-[.8cqw] text-[1cqw] text-[var(--px-gold)]">READY?</span>
                     โพสท่าอิสระได้เลย!
                   </div>
@@ -1080,10 +1085,10 @@ function KioskCapturePageContent() {
                 <div
                   style={
                     photoRatio === 'frame'
-                      ? { left: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 1.6cqw)`, right: `calc(${((1 - FRAME_PHOTO_ASPECT) / 2) * 100}% + 1.6cqw)` }
+                      ? { left: `calc(${CAPTURE_SIDE_PCT}% + 1.6cqw)`, right: `calc(${CAPTURE_SIDE_PCT}% + 1.6cqw)` }
                       : { left: '3cqw', right: '3cqw' }
                   }
-                  className="kc-dialog absolute bottom-[2.2cqw] z-40 flex items-center justify-between gap-[.8cqw] px-[.8cqw] py-[.6cqw]"
+                  className="kc-dialog kc-px absolute bottom-[2.2cqw] z-40 flex items-center justify-between gap-[.8cqw] px-[.8cqw] py-[.6cqw]"
                 >
                   <button type="button" onClick={handleRetake} className="group px-btn px-corners gap-[.5cqw] px-[.8cqw] py-[.5cqw]">
                     <RotateCcw className="size-[1cqw] transition-transform group-hover:rotate-[-45deg]" />

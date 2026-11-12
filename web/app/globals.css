@@ -814,75 +814,108 @@ button:focus-visible {
     drop-shadow(0.25vw 0.3vw 0 rgba(26, 3, 6, 0.55));
 }
 
-/* ---- Kiosk handheld console (sized in cqw of the 16:9 stage) ---- */
-.kc-body {
-  border-radius: 3.2cqw;
-  background:
-    radial-gradient(120% 90% at 50% 0%, #d6d5da 0%, #c3c2c8 55%, #aeadb3 100%);
-  box-shadow:
-    inset 0 0.35cqw 0 rgba(255, 255, 255, 0.55),
-    inset 0 -0.6cqw 0 rgba(0, 0, 0, 0.22),
-    0 0.6cqw 0 #6f6e74,
-    0 1.2cqw 2.4cqw rgba(0, 0, 0, 0.55);
+/* ---- Kiosk handheld console (sized in cqw of the 16:9 stage), drawn as pixel art ----
+   Flat colours, hard 1-step bevels, stepped corners and no blur, so it reads like an 8-bit sprite. */
+
+/* Two-step pixel corners; set --s for the step size */
+.kc-px {
+  --s: 0.8cqw;
+  clip-path: polygon(
+    0 calc(var(--s) * 3), var(--s) calc(var(--s) * 3), var(--s) var(--s), calc(var(--s) * 3) var(--s), calc(var(--s) * 3) 0,
+    calc(100% - var(--s) * 3) 0, calc(100% - var(--s) * 3) var(--s), calc(100% - var(--s)) var(--s), calc(100% - var(--s)) calc(var(--s) * 3), 100% calc(var(--s) * 3),
+    100% calc(100% - var(--s) * 3), calc(100% - var(--s)) calc(100% - var(--s) * 3), calc(100% - var(--s)) calc(100% - var(--s)), calc(100% - var(--s) * 3) calc(100% - var(--s)), calc(100% - var(--s) * 3) 100%,
+    calc(var(--s) * 3) 100%, calc(var(--s) * 3) calc(100% - var(--s)), var(--s) calc(100% - var(--s)), var(--s) calc(100% - var(--s) * 3), 0 calc(100% - var(--s) * 3)
+  );
 }
 
-/* Red corner plates with one screw each */
+/* Console body: flat light grey, 1-pixel highlight on top/left, shadow on bottom/right */
+.kc-body {
+  --s: 1.1cqw;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.035) 0 0.25cqw, transparent 0.25cqw 0.5cqw),
+    #c6c5cb;
+  box-shadow:
+    inset 0.45cqw 0.45cqw 0 #e4e3e8,
+    inset -0.45cqw -0.6cqw 0 #8f8e95,
+    inset -0.9cqw -1.1cqw 0 #a9a8ae;
+}
+
+/* Red corner plates with one pixel screw each */
 .kc-cap {
+  --s: 0.7cqw;
   position: absolute;
-  width: 11.5cqw;
+  width: 15.2cqw;
   height: 6.2cqw;
   background:
-    radial-gradient(circle at 2.2cqw 2.2cqw, #1c1b20 0 0.32cqw, #9a99a0 0.36cqw 0.55cqw, transparent 0.58cqw),
-    linear-gradient(160deg, #d8293f 0%, var(--px-red) 40%, #8a0c20 100%);
+    /* screw: dark centre, grey ring, both square */
+    linear-gradient(#1c1b20, #1c1b20) 2.1cqw 2.1cqw / 0.6cqw 0.6cqw no-repeat,
+    linear-gradient(#a7a6ad, #a7a6ad) 1.8cqw 1.8cqw / 1.2cqw 1.2cqw no-repeat,
+    var(--px-red);
   box-shadow:
-    inset 0.25cqw 0.25cqw 0 rgba(255, 255, 255, 0.25),
-    inset -0.3cqw -0.4cqw 0 rgba(0, 0, 0, 0.3);
+    inset 0.35cqw 0.35cqw 0 #e8384f,
+    inset -0.35cqw -0.45cqw 0 #7a0a1c;
 }
 /* Drawn as the top-left plate, mirrored into the other corners */
-.kc-cap { border-radius: 3.2cqw 0 1.6cqw 0; }
 .kc-cap-tl { top: 0; left: 0; }
 .kc-cap-tr { top: 0; right: 0; transform: scaleX(-1); }
 .kc-cap-bl { bottom: 0; left: 0; transform: scaleY(-1); }
 .kc-cap-br { bottom: 0; right: 0; transform: scale(-1, -1); }
 
-/* Dark screen bezel around the 4:3 camera screen */
+/* Dark screen bezel */
 .kc-bezel {
-  border-radius: 2cqw;
-  background: linear-gradient(180deg, #4a4a52 0%, #34343a 100%);
+  --s: 0.7cqw;
+  background: #3b3b42;
   box-shadow:
-    inset 0 0.25cqw 0 rgba(255, 255, 255, 0.12),
-    inset 0 -0.3cqw 0 rgba(0, 0, 0, 0.35),
-    0 0 0 0.35cqw #8e8d94;
+    inset 0 0 0 0.3cqw #26262b,
+    inset 0.6cqw 0.6cqw 0 #55555d,
+    inset -0.6cqw -0.6cqw 0 #2c2c32;
 }
 
+/* Camera screen, with faint CRT scanlines drawn above the video (see .kc-scanlines) */
 .kc-screen {
   background: #0c0305;
-  box-shadow: 0 0 0 0.3cqw #1a1a1f;
+  box-shadow: 0 0 0 0.3cqw #121216;
+}
+.kc-scanlines {
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 0.12cqw, transparent 0.12cqw 0.36cqw);
 }
 
-/* Red cross D-pad arm */
+/* Red cross D-pad arm: square, flat, hard bevel */
 .kc-dpad {
-  border-radius: 0.6cqw;
-  background: linear-gradient(180deg, #d8293f 0%, var(--px-red) 50%, #9c0e24 100%);
+  background: var(--px-red);
   box-shadow:
-    inset 0 0.25cqw 0 rgba(255, 255, 255, 0.3),
-    0 0.4cqw 0 #6e0a19;
+    inset 0.3cqw 0.3cqw 0 #e8384f,
+    inset -0.3cqw -0.45cqw 0 #7a0a1c;
 }
 
-/* SELECT / START pill */
+/* SELECT / START: small flat bars */
 .kc-pill {
-  border-radius: 9999px;
-  background: linear-gradient(180deg, #3d3d44, #26262b);
-  box-shadow: inset 0 0.15cqw 0 rgba(255, 255, 255, 0.18), 0 0.2cqw 0 #7a797f;
-  transform: rotate(-8deg);
+  --s: 0.25cqw;
+  background: #36363d;
+  box-shadow: inset 0.2cqw 0.2cqw 0 #5a5a62, inset -0.2cqw -0.25cqw 0 #1f1f24;
 }
 
-/* Speaker grille slot */
+/* Speaker grille: one square hole (the JSX lays them out in a grid) */
 .kc-grille {
-  border-radius: 9999px;
-  background: #8f8e95;
-  box-shadow: inset 0.15cqw 0.15cqw 0 rgba(0, 0, 0, 0.35);
-  transform: rotate(30deg);
+  background: #7b7a81;
+  box-shadow: inset 0.15cqw 0.15cqw 0 #55545a;
+}
+
+/* Round console buttons as pixel circles (10 x 10 grid) */
+.kc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--px-red);
+  box-shadow:
+    inset 0.35cqw 0.35cqw 0 #e8384f,
+    inset -0.35cqw -0.5cqw 0 #7a0a1c;
+  clip-path: polygon(
+    30% 0, 70% 0, 70% 10%, 80% 10%, 80% 20%, 90% 20%, 90% 30%, 100% 30%, 100% 70%, 90% 70%, 90% 80%, 80% 80%,
+    80% 90%, 70% 90%, 70% 100%, 30% 100%, 30% 90%, 20% 90%, 20% 80%, 10% 80%, 10% 70%, 0 70%, 0 30%, 10% 30%,
+    10% 20%, 20% 20%, 20% 10%, 30% 10%
+  );
 }
 
 /* Viewfinder corner brackets */
@@ -898,16 +931,16 @@ button:focus-visible {
     linear-gradient(#fff, #fff) bottom left / var(--b) var(--l) no-repeat,
     linear-gradient(#fff, #fff) bottom right / var(--l) var(--b) no-repeat,
     linear-gradient(#fff, #fff) bottom right / var(--b) var(--l) no-repeat;
-  filter: drop-shadow(0 0 0.15cqw rgba(0, 0, 0, 0.6));
 }
 
-/* Dialog box: plain navy panel, one thin light border */
+/* Dialog box: flat navy, square pixel corners, one light border */
 .kc-dialog {
-  border-radius: 0.8cqw;
-  background: rgba(22, 26, 74, 0.92);
+  --s: 0.3cqw;
+  background: rgb(22, 26, 74);
   box-shadow:
-    inset 0 0 0 0.12cqw rgba(255, 255, 255, 0.35),
-    0 0.4cqw 1.2cqw rgba(0, 0, 0, 0.35);
+    inset 0 0 0 0.15cqw rgba(255, 255, 255, 0.55),
+    inset 0 0 0 0.3cqw rgb(22, 26, 74),
+    inset 0 -0.5cqw 0 rgba(0, 0, 0, 0.25);
 }
 
 /* Diamond arrow key (rotated rounded square) for the console's direction pad */
