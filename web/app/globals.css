@@ -871,13 +871,10 @@ button:focus-visible {
     inset -0.6cqw -0.6cqw 0 #2c2c32;
 }
 
-/* Camera screen, with faint CRT scanlines drawn above the video (see .kc-scanlines) */
+/* Camera screen (kept clear: no scanlines over the camera) */
 .kc-screen {
   background: #0c0305;
   box-shadow: 0 0 0 0.3cqw #121216;
-}
-.kc-scanlines {
-  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 0.12cqw, transparent 0.12cqw 0.36cqw);
 }
 
 /* Red cross D-pad arm: square, flat, hard bevel */

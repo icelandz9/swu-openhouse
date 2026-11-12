@@ -928,7 +928,6 @@ function KioskCapturePageContent() {
 
             {/* The 4:3 screen = exactly what gets captured */}
             <div className="kc-screen relative aspect-[4/3] w-full overflow-hidden">
-              <div className="kc-scanlines pointer-events-none absolute inset-0 z-[22]" aria-hidden />
               <video
                 ref={videoRef}
                 muted
