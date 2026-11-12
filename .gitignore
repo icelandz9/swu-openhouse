@@ -57,3 +57,7 @@ scripts/model-training/gifs/
 
 # Trained model (the web kiosk loads the exported gesture_weights.json instead)
 gesture_classifier.joblib
+
+# Built by scripts/build-sticker-manifest.mjs before every dev/build; tracking it made every clone
+# show a local change and blocked git pull
+web/public/stickers/stickers.json
