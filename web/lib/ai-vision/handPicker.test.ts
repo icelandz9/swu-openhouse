@@ -24,7 +24,9 @@ assert.equal(pickNearestHandInCapture([hand(0.4, 0.5, 0.08), hand(0.6, 0.5, 0.15
 assert.equal(pickNearestHandInCapture([hand(0.6, 0.5, 0.15), hand(0.4, 0.5, 0.08)], frame), 0);
 // 4. A big hand outside loses to a small hand inside
 assert.equal(pickNearestHandInCapture([hand(0.9, 0.5, 0.4), hand(0.5, 0.5, 0.05)], frame), 1);
-// 5. Incomplete hands are skipped
+// 5. A near foreground user standing slightly on the border (x=0.20) beats a tiny distant passer-by (x=0.5, size 0.01)
+assert.equal(pickNearestHandInCapture([hand(0.20, 0.5, 0.15), hand(0.5, 0.5, 0.01)], frame), 0, 'near user on border beats tiny background hand');
+// 6. Incomplete hands are skipped
 assert.equal(pickNearestHandInCapture([[{ x: 0.5, y: 0.5 }]], frame), -1);
 
-console.log('handPicker: all 6 checks passed');
+console.log('handPicker: all 7 checks passed');
