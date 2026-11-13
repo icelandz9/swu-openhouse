@@ -78,17 +78,17 @@ export function StereoSpeakerGrille({ className = '' }: { className?: string }) 
   );
 }
 
-/** Left wing header: Official CPE Logo + "Computer Engineering SWU" label */
+/** Left wing header: Official CPE Logo + "Computer Engineering SWU" label (Enlarged & High-Contrast Hero Badge) */
 export function LeftWingHeader() {
   return (
     <div className="flex flex-col items-center text-center">
-      <div className="flex items-center justify-center bg-[#12151d] border border-[#2f3644] px-[.8cqw] py-[.28cqw] rounded-[.3cqw] shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
-        <CpeLogo className="h-[1.55cqw] w-auto drop-shadow-[0_0_5px_rgba(230,57,70,0.45)]" />
+      <div className="relative flex items-center justify-center bg-gradient-to-b from-[#1a1f2e] to-[#0d1018] border-[1.5px] border-[#e63946]/80 px-[1.25cqw] py-[.48cqw] rounded-[.45cqw] shadow-[0_0_16px_rgba(230,57,70,0.45),0_4px_10px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.2)]">
+        <CpeLogo className="h-[2.65cqw] w-auto drop-shadow-[0_0_10px_rgba(255,60,80,0.75)]" />
       </div>
-      <p className="font-pixel mt-[.6cqw] text-[.54cqw] leading-[1.45] text-[#cbd5e1] [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]">
+      <p className="font-pixel mt-[.55cqw] text-[.72cqw] font-bold tracking-[0.04em] leading-[1.42] text-white [text-shadow:0_2px_0_#000,0_0_8px_rgba(255,255,255,0.28)]">
         COMPUTER
         <br />
-        <span className="text-[var(--px-red-hi)]">ENGINEERING SWU</span>
+        <span className="text-[#ff334b] [text-shadow:0_2px_0_#000,0_0_12px_rgba(255,42,75,0.75)]">ENGINEERING SWU</span>
       </p>
     </div>
   );
@@ -98,24 +98,24 @@ export function LeftWingHeader() {
 export function RightWingHeader() {
   return (
     <div className="flex flex-col items-center text-center">
-      <div className="flex items-center gap-[.42cqw] bg-[#12151d] border border-[#2f3644] px-[.68cqw] py-[.25cqw] rounded-[.3cqw] shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+      <div className="relative flex items-center gap-[.55cqw] bg-gradient-to-b from-[#1a1f2e] to-[#0d1018] border-[1.5px] border-[#f59e0b]/75 px-[.95cqw] py-[.44cqw] rounded-[.45cqw] shadow-[0_0_16px_rgba(245,158,11,0.35),0_4px_10px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.2)]">
         {/* Retro Arcade AI Chip Emblem */}
-        <div className="flex size-[1.6cqw] items-center justify-center rounded-[.22cqw] bg-[#8b1522] border border-[#e63946] shadow-[0_0_6px_rgba(230,57,70,0.4)]">
-          <svg viewBox="0 0 24 24" className="size-[1.08cqw] text-[var(--px-gold)]" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
+        <div className="flex size-[2.45cqw] items-center justify-center rounded-[.32cqw] bg-[#8b1522] border border-[#ff334b] shadow-[0_0_10px_rgba(230,57,70,0.6)]">
+          <svg viewBox="0 0 24 24" className="size-[1.6cqw] text-[var(--px-gold)] drop-shadow-[0_0_6px_rgba(255,204,0,0.7)]" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
             <rect x="6" y="6" width="12" height="12" rx="1.5" fill="#12151d" />
             <rect x="9.5" y="9.5" width="5" height="5" fill="currentColor" />
             <path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" strokeLinecap="square" />
           </svg>
         </div>
         <div className="flex flex-col items-start leading-none">
-          <span className="font-pixel text-[.58cqw] font-bold text-white tracking-wider">ARCADE</span>
-          <span className="font-pixel-sm text-[.38cqw] text-[var(--px-gold)] font-bold tracking-widest mt-[.08cqw]">AI EDITION</span>
+          <span className="font-pixel text-[.82cqw] font-bold text-white tracking-wider [text-shadow:0_2px_0_#000]">ARCADE</span>
+          <span className="font-pixel-sm text-[.52cqw] text-[var(--px-gold)] font-bold tracking-widest mt-[.16cqw] [text-shadow:0_1px_0_#000,0_0_8px_rgba(255,204,0,0.5)]">AI EDITION</span>
         </div>
       </div>
-      <p className="font-pixel mt-[.6cqw] text-[.54cqw] leading-[1.45] text-[#cbd5e1] [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]">
+      <p className="font-pixel mt-[.55cqw] text-[.72cqw] font-bold tracking-[0.04em] leading-[1.42] text-white [text-shadow:0_2px_0_#000,0_0_8px_rgba(255,255,255,0.28)]">
         HAND TRACKING
         <br />
-        <span className="text-[var(--px-gold)]">PHOTO BOOTH</span>
+        <span className="text-[var(--px-gold)] [text-shadow:0_2px_0_#000,0_0_12px_rgba(255,204,0,0.65)]">PHOTO BOOTH</span>
       </p>
     </div>
   );

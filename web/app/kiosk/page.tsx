@@ -1181,9 +1181,9 @@ function KioskCapturePageContent() {
           </div>
 
           {/* Left Wing: Perfectly Symmetrical 6-Tier Console Layout */}
-          <div className="absolute inset-y-0 left-0 flex w-[17cqw] flex-col items-center justify-between pt-[2.6cqw] pb-[4.4cqw] px-[1cqw]">
-            {/* Tier 1: Header (SMO Engineering Logo + Slogan) */}
-            <div className="flex h-[5.4cqw] items-center justify-center">
+          <div className="absolute inset-y-0 left-0 flex w-[17cqw] flex-col items-center justify-between pt-[2.2cqw] pb-[4.2cqw] px-[.8cqw]">
+            {/* Tier 1: Header (CPE Logo + COMPUTER ENGINEERING SWU) */}
+            <div className="flex h-[6.8cqw] items-center justify-center">
               <LeftWingHeader />
             </div>
 
@@ -1217,9 +1217,9 @@ function KioskCapturePageContent() {
           </div>
 
           {/* Right Wing: Perfectly Symmetrical 6-Tier Console Layout */}
-          <div className="absolute inset-y-0 right-0 flex w-[17cqw] flex-col items-center justify-between pt-[2.6cqw] pb-[4.4cqw] px-[1cqw]">
-            {/* Tier 1: Header (SWU Open House Badge + Slogan) */}
-            <div className="flex h-[5.4cqw] items-center justify-center">
+          <div className="absolute inset-y-0 right-0 flex w-[17cqw] flex-col items-center justify-between pt-[2.2cqw] pb-[4.2cqw] px-[.8cqw]">
+            {/* Tier 1: Header (Arcade AI Edition Badge + Slogan) */}
+            <div className="flex h-[6.8cqw] items-center justify-center">
               <RightWingHeader />
             </div>
 
