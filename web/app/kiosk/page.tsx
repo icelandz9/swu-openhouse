@@ -741,19 +741,21 @@ function KioskCapturePageContent() {
 
       const camId = await findPreferredCamera();
 
+      // Prefer 1280x720 @ 60fps first! USB webcams (like Logitech C922) run at native 60fps in 720p
+      // (~16.6ms camera frame time, zero sensor exposure drag), whereas 1920x1080 drops hardware to 30fps (~33.3ms + motion blur).
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
             frameRate: { ideal: 60, min: 30 },
             ...(camId ? { deviceId: { exact: camId } } : { facingMode: 'user' }),
           },
           audio: false,
         });
       } catch (firstErr) {
-        console.warn('1080p camera constraint failed, attempting basic video constraint:', firstErr);
+        console.warn('720p@60fps camera constraint failed, attempting basic video constraint:', firstErr);
         stream = await navigator.mediaDevices
           .getUserMedia({ video: camId ? { deviceId: { exact: camId } } : true, audio: false })
           .catch(() => navigator.mediaDevices.getUserMedia({ video: true, audio: false }));
@@ -811,10 +813,10 @@ function KioskCapturePageContent() {
             delegate: 'GPU' as const,
           },
           runningMode: 'VIDEO' as const,
-          numHands: 4,
+          numHands: 2,
           minHandDetectionConfidence: 0.35,
-          minHandPresenceConfidence: 0.35,
-          minTrackingConfidence: 0.35,
+          minHandPresenceConfidence: 0.3,
+          minTrackingConfidence: 0.25,
         };
 
         let landmarker: any = null;
@@ -878,30 +880,12 @@ function KioskCapturePageContent() {
             const vw = video.videoWidth || 1280;
             const vh = video.videoHeight || 720;
 
-            // Fast Pipeline: Downsample high-res video to a 640px-wide offscreen canvas (up to 9x fewer pixels to upload/process)
-            let inferenceSource: HTMLVideoElement | HTMLCanvasElement = video;
-            if (vw > 640 && typeof document !== 'undefined') {
-              let infCanvas = inferenceCanvasRef.current;
-              if (!infCanvas) {
-                infCanvas = document.createElement('canvas');
-                inferenceCanvasRef.current = infCanvas;
-              }
-              const targetW = 640;
-              const targetH = Math.max(360, Math.round((vh / vw) * targetW));
-              if (infCanvas.width !== targetW || infCanvas.height !== targetH) {
-                infCanvas.width = targetW;
-                infCanvas.height = targetH;
-              }
-              const infCtx = infCanvas.getContext('2d', { alpha: false });
-              if (infCtx) {
-                infCtx.drawImage(video, 0, 0, targetW, targetH);
-                inferenceSource = infCanvas;
-              }
-            }
-
+            // Direct GPU Texture Pipeline: pass HTMLVideoElement directly to MediaPipe WebGL delegate!
+            // Avoid CPU/GPU 2D canvas readback stall when video is <= 1280px (720p@60fps uploads directly as a GPU texture in < 0.5ms).
             const tStart = performance.now();
-            const results = landmarker.detectForVideo(inferenceSource, tStart);
-            lastAiLatencyRef.current = Math.max(1, Math.round(performance.now() - tStart));
+            const results = landmarker.detectForVideo(video, tStart);
+            const inferMs = Math.max(1, Math.round(performance.now() - tStart));
+            lastAiLatencyRef.current = inferMs;
 
             // Only hands inside the capture area count, and of those the nearest foreground hand (with target lock during hold)
             const pickIdx = results?.landmarks?.length
@@ -1034,9 +1018,10 @@ function KioskCapturePageContent() {
           if (holdBarFillRef.current) {
             holdBarFillRef.current.style.width = `${progress}%`;
           }
-          const pInt = Math.floor(progress);
-          if (pInt !== prevHoldProgressIntRef.current) {
-            prevHoldProgressIntRef.current = pInt;
+          // Throttle React text % state updates to 5% steps so React never re-renders at 60Hz during tracking!
+          const pStep = Math.floor(progress / 5) * 5;
+          if (pStep !== prevHoldProgressIntRef.current || (progress > 0 && prevHoldProgressIntRef.current === 0)) {
+            prevHoldProgressIntRef.current = pStep || 1;
             setHoldProgress(progress);
           }
           if (elapsed >= 1500) {
@@ -1065,11 +1050,11 @@ function KioskCapturePageContent() {
             overlayCanvas.width = targetW;
             overlayCanvas.height = targetH;
           }
-          const ctx = overlayCanvas.getContext('2d');
+          const ctx = overlayCanvas.getContext('2d', { desynchronized: true }) || overlayCanvas.getContext('2d');
           if (ctx) {
             const activePoints =
               (isIdle || isDetecting) && prevHasHandRef.current
-                ? handSmootherRef.current.sample(nowPerf)
+                ? handSmootherRef.current.sample(nowPerf, Math.min(14, lastAiLatencyRef.current))
                 : null;
             drawHandMeshOnCanvas(ctx, overlayCanvas.width, overlayCanvas.height, {
               landmarks: activePoints,

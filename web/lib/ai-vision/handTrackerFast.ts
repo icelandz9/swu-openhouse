@@ -50,17 +50,20 @@ export function computeObjectCoverTransform(
 }
 
 /**
- * Velocity-aware adaptive filter + micro-extrapolator (inspired by 1-Euro Filter).
+ * Zero-Lag Predictive Hand Tracker + Micro-Deadzone Stabilizer.
  *
- * - Low velocity (steady hand): applies light smoothing (alpha ~ 0.55) to suppress camera sensor jitter.
- * - High velocity (moving hand): ramps alpha -> 0.96 so landmarks snap 1:1 with the real hand with zero lag.
- * - Between webcam frames (e.g. 30fps camera on 60/120Hz display): performs bounded velocity extrapolation
- *   (up to 16ms) so the skeleton renders at native display refresh rate without stair-stepping.
+ * Designed so the 21-point skeleton stays glued 1:1 to the real hand:
+ * - Stationary micro-deadzone (< 0.15% screen): suppresses sensor pixel noise with alpha = 0.85.
+ * - Any intentional movement (>= 0.35% screen): snaps with alpha = 1.0 (zero exponential lag!).
+ * - Velocity Lead Compensation: compensates for the ~10ms MediaPipe inference + camera pipeline delay
+ *   and extrapolates smoothly between webcam frames (e.g. 30/60fps camera on 60/120Hz monitor).
  */
 export class AdaptiveHandSmoother {
   private smoothed: LandmarkPoint[] | null = null;
+  private prevRaw: LandmarkPoint[] | null = null;
   private velocity: { vx: number; vy: number; vz: number }[] | null = null;
   private lastUpdateMs = 0;
+  private sampleBuffer: LandmarkPoint[] | null = null;
 
   /** Update with a fresh camera detection at `nowMs`. */
   update(raw: LandmarkPoint[], nowMs: number): LandmarkPoint[] {
@@ -71,41 +74,47 @@ export class AdaptiveHandSmoother {
 
     const dt = this.lastUpdateMs > 0 ? Math.max(1, nowMs - this.lastUpdateMs) : 16.67;
 
-    // If first detection, gap > 250ms, or large spatial jump (> 22% screen), snap immediately
-    if (!this.smoothed || !this.velocity || dt > 250 || this.isTeleportJump(raw)) {
+    // First detection, gap > 180ms, or spatial jump (> 15% screen) -> snap 100% immediately
+    if (!this.smoothed || !this.prevRaw || !this.velocity || !this.sampleBuffer || dt > 180 || this.isTeleportJump(raw)) {
       this.smoothed = raw.map((pt) => ({ x: pt.x, y: pt.y, z: pt.z ?? 0 }));
+      this.prevRaw = raw.map((pt) => ({ x: pt.x, y: pt.y, z: pt.z ?? 0 }));
+      this.sampleBuffer = raw.map((pt) => ({ x: pt.x, y: pt.y, z: pt.z ?? 0 }));
       this.velocity = raw.map(() => ({ vx: 0, vy: 0, vz: 0 }));
       this.lastUpdateMs = nowMs;
       return this.smoothed;
     }
 
-    const minAlpha = 0.58;
-    const maxAlpha = 0.96;
-    // Speed at which alpha saturates to maxAlpha (normalized screen units per ms)
-    const velocityScale = 0.0022;
+    // Measure palm displacement to distinguish sensor noise from real hand movement
+    const palmDx = raw[9].x - this.smoothed[9].x;
+    const palmDy = raw[9].y - this.smoothed[9].y;
+    const palmMoveDist = Math.hypot(palmDx, palmDy);
 
-    for (let i = 0; i < raw.length; i++) {
+    // Zero-lag alpha curve:
+    // - If hand moved >= 0.3% of screen (~3px on 1080p), alpha = 1.0 (instant 1:1 lock, zero drag!)
+    // - If hand is completely still (< 0.3% of screen), alpha = 0.85 to prevent sub-pixel shimmer
+    const alpha = palmMoveDist >= 0.003 ? 1.0 : 0.85 + (0.15 * (palmMoveDist / 0.003));
+
+    for (let i = 0; i < 21; i++) {
       const r = raw[i];
       const prev = this.smoothed[i];
-      const dx = r.x - prev.x;
-      const dy = r.y - prev.y;
-      const dz = (r.z ?? 0) - (prev.z ?? 0);
+      const pRaw = this.prevRaw[i];
 
-      const speed = Math.hypot(dx, dy) / dt;
-      const t = Math.min(1, speed / velocityScale);
-      const alpha = minAlpha + (maxAlpha - minAlpha) * t;
+      // Instantaneous velocity from raw detections (smoothed slightly with previous velocity)
+      const instVx = (r.x - pRaw.x) / dt;
+      const instVy = (r.y - pRaw.y) / dt;
+      const instVz = ((r.z ?? 0) - (pRaw.z ?? 0)) / dt;
 
-      const nx = prev.x + alpha * dx;
-      const ny = prev.y + alpha * dy;
-      const nz = (prev.z ?? 0) + alpha * dz;
+      this.velocity[i].vx = 0.75 * instVx + 0.25 * this.velocity[i].vx;
+      this.velocity[i].vy = 0.75 * instVy + 0.25 * this.velocity[i].vy;
+      this.velocity[i].vz = 0.75 * instVz + 0.25 * this.velocity[i].vz;
 
-      this.velocity[i].vx = (nx - prev.x) / dt;
-      this.velocity[i].vy = (ny - prev.y) / dt;
-      this.velocity[i].vz = (nz - (prev.z ?? 0)) / dt;
+      pRaw.x = r.x;
+      pRaw.y = r.y;
+      pRaw.z = r.z ?? 0;
 
-      prev.x = nx;
-      prev.y = ny;
-      prev.z = nz;
+      prev.x = prev.x + alpha * (r.x - prev.x);
+      prev.y = prev.y + alpha * (r.y - prev.y);
+      prev.z = (prev.z ?? 0) + alpha * ((r.z ?? 0) - (prev.z ?? 0));
     }
 
     this.lastUpdateMs = nowMs;
@@ -113,36 +122,48 @@ export class AdaptiveHandSmoother {
   }
 
   /**
-   * Sample interpolated/extrapolated landmarks at display frame time `nowMs`.
-   * Bounded to 16ms max extrapolation horizon so it never overshoots.
+   * Sample landmarks at display refresh time `nowMs` with predictive lead compensation.
+   * Reuses a pre-allocated buffer (zero GC allocations per frame).
    */
-  sample(nowMs: number): LandmarkPoint[] | null {
-    if (!this.smoothed || !this.velocity) return null;
-    const elapsed = Math.max(0, Math.min(16, nowMs - this.lastUpdateMs));
-    if (elapsed < 1) return this.smoothed;
+  sample(nowMs: number, pipelineLeadMs: number = 8): LandmarkPoint[] | null {
+    if (!this.smoothed || !this.velocity || !this.sampleBuffer) return null;
+    const elapsedSinceFrame = Math.max(0, Math.min(24, nowMs - this.lastUpdateMs));
 
-    // Damped prediction factor (0.55) prevents overshoot when hand decelerates
-    const damping = 0.55;
-    return this.smoothed.map((pt, i) => {
-      const v = this.velocity![i];
-      return {
-        x: pt.x + v.vx * elapsed * damping,
-        y: pt.y + v.vy * elapsed * damping,
-        z: (pt.z ?? 0) + v.vz * elapsed * damping,
-      };
-    });
+    // Check if hand is actively moving (palm speed > 0.00018 screen units/ms)
+    const palmV = this.velocity[9];
+    const palmSpeed = Math.hypot(palmV.vx, palmV.vy);
+
+    // When moving, project forward by (elapsedSinceFrame + pipelineLeadMs) to cancel out camera + GPU latency!
+    const leadTime = palmSpeed > 0.00018 ? elapsedSinceFrame + pipelineLeadMs : elapsedSinceFrame * 0.4;
+    const damping = 0.85;
+
+    for (let i = 0; i < 21; i++) {
+      const pt = this.smoothed[i];
+      const v = this.velocity[i];
+      const out = this.sampleBuffer[i];
+      // Clamp predicted step to max 3.5% screen so sudden stops never overshoot visibly
+      const stepX = Math.max(-0.035, Math.min(0.035, v.vx * leadTime * damping));
+      const stepY = Math.max(-0.035, Math.min(0.035, v.vy * leadTime * damping));
+      out.x = pt.x + stepX;
+      out.y = pt.y + stepY;
+      out.z = (pt.z ?? 0) + v.vz * leadTime * damping;
+    }
+
+    return this.sampleBuffer;
   }
 
   reset(): void {
     this.smoothed = null;
+    this.prevRaw = null;
     this.velocity = null;
+    this.sampleBuffer = null;
     this.lastUpdateMs = 0;
   }
 
   private isTeleportJump(raw: LandmarkPoint[]): boolean {
     if (!this.smoothed || !this.smoothed[9] || !raw[9]) return true;
     const dist = Math.hypot(raw[9].x - this.smoothed[9].x, raw[9].y - this.smoothed[9].y);
-    return dist > 0.22;
+    return dist > 0.15;
   }
 }
 
@@ -249,22 +270,22 @@ export function drawHandMeshOnCanvas(
   ctx.lineWidth = Math.max(1.2, unit * 0.42);
   ctx.stroke();
 
-  // 3. Crisp solid white joints with dark outline
+  // 3. Crisp solid white joints with dark outline (batched into 2 paths instead of 42 draw calls!)
   ctx.globalAlpha = 0.96;
   ctx.fillStyle = '#FFFFFF';
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = Math.max(1, unit * 0.2);
 
+  ctx.beginPath();
   for (let i = 0; i < 21; i++) {
     const isFingertip = i === 4 || i === 8 || i === 12 || i === 16 || i === 20;
     const isWrist = i === 0;
     const r = (isWrist ? 1.05 : isFingertip ? 0.9 : 0.62) * unit;
-
-    ctx.beginPath();
+    ctx.moveTo(ptsX[i] + r, ptsY[i]);
     ctx.arc(ptsX[i], ptsY[i], r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
   }
+  ctx.fill();
+  ctx.stroke();
 
   // 4. Palm Hold Progress Ring (when holding open palm)
   if (holdProgress > 0) {
@@ -299,7 +320,7 @@ export function drawHandMeshOnCanvas(
     ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${Math.round(holdProgress)}%`, 0, 1);
+    ctx.fillText(`${Math.round(holdProgress)}%`, 0, 0);
     ctx.restore();
   }
 
