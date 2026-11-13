@@ -21,9 +21,10 @@ import {
 import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
 import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL, PHOTO_ASPECT_RATIO, PhotoRatio, toPhotoRatio, FRAME_PHOTO_ASPECT } from '@/lib/contracts';
 import { generateShortCode } from '@/lib/mobile/shortCodeGenerator';
-import { classifyGesture, LandmarkPoint } from '@/lib/ai-vision/gestureRules';
+import { classifyGesture } from '@/lib/ai-vision/gestureRules';
 import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
 import { pickNearestHandInCapture, type CaptureArea } from '@/lib/ai-vision/handPicker';
+import { AdaptiveHandSmoother, drawHandMeshOnCanvas } from '@/lib/ai-vision/handTrackerFast';
 import { calculateCrop } from '@/lib/kiosk/centerCropper';
 import { HandMesh } from '@/components/HandMesh';
 import { CpeLogo } from '@/components/CpeLogo';
@@ -117,17 +118,21 @@ function KioskCapturePageContent() {
   photoRatioRef.current = photoRatio;
   const currentStreamRef = useRef<MediaStream | null>(null);
 
-  // Gesture detection & tracking
+  // Gesture detection & tracking (Direct Canvas 2D + Fast Pipeline: zero per-frame React state churn)
   const [holdProgress, setHoldProgress] = useState<number>(0);
-  const [liveLandmarks, setLiveLandmarks] = useState<LandmarkPoint[] | undefined>(undefined);
+  const holdProgressRef = useRef<number>(0);
+  const holdBarFillRef = useRef<HTMLSpanElement | null>(null);
+  const [hasHand, setHasHand] = useState<boolean>(false);
+  const prevHasHandRef = useRef<boolean>(false);
   const [detectedGestureText, setDetectedGestureText] = useState<string>('NONE');
-  const [handAreaRatio, setHandAreaRatio] = useState<number>(0);
   const [isForeground, setIsForeground] = useState<boolean>(true);
+  const handCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const handSmootherRef = useRef<AdaptiveHandSmoother>(new AdaptiveHandSmoother());
+  const inferenceCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const holdStartTimeRef = useRef<number | null>(null);
   const lastPalmSeenTimeRef = useRef<number>(0);
   const prevDetectedGestureRef = useRef<string>('NONE');
-  const prevIsForegroundRef = useRef<boolean>(false);
-  const lastLandmarkUpdateRef = useRef<number>(0);
+  const prevIsForegroundRef = useRef<boolean>(true);
   const prevHoldProgressIntRef = useRef<number>(0);
   const previewGestureLockRef = useRef<boolean>(false);
   const previewEnterTimeRef = useRef<number>(0);
@@ -526,6 +531,7 @@ function KioskCapturePageContent() {
           video: {
             width: { ideal: 1920 },
             height: { ideal: 1080 },
+            frameRate: { ideal: 60, min: 30 },
             ...(camId ? { deviceId: { exact: camId } } : { facingMode: 'user' }),
           },
           audio: false,
@@ -653,21 +659,51 @@ function KioskCapturePageContent() {
         if (video.currentTime !== lastVideoTimeRef.current) {
           lastVideoTimeRef.current = video.currentTime;
           try {
+            const vw = video.videoWidth || 1280;
+            const vh = video.videoHeight || 720;
+
+            // Fast Pipeline: Downsample high-res video to a 640px-wide offscreen canvas (up to 9x fewer pixels to upload/process)
+            let inferenceSource: HTMLVideoElement | HTMLCanvasElement = video;
+            if (vw > 640 && typeof document !== 'undefined') {
+              let infCanvas = inferenceCanvasRef.current;
+              if (!infCanvas) {
+                infCanvas = document.createElement('canvas');
+                inferenceCanvasRef.current = infCanvas;
+              }
+              const targetW = 640;
+              const targetH = Math.max(360, Math.round((vh / vw) * targetW));
+              if (infCanvas.width !== targetW || infCanvas.height !== targetH) {
+                infCanvas.width = targetW;
+                infCanvas.height = targetH;
+              }
+              const infCtx = infCanvas.getContext('2d', { alpha: false });
+              if (infCtx) {
+                infCtx.drawImage(video, 0, 0, targetW, targetH);
+                inferenceSource = infCanvas;
+              }
+            }
+
             const tStart = performance.now();
-            const results = landmarker.detectForVideo(video, tStart);
+            const results = landmarker.detectForVideo(inferenceSource, tStart);
             lastAiLatencyRef.current = Math.max(1, Math.round(performance.now() - tStart));
-            // Only hands inside the capture area (the part of the camera the kiosk screen shows) count,
-            // and of those the nearest one: the biggest on screen is the one closest to the camera.
+
+            // Only hands inside the capture area count, and of those the nearest one
             const pickIdx = results?.landmarks?.length
-              ? pickNearestHandInCapture(results.landmarks, captureAreaOf(video.videoWidth, video.videoHeight, photoRatioRef.current))
+              ? pickNearestHandInCapture(results.landmarks, captureAreaOf(vw, vh, photoRatioRef.current))
               : -1;
+
             if (pickIdx >= 0) {
               const primaryHand = results.landmarks[pickIdx];
               const worldHand = results.worldLandmarks?.[pickIdx];
               const handedness = results.handedness?.[pickIdx]?.[0]?.categoryName ?? 'Right';
-              const aspect = video.videoWidth > 0 && video.videoHeight > 0
-                ? video.videoWidth / video.videoHeight
-                : 4 / 3;
+              const aspect = vw > 0 && vh > 0 ? vw / vh : 4 / 3;
+
+              // Update velocity-aware smoother immediately (zero React state re-render)
+              handSmootherRef.current.update(primaryHand, nowPerf);
+              if (!prevHasHandRef.current) {
+                prevHasHandRef.current = true;
+                setHasHand(true);
+              }
 
               // Run the updated 5-finger palm facing model
               const detected = classifyGesture(primaryHand, worldHand, handedness, aspect);
@@ -676,72 +712,42 @@ function KioskCapturePageContent() {
                 setDetectedGestureText(detected);
               }
 
-              // Depth & Area Filter: reject distant background passers-by (>= 3.5% required)
+              // Depth & Area Filter: reject distant background passers-by
               const inForeground = isHandInForeground(primaryHand, handAreaThreshold);
               if (prevIsForegroundRef.current !== inForeground) {
                 prevIsForegroundRef.current = inForeground;
                 setIsForeground(inForeground);
               }
 
-              let minX = 1;
-              let maxX = 0;
-              let minY = 1;
-              let maxY = 0;
-              for (const pt of primaryHand) {
-                if (pt.x < minX) minX = pt.x;
-                if (pt.x > maxX) maxX = pt.x;
-                if (pt.y < minY) minY = pt.y;
-                if (pt.y > maxY) maxY = pt.y;
-              }
-
-              // Throttle React state allocations to 30 FPS to prevent heap leaks during 8-hour events
-              const nowLoop = performance.now();
-              if (nowLoop - lastLandmarkUpdateRef.current > 33) {
-                lastLandmarkUpdateRef.current = nowLoop;
-                setLiveLandmarks(primaryHand);
-                setHandAreaRatio(Math.max(0, (maxX - minX) * (maxY - minY)));
-              }
-
               if (isIdle || isDetecting) {
                 if (detected === 'OPEN_PALM' && inForeground) {
-                  lastPalmSeenTimeRef.current = performance.now();
+                  lastPalmSeenTimeRef.current = nowPerf;
                   if (holdStartTimeRef.current === null) {
-                    holdStartTimeRef.current = performance.now();
+                    holdStartTimeRef.current = nowPerf;
                     send({ type: 'HAND_DETECTED' });
                   }
-                  const elapsed = performance.now() - holdStartTimeRef.current;
-                  const progress = Math.min(100, (elapsed / 1500) * 100);
-                  const pInt = Math.floor(progress);
-                  if (pInt !== prevHoldProgressIntRef.current) {
-                    prevHoldProgressIntRef.current = pInt;
-                    setHoldProgress(progress);
-                  }
-
-                  if (elapsed >= 1500) {
-                    holdStartTimeRef.current = null;
-                    setHoldProgress(100);
-                    send({ type: 'TRIGGER_ACTIVATED' });
-                  }
                 } else {
-                  const timeSinceLast = performance.now() - (lastPalmSeenTimeRef.current || 0);
+                  const timeSinceLast = nowPerf - (lastPalmSeenTimeRef.current || 0);
                   if (timeSinceLast > 500) {
                     if (holdStartTimeRef.current !== null) {
                       holdStartTimeRef.current = null;
+                      holdProgressRef.current = 0;
+                      prevHoldProgressIntRef.current = 0;
                       setHoldProgress(0);
                       send({ type: 'HAND_LOST' });
                     }
                   }
                 }
               } else if (isPreviewing && !previewGestureLockRef.current) {
-                const timeInPreview = performance.now() - previewEnterTimeRef.current;
+                const timeInPreview = nowPerf - previewEnterTimeRef.current;
                 // Grace period: ignore first 1.5s of preview so lingering posing hand does not accidentally trigger retake/confirm
                 if (timeInPreview > 1500) {
                   if (detected === 'FIST') {
                     holdStartTimeRef.current = null;
                     if (fistHoldStartTimeRef.current === null) {
-                      fistHoldStartTimeRef.current = performance.now();
+                      fistHoldStartTimeRef.current = nowPerf;
                     }
-                    const fistHold = performance.now() - fistHoldStartTimeRef.current;
+                    const fistHold = nowPerf - fistHoldStartTimeRef.current;
                     if (fistHold >= 800) {
                       previewGestureLockRef.current = true;
                       fistHoldStartTimeRef.current = null;
@@ -751,9 +757,9 @@ function KioskCapturePageContent() {
                     fistHoldStartTimeRef.current = null;
                     // Require deliberate hold (800ms) during preview to confirm
                     if (holdStartTimeRef.current === null) {
-                      holdStartTimeRef.current = performance.now();
+                      holdStartTimeRef.current = nowPerf;
                     }
-                    const palmHold = performance.now() - holdStartTimeRef.current;
+                    const palmHold = nowPerf - holdStartTimeRef.current;
                     if (palmHold >= 800) {
                       previewGestureLockRef.current = true;
                       holdStartTimeRef.current = null;
@@ -766,14 +772,25 @@ function KioskCapturePageContent() {
                 }
               }
             } else {
-              setLiveLandmarks(undefined);
-              setDetectedGestureText('NONE');
-              setHandAreaRatio(0);
-              setIsForeground(true);
-              const timeSinceLast = performance.now() - (lastPalmSeenTimeRef.current || 0);
+              handSmootherRef.current.reset();
+              if (prevHasHandRef.current) {
+                prevHasHandRef.current = false;
+                setHasHand(false);
+              }
+              if (prevDetectedGestureRef.current !== 'NONE') {
+                prevDetectedGestureRef.current = 'NONE';
+                setDetectedGestureText('NONE');
+              }
+              if (!prevIsForegroundRef.current) {
+                prevIsForegroundRef.current = true;
+                setIsForeground(true);
+              }
+              const timeSinceLast = nowPerf - (lastPalmSeenTimeRef.current || 0);
               if (timeSinceLast > 500) {
                 if (holdStartTimeRef.current !== null) {
                   holdStartTimeRef.current = null;
+                  holdProgressRef.current = 0;
+                  prevHoldProgressIntRef.current = 0;
                   setHoldProgress(0);
                   if (isIdle || isDetecting) {
                     send({ type: 'HAND_LOST' });
@@ -782,6 +799,55 @@ function KioskCapturePageContent() {
               }
             }
           } catch {}
+        }
+
+        // 60/120Hz Continuous Hold Progress + Direct Canvas 2D Skeleton Rendering (runs every monitor refresh)
+        if ((isIdle || isDetecting) && holdStartTimeRef.current !== null && prevHasHandRef.current && prevDetectedGestureRef.current === 'OPEN_PALM' && prevIsForegroundRef.current) {
+          const elapsed = nowPerf - holdStartTimeRef.current;
+          const progress = Math.min(100, (elapsed / 1500) * 100);
+          holdProgressRef.current = progress;
+          if (holdBarFillRef.current) {
+            holdBarFillRef.current.style.width = `${progress}%`;
+          }
+          const pInt = Math.floor(progress);
+          if (pInt !== prevHoldProgressIntRef.current) {
+            prevHoldProgressIntRef.current = pInt;
+            setHoldProgress(progress);
+          }
+          if (elapsed >= 1500) {
+            holdStartTimeRef.current = null;
+            holdProgressRef.current = 100;
+            setHoldProgress(100);
+            send({ type: 'TRIGGER_ACTIVATED' });
+          }
+        } else if (holdStartTimeRef.current === null && holdProgressRef.current !== 0) {
+          holdProgressRef.current = 0;
+        }
+
+        const overlayCanvas = handCanvasRef.current;
+        if (overlayCanvas) {
+          const dpr = typeof window !== 'undefined' ? Math.min(2, window.devicePixelRatio || 1) : 1;
+          const targetW = Math.round(overlayCanvas.clientWidth * dpr);
+          const targetH = Math.round(overlayCanvas.clientHeight * dpr);
+          if (targetW > 0 && targetH > 0 && (overlayCanvas.width !== targetW || overlayCanvas.height !== targetH)) {
+            overlayCanvas.width = targetW;
+            overlayCanvas.height = targetH;
+          }
+          const ctx = overlayCanvas.getContext('2d');
+          if (ctx) {
+            const activePoints =
+              (isIdle || isDetecting) && prevHasHandRef.current
+                ? handSmootherRef.current.sample(nowPerf)
+                : null;
+            drawHandMeshOnCanvas(ctx, overlayCanvas.width, overlayCanvas.height, {
+              landmarks: activePoints,
+              holdProgress: holdProgressRef.current,
+              isForeground: prevIsForegroundRef.current,
+              videoWidth: video.videoWidth || 16,
+              videoHeight: video.videoHeight || 9,
+              containerAspect: 4 / 3,
+            });
+          }
         }
       }
 
@@ -925,7 +991,7 @@ function KioskCapturePageContent() {
               <StereoSpeakerGrille />
               <TwinStatusLeds
                 led1={{ label: 'CAM', on: cameraActive, color: 'bg-[#10b981]', shadow: 'shadow-[0_0_8px_#10b981,inset_0_1px_1px_#a7f3d0]' }}
-                led2={{ label: 'HAND', on: Boolean(liveLandmarks), color: 'bg-[#06b6d4]', shadow: 'shadow-[0_0_8px_#06b6d4,inset_0_1px_1px_#a5f3fc]' }}
+                led2={{ label: 'HAND', on: hasHand, color: 'bg-[#06b6d4]', shadow: 'shadow-[0_0_8px_#06b6d4,inset_0_1px_1px_#a5f3fc]' }}
               />
             </div>
 
@@ -967,7 +1033,7 @@ function KioskCapturePageContent() {
               <StereoSpeakerGrille />
               <TwinStatusLeds
                 led1={{ label: 'LIVE', on: cameraActive, color: 'bg-[#ef4444]', shadow: 'shadow-[0_0_8px_#ef4444,inset_0_1px_1px_#fca5a5]' }}
-                led2={{ label: 'AI', on: Boolean(liveLandmarks || isDetecting), color: 'bg-[#f59e0b]', shadow: 'shadow-[0_0_8px_#f59e0b,inset_0_1px_1px_#fde68a]' }}
+                led2={{ label: 'AI', on: Boolean(hasHand || isDetecting), color: 'bg-[#f59e0b]', shadow: 'shadow-[0_0_8px_#f59e0b,inset_0_1px_1px_#fde68a]' }}
               />
             </div>
 
@@ -1031,17 +1097,12 @@ function KioskCapturePageContent() {
                 <img src={capturedPhotoUrl} alt="ภาพถ่ายตัวอย่าง" className="absolute inset-0 z-10 h-full w-full bg-black object-contain" />
               )}
 
-              {/* Hand skeleton, mapped to this 4:3 screen */}
-              {(isIdle || isDetecting) && showLiveFeed && liveLandmarks && (
+              {/* Direct GPU Canvas 2D Hand Skeleton Overlay (Zero React Re-render per frame) */}
+              {(isIdle || isDetecting) && showLiveFeed && (
                 <HandMesh
-                  active={holdProgress > 0 || isDetecting}
-                  landmarks={liveLandmarks}
-                  holdProgress={holdProgress}
+                  canvasRef={handCanvasRef}
+                  active={hasHand}
                   mode="overlay"
-                  handAreaRatio={handAreaRatio}
-                  isForeground={isForeground}
-                  gestureText={detectedGestureText}
-                  videoDimensions={videoDimensions}
                   containerAspect={4 / 3}
                 />
               )}
@@ -1126,13 +1187,14 @@ function KioskCapturePageContent() {
                     <p className="truncate text-[1.25cqw] font-bold leading-tight text-white drop-shadow">
                       {holdProgress > 0
                         ? 'ค้างไว้อีกนิด...'
-                        : liveLandmarks && !isForeground
+                        : hasHand && !isForeground
                           ? 'เข้ามาใกล้กล้องอีกนิด'
                           : 'ชูมือ 5 นิ้ว เพื่อเริ่มถ่ายรูป'}
                     </p>
                     {holdProgress > 0 ? (
                       <div className="px-meter mt-[.35cqw] h-[.8cqw] w-full bg-[#0d1017] border border-[#333d4e] rounded-[.25cqw] p-[.1cqw]">
                         <span
+                          ref={holdBarFillRef}
                           className="block h-full rounded-[.15cqw] bg-gradient-to-r from-[#ef4444] via-[#f59e0b] to-[#10b981] shadow-[0_0_10px_rgba(16,185,129,0.55)]"
                           style={{ width: `${Math.max(0, Math.min(100, holdProgress))}%` }}
                         />

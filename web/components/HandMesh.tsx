@@ -1,5 +1,6 @@
 import React from 'react';
 import type { LandmarkPoint } from '@/lib/ai-vision/gestureRules';
+import { HAND_BONES, computeObjectCoverTransform } from '@/lib/ai-vision/handTrackerFast';
 
 const DEFAULT_LANDMARKS: [number, number][] = [
   [50, 81],
@@ -25,16 +26,6 @@ const DEFAULT_LANDMARKS: [number, number][] = [
   [86, 43],
 ];
 
-// Bones connecting MediaPipe landmarks
-const BONES: [number, number][] = [
-  [0, 1], [1, 2], [2, 3], [3, 4], // thumb
-  [0, 5], [5, 6], [6, 7], [7, 8], // index
-  [5, 9], [9, 10], [10, 11], [11, 12], // middle
-  [9, 13], [13, 14], [14, 15], [15, 16], // ring
-  [13, 17], [17, 18], [18, 19], [19, 20], // pinky
-  [0, 17], // palm base
-];
-
 export interface HandMeshProps {
   active?: boolean;
   landmarks?: LandmarkPoint[];
@@ -47,58 +38,49 @@ export interface HandMeshProps {
   videoDimensions?: { width: number; height: number };
   /** Width / height of the box the overlay covers (the video is object-cover in it). */
   containerAspect?: number;
+  /** Direct Canvas 2D ref for zero-React-rerender 60-120fps hand tracking. */
+  canvasRef?: React.RefObject<HTMLCanvasElement | null>;
 }
 
 /**
- * HandMesh Component - Classic MediaPipe White Edition (Clean Solid Style)
- * 
- * Clean, standard computer vision aesthetic:
- * - Solid crisp pure white lines (#FFFFFF, 0.5px) without laser glow or blur
- * - High-contrast white joints with black outline (#000000, 0.18px)
- * - Clear, readable, non-intrusive hand tracking on camera
+ * HandMesh Component - High-Frequency Direct Canvas 2D Edition + SVG Fallback
  */
-export function HandMesh({
+export const HandMesh = React.memo(function HandMesh({
   active = true,
   landmarks,
   holdProgress = 0,
   className = '',
   mode = 'overlay',
-  handAreaRatio = 0,
   isForeground = true,
-  gestureText = 'NONE',
   videoDimensions,
   containerAspect = 16 / 9,
+  canvasRef,
 }: HandMeshProps) {
+  // Fast Path: Direct GPU Canvas 2D Overlay (driven directly by requestAnimationFrame without React state lag)
+  if (mode === 'overlay' && canvasRef) {
+    return (
+      <canvas
+        ref={canvasRef}
+        className={`pointer-events-none absolute inset-0 h-full w-full scale-x-[-1] z-25 transition-opacity duration-150 ${
+          active ? 'opacity-95' : 'opacity-0'
+        } ${className}`}
+        aria-hidden="true"
+      />
+    );
+  }
+
   const hasLandmarks = landmarks && landmarks.length >= 21;
 
   if (mode === 'overlay' && hasLandmarks) {
-    // Exact mapping taking into account video aspect ratio vs 16:9 container object-cover
     const vw = videoDimensions?.width || 16;
     const vh = videoDimensions?.height || 9;
-    const videoAspect = vw / vh;
+    const { scaleX, scaleY, offsetX, offsetY } = computeObjectCoverTransform(vw, vh, containerAspect);
 
-    let scaleX = 1;
-    let scaleY = 1;
-    let offsetX = 0;
-    let offsetY = 0;
-
-    if (videoAspect > containerAspect) {
-      // Video is wider than container (cropped left/right)
-      scaleX = videoAspect / containerAspect;
-      offsetX = (1 - scaleX) / 2;
-    } else if (videoAspect < containerAspect) {
-      // Video is taller than container (e.g. 4:3 cropped top/bottom)
-      scaleY = containerAspect / videoAspect;
-      offsetY = (1 - scaleY) / 2;
-    }
-
-    // 1:1 Direct mapping to displayed video pixels (0 to 100%)
     const points: [number, number][] = landmarks.map((pt) => [
       (offsetX + pt.x * scaleX) * 100,
       (offsetY + pt.y * scaleY) * 100,
     ]);
 
-    // Calculate Bounding Box
     let minX = 100, maxX = 0, minY = 100, maxY = 0;
     for (const [x, y] of points) {
       if (x < minX) minX = x;
@@ -107,11 +89,9 @@ export function HandMesh({
       if (y > maxY) maxY = y;
     }
 
-    // Hand Center (Middle MCP - landmark 9)
     const palmCenterX = points[9]?.[0] ?? (minX + maxX) / 2;
     const palmCenterY = points[9]?.[1] ?? (minY + maxY) / 2;
 
-    // Radius of circular hold progress ring scaled to hand span
     const handSpan = Math.max(maxX - minX, maxY - minY);
     const ringRadius = Math.max(3.2, Math.min(6.5, handSpan * 0.35));
     const circumference = 2 * Math.PI * ringRadius;
@@ -129,7 +109,6 @@ export function HandMesh({
         } ${className}`}
         aria-hidden="true"
       >
-        {/* 1. Solid Pure White Connecting Skeleton Bones (No laser glow) */}
         <g
           stroke={strokeColor}
           strokeWidth="0.5"
@@ -137,7 +116,7 @@ export function HandMesh({
           strokeLinejoin="round"
           strokeOpacity={0.9}
         >
-          {BONES.map(([start, end], i) => (
+          {HAND_BONES.map(([start, end], i) => (
             <line
               key={`b-${i}`}
               x1={points[start]?.[0] ?? 0}
@@ -148,7 +127,6 @@ export function HandMesh({
           ))}
         </g>
 
-        {/* 2. Crisp Solid White Joints with Black Outline */}
         {points.map(([x, y], i) => {
           const isFingertip = i === 4 || i === 8 || i === 12 || i === 16 || i === 20;
           const isWrist = i === 0;
@@ -166,10 +144,8 @@ export function HandMesh({
           );
         })}
 
-        {/* 3. Clean Solid Palm Hold Progress Indicator (When holding palm) */}
         {isHolding && (
           <g transform={`translate(${palmCenterX}, ${palmCenterY})`}>
-            {/* Guide background ring */}
             <circle
               cx="0"
               cy="0"
@@ -179,7 +155,6 @@ export function HandMesh({
               strokeWidth="0.5"
               strokeOpacity="0.25"
             />
-            {/* Active progress arc */}
             <circle
               cx="0"
               cy="0"
@@ -192,8 +167,6 @@ export function HandMesh({
               strokeLinecap="round"
               transform="rotate(-90)"
             />
-            {/* Center percentage label. The whole SVG is mirrored (scale-x-[-1]) and stretched to the
-                container (preserveAspectRatio none), so flip the text back and undo the stretch. */}
             <text
               transform={`scale(${-1 / containerAspect}, 1)`}
               x="0"
@@ -208,33 +181,6 @@ export function HandMesh({
             </text>
           </g>
         )}
-
-        {/* 4. Subtle Clean White Corner Brackets around Hand Bounding Box */}
-        {(() => {
-          const pad = 1.4;
-          const bx = Math.max(0, minX - pad);
-          const by = Math.max(0, minY - pad);
-          const bw = Math.min(100 - bx, maxX - minX + pad * 2);
-          const bh = Math.min(100 - by, maxY - minY + pad * 2);
-          const arm = Math.min(bw, bh) * 0.22;
-
-          return (
-            <g
-              stroke="rgba(255,255,255,0.6)"
-              strokeWidth="0.4"
-              fill="none"
-            >
-              {/* Top-Left */}
-              <path d={`M ${bx} ${by + arm} L ${bx} ${by} L ${bx + arm} ${by}`} />
-              {/* Top-Right */}
-              <path d={`M ${bx + bw - arm} ${by} L ${bx + bw} ${by} L ${bx + bw} ${by + arm}`} />
-              {/* Bottom-Left */}
-              <path d={`M ${bx} ${by + bh - arm} L ${bx} ${by + bh} L ${bx + arm} ${by + bh}`} />
-              {/* Bottom-Right */}
-              <path d={`M ${bx + bw - arm} ${by + bh} L ${bx + bw} ${by + bh} L ${bx + bw} ${by + bh - arm}`} />
-            </g>
-          );
-        })()}
       </svg>
     );
   }
@@ -268,7 +214,7 @@ export function HandMesh({
       aria-hidden="true"
     >
       <g stroke="#FFFFFF" strokeWidth="0.6" strokeLinecap="round" strokeOpacity="0.9">
-        {BONES.map(([start, end], i) => (
+        {HAND_BONES.map(([start, end], i) => (
           <line
             key={`b-${i}`}
             x1={points[start]?.[0] ?? 0}
@@ -296,4 +242,4 @@ export function HandMesh({
       })}
     </svg>
   );
-}
+});
