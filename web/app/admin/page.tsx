@@ -312,14 +312,38 @@ function StaffAdminScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  // Heartbeat watchdog (Zero-overhead IPC, pings every 3s, timeout 8s)
+  // Heartbeat watchdog (Zero-overhead IPC, pings every 3s, timeout 8s + Server-backed /api/kiosk-sync fallback)
   useEffect(() => {
-    const sendPing = () => {
+    const sendPing = async () => {
       safePostMessage({
         type: 'HEARTBEAT_PING',
         sender: 'ADMIN',
         timestamp: Date.now(),
       } as ScreenSyncEvent);
+
+      try {
+        const res = await fetch('/api/kiosk-sync', { cache: 'no-store' });
+        if (res.ok) {
+          const syncData = await res.json();
+          const kTel = syncData?.telemetry?.kiosk;
+          if (kTel && typeof kTel.lastSeen === 'number' && Date.now() - kTel.lastSeen < 8000) {
+            lastKioskPongRef.current = kTel.lastSeen;
+            setKioskOnline(true);
+            setKioskTelemetry({
+              online: true,
+              fps: typeof kTel.fps === 'number' ? kTel.fps : 60,
+              resolution: kTel.resolution || '1080p',
+              aiLatencyMs: typeof kTel.aiLatencyMs === 'number' ? kTel.aiLatencyMs : 11,
+              state: kTel.state || 'STANDBY',
+              cameraActive: kTel.cameraActive !== undefined ? kTel.cameraActive : true,
+              lastSeen: kTel.lastSeen,
+            });
+            if (typeof kTel.isPaused === 'boolean') {
+              setKioskState(kTel.isPaused ? 'paused' : kTel.state && kTel.state !== 'IDLE' ? 'active' : 'standby');
+            }
+          }
+        }
+      } catch {}
 
       const now = Date.now();
       if (lastKioskPongRef.current > 0 && now - lastKioskPongRef.current > 8000) {
@@ -333,9 +357,9 @@ function StaffAdminScreen() {
     };
 
     sendPing();
-    const pingTimer = setInterval(sendPing, 3000);
+    const pingTimer = setInterval(sendPing, 2500);
     return () => clearInterval(pingTimer);
-  }, []);
+  }, [safePostMessage]);
 
   // Network latency check
   const checkNetwork = useCallback(async () => {
@@ -496,19 +520,42 @@ function StaffAdminScreen() {
   }, []);
 
   const sendCommand = (command: string, label: string, value?: any) => {
+    const cmdId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    // 1. Instant BroadcastChannel (same origin/profile)
     safePostMessage({
       type: 'KIOSK_COMMAND',
       command,
       value,
-    } as ScreenSyncEvent);
+      id: cmdId,
+    } as any);
 
     if (command === 'RESET_STANDBY') {
       safePostMessage({ type: 'SCREEN1_RESET' } as ScreenSyncEvent);
+    } else if (command === 'STAFF_TRIGGER') {
+      safePostMessage({ type: 'STAFF_TRIGGER_CAPTURE' } as ScreenSyncEvent);
     }
+
+    // 2. LocalStorage Command Envelope (fires window 'storage' event across tabs on same origin)
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(
+          'swu_kiosk_cmd',
+          JSON.stringify({ id: cmdId, command, value, timestamp: Date.now() })
+        );
+      } catch {}
+    }
+
+    // 3. Server-backed /api/kiosk-sync (works across different windows, profiles, Incognito, or Port 3000 <-> 3001)
+    fetch('/api/kiosk-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: cmdId, command, value }),
+    }).catch(() => {});
 
     setCommandNotice(label);
     addAuditLog('STAFF', label);
-    setTimeout(() => setCommandNotice(''), 2000);
+    setTimeout(() => setCommandNotice(''), 2500);
   };
 
   const toggleDisplayMute = () => {

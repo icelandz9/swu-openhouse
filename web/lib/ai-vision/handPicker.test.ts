@@ -1,6 +1,6 @@
-// Run: node lib/ai-vision/handPicker.test.ts
+// Run: npx tsx lib/ai-vision/handPicker.test.ts
 import assert from 'node:assert/strict';
-import { pickNearestHandInCapture, type CaptureArea } from './handPicker.ts';
+import { pickNearestHandInCapture, type CaptureArea } from './handPicker';
 
 // A 21-point hand: a square of side `size` centred on (cx, cy); landmark 9 is the centre.
 function hand(cx: number, cy: number, size: number) {
@@ -24,9 +24,25 @@ assert.equal(pickNearestHandInCapture([hand(0.4, 0.5, 0.08), hand(0.6, 0.5, 0.15
 assert.equal(pickNearestHandInCapture([hand(0.6, 0.5, 0.15), hand(0.4, 0.5, 0.08)], frame), 0);
 // 4. A big hand outside loses to a small hand inside
 assert.equal(pickNearestHandInCapture([hand(0.9, 0.5, 0.4), hand(0.5, 0.5, 0.05)], frame), 1);
-// 5. A near foreground user standing slightly on the border (x=0.20) beats a tiny distant passer-by (x=0.5, size 0.01)
-assert.equal(pickNearestHandInCapture([hand(0.20, 0.5, 0.15), hand(0.5, 0.5, 0.01)], frame), 0, 'near user on border beats tiny background hand');
+// 5. A near foreground user standing slightly on the border (x=0.20) beats a tiny distant passer-by (x=0.5, size 0.08)
+assert.equal(pickNearestHandInCapture([hand(0.20, 0.5, 0.2), hand(0.5, 0.5, 0.08)], frame), 0, 'near user on border beats smaller hand');
 // 6. Incomplete hands are skipped
 assert.equal(pickNearestHandInCapture([[{ x: 0.5, y: 0.5 }]], frame), -1);
+// 7. Crowd noise floor: when minAreaRatio is set to 0.04 (4.0% close mode), distant background hands (area = 0.08^2 = 0.0064 < 0.018) are completely rejected
+assert.equal(
+  pickNearestHandInCapture([hand(0.5, 0.5, 0.08), hand(0.4, 0.5, 0.09)], frame, { minAreaRatio: 0.04 }),
+  -1,
+  'background crowd hands smaller than noise floor must be rejected in 4.0% mode'
+);
+// 8. Target Lock Hysteresis: while user 0 (size 0.18 -> area 3.24%) is holding at (0.45, 0.5), user 1 raising a slightly larger hand (size 0.19 -> area 3.61%) at (0.65, 0.5) does NOT hijack the lock
+assert.equal(
+  pickNearestHandInCapture(
+    [hand(0.45, 0.5, 0.18), hand(0.65, 0.5, 0.19)],
+    frame,
+    { minAreaRatio: 0.025, lockedPalm: { x: 0.46, y: 0.5 } }
+  ),
+  0,
+  'locked foreground hand must not be hijacked by another person in the group'
+);
 
-console.log('handPicker: all 7 checks passed');
+console.log('handPicker: all 9 checks passed');

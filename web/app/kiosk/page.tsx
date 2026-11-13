@@ -22,7 +22,7 @@ import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
 import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL, PHOTO_ASPECT_RATIO, PhotoRatio, toPhotoRatio, FRAME_PHOTO_ASPECT } from '@/lib/contracts';
 import { generateShortCode } from '@/lib/mobile/shortCodeGenerator';
 import { classifyGesture } from '@/lib/ai-vision/gestureRules';
-import { isHandInForeground } from '@/lib/ai-vision/depthAreaFilter';
+import { isHandInForeground, calculateHandAreaRatio } from '@/lib/ai-vision/depthAreaFilter';
 import { pickNearestHandInCapture, type CaptureArea } from '@/lib/ai-vision/handPicker';
 import { AdaptiveHandSmoother, drawHandMeshOnCanvas } from '@/lib/ai-vision/handTrackerFast';
 import { calculateCrop } from '@/lib/kiosk/centerCropper';
@@ -147,11 +147,26 @@ function KioskCapturePageContent() {
   const previewGestureLockRef = useRef<boolean>(false);
   const previewEnterTimeRef = useRef<number>(0);
   const fistHoldStartTimeRef = useRef<number | null>(null);
+  const lockedPalmRef = useRef<{ x: number; y: number } | null>(null);
+  const currentHandAreaPctRef = useRef<number>(0);
 
   const [countdown, setCountdown] = useState<number>(3);
+  const [countdownDuration, setCountdownDuration] = useState<number>(3);
   const defaultCountdownRef = useRef<number>(3);
   const [previewSeconds, setPreviewSeconds] = useState<number>(10);
   const [retakeCount, setRetakeCount] = useState<number>(0);
+  const [adminToast, setAdminToast] = useState<string>('');
+  const adminToastTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastExecutedCmdIdRef = useRef<string>('');
+  const lastSyncedConfigAtRef = useRef<number>(0);
+
+  const showAdminToast = useCallback((msg: string) => {
+    setAdminToast(msg);
+    if (adminToastTimerRef.current) clearTimeout(adminToastTimerRef.current);
+    adminToastTimerRef.current = setTimeout(() => {
+      setAdminToast('');
+    }, 2600);
+  }, []);
 
   // Captured snapshot URL
   const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string>('');
@@ -207,7 +222,136 @@ function KioskCapturePageContent() {
     } catch {}
   }, []);
 
-  // Initialize BroadcastChannel & listen to admin / display events
+  // Unified command executor for BroadcastChannel, localStorage storage events, and /api/kiosk-sync polling
+  const executeAdminCommand = useCallback(
+    (command: string, value?: any) => {
+      if (command === 'STAFF_TRIGGER' || command === 'TRIGGER_SHUTTER') {
+        setIsPaused(false);
+        isPausedRef.current = false;
+        setIsSyncing(false);
+        isSyncingRef.current = false;
+        uploadInFlightRef.current = false;
+        holdStartTimeRef.current = null;
+        fistHoldStartTimeRef.current = null;
+        lockedPalmRef.current = null;
+        holdProgressRef.current = 0;
+        prevHoldProgressIntRef.current = 0;
+        setHoldProgress(0);
+        setCountdown(defaultCountdownRef.current);
+        playBeep(880);
+        showAdminToast(`📸 สั่งถ่ายฉุกเฉิน (${defaultCountdownRef.current}s)`);
+        send({ type: 'STAFF_TRIGGER' });
+      } else if (command === 'RESET_STANDBY' || command === 'SCREEN1_RESET') {
+        send({ type: 'FORCE_RESET' });
+        holdProgressRef.current = 0;
+        prevHoldProgressIntRef.current = 0;
+        setHoldProgress(0);
+        if (holdBarFillRef.current) {
+          holdBarFillRef.current.style.width = '0%';
+        }
+        setCountdown(defaultCountdownRef.current);
+        setPreviewSeconds(10);
+        setRetakeCount(0);
+        setCapturedPhotoUrl('');
+        setIsSyncing(false);
+        isSyncingRef.current = false;
+        uploadInFlightRef.current = false;
+        holdStartTimeRef.current = null;
+        fistHoldStartTimeRef.current = null;
+        lockedPalmRef.current = null;
+        previewGestureLockRef.current = false;
+        handSmootherRef.current.reset();
+        setIsPaused(false);
+        isPausedRef.current = false;
+        playBeep(660);
+        showAdminToast('🔄 รีเซ็ตตู้พร้อมรับคิวถัดไป (STANDBY)');
+      } else if (command === 'SKIP_PREVIEW') {
+        if (isPreviewingRef.current) {
+          showAdminToast('⏭️ ข้าม Preview ส่งรูปทันที');
+          handleConfirmUploadRef.current();
+        }
+      } else if (command === 'PAUSE_BOOTH') {
+        setIsPaused(true);
+        isPausedRef.current = true;
+        showAdminToast('⏸️ พักบูธชั่วคราว');
+      } else if (command === 'RESUME_BOOTH') {
+        setIsPaused(false);
+        isPausedRef.current = false;
+        showAdminToast('▶️ เปิดใช้งานบูธต่อ');
+      } else if (command === 'RELOAD_CAMERA') {
+        showAdminToast('📷 รีสตาร์ทเชื่อมต่อกล้องใหม่...');
+        initCameraRef.current();
+      } else if (command === 'CANCEL_COUNTDOWN') {
+        send({ type: 'FORCE_RESET' });
+        setCountdown(defaultCountdownRef.current);
+        holdProgressRef.current = 0;
+        prevHoldProgressIntRef.current = 0;
+        setHoldProgress(0);
+        if (holdBarFillRef.current) {
+          holdBarFillRef.current.style.width = '0%';
+        }
+        holdStartTimeRef.current = null;
+        lockedPalmRef.current = null;
+        showAdminToast('⏹️ ยกเลิกการนับถอยหลัง');
+      } else if (command === 'SET_COUNTDOWN') {
+        const parsedCd = typeof value === 'number' ? value : parseInt(String(value), 10);
+        if (!isNaN(parsedCd) && parsedCd >= 1 && parsedCd <= 15) {
+          defaultCountdownRef.current = parsedCd;
+          setCountdownDuration(parsedCd);
+          if (!stateRef.current || stateRef.current !== 'COUNTDOWN_ACTIVE') {
+            setCountdown(parsedCd);
+          }
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('swu_countdown_seconds', parsedCd.toString());
+            } catch {}
+          }
+          showAdminToast(`⏱️ ตั้งเวลานับถอยหลัง: ${parsedCd} วินาที`);
+        }
+      } else if (command === 'SET_THRESHOLD') {
+        const parsedTh = typeof value === 'number' ? value : parseFloat(String(value));
+        if (!isNaN(parsedTh) && parsedTh >= 0.005 && parsedTh <= 0.1) {
+          handAreaThresholdRef.current = parsedTh;
+          setHandAreaThreshold(parsedTh);
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('swu_hand_threshold', parsedTh.toString());
+            } catch {}
+          }
+          const pct = (parsedTh * 100).toFixed(1);
+          const modeLabel = parsedTh <= 0.018 ? 'ไกล 2-3m' : parsedTh <= 0.032 ? 'ปกติ 1.5m' : 'ประชิด คนเยอะ';
+          showAdminToast(`🎯 ระยะตรวจจับมือ: ${pct}% (${modeLabel})`);
+        }
+      } else if (command === 'SET_PHOTO_RATIO') {
+        const ratio = toPhotoRatio(value);
+        if (ratio) {
+          photoRatioRef.current = ratio;
+          setPhotoRatio(ratio);
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('swu_photo_ratio', ratio);
+            } catch {}
+          }
+          showAdminToast(`🖼️ สัดส่วนภาพ: ${ratio === 'frame' ? 'พอดีกรอบ 986×1080' : '4:3 แนวนอน'}`);
+        }
+      } else if (command === 'SET_PUBLIC_DOMAIN') {
+        if (typeof window !== 'undefined') {
+          const val = typeof value === 'string' ? value.trim() : '';
+          if (val) {
+            localStorage.setItem('swu_booth_host', val);
+          } else {
+            localStorage.removeItem('swu_booth_host');
+          }
+        }
+      }
+    },
+    [playBeep, send, showAdminToast]
+  );
+
+  const executeAdminCommandRef = useRef(executeAdminCommand);
+  executeAdminCommandRef.current = executeAdminCommand;
+
+  // Initialize BroadcastChannel, localStorage listener & Server-backed /api/kiosk-sync bus
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -224,31 +368,34 @@ function KioskCapturePageContent() {
           const parsedCd = parseInt(savedCountdown, 10);
           if (!isNaN(parsedCd) && parsedCd >= 1 && parsedCd <= 15) {
             defaultCountdownRef.current = parsedCd;
+            setCountdownDuration(parsedCd);
             setCountdown(parsedCd);
           }
         }
         const savedRatio = localStorage.getItem('swu_photo_ratio');
         const ratio = toPhotoRatio(savedRatio);
-        if (ratio) setPhotoRatio(ratio);
+        if (ratio) {
+          photoRatioRef.current = ratio;
+          setPhotoRatio(ratio);
+        }
       } catch {}
     }
 
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'swu_hand_threshold' && e.newValue) {
-        const parsed = parseFloat(e.newValue);
-        if (!isNaN(parsed) && parsed >= 0.005 && parsed <= 0.1) {
-          handAreaThresholdRef.current = parsed;
-          setHandAreaThreshold(parsed);
-        }
+      if (e.key === 'swu_kiosk_cmd' && e.newValue) {
+        try {
+          const cmdObj = JSON.parse(e.newValue);
+          if (cmdObj && cmdObj.id && cmdObj.id !== lastExecutedCmdIdRef.current) {
+            lastExecutedCmdIdRef.current = cmdObj.id;
+            executeAdminCommandRef.current(cmdObj.command, cmdObj.value);
+          }
+        } catch {}
+      } else if (e.key === 'swu_hand_threshold' && e.newValue) {
+        executeAdminCommandRef.current('SET_THRESHOLD', parseFloat(e.newValue));
       } else if (e.key === 'swu_countdown_seconds' && e.newValue) {
-        const parsedCd = parseInt(e.newValue, 10);
-        if (!isNaN(parsedCd) && parsedCd >= 1 && parsedCd <= 15) {
-          defaultCountdownRef.current = parsedCd;
-          setCountdown(parsedCd);
-        }
+        executeAdminCommandRef.current('SET_COUNTDOWN', parseInt(e.newValue, 10));
       } else if (e.key === 'swu_photo_ratio' && e.newValue) {
-        const ratio = toPhotoRatio(e.newValue);
-        if (ratio) setPhotoRatio(ratio);
+        executeAdminCommandRef.current('SET_PHOTO_RATIO', e.newValue);
       }
     };
     if (typeof window !== 'undefined') {
@@ -258,116 +405,118 @@ function KioskCapturePageContent() {
     const channel = new BroadcastChannel(SCREEN_SYNC_CHANNEL);
     channelRef.current = channel;
 
+    const sendHeartbeatPong = (pingTimestamp?: number) => {
+      const video = videoRef.current;
+      const resText = video && video.videoWidth > 0 ? `${video.videoWidth}x${video.videoHeight}` : '1080p';
+      const statusPayload = {
+        state: stateRef.current,
+        isPaused: isPausedRef.current,
+        cameraActive: cameraActiveRef.current,
+        fps: fpsCounterRef.current.currentFps || 60,
+        resolution: resText,
+        aiLatencyMs: lastAiLatencyRef.current || 11,
+        threshold: handAreaThresholdRef.current,
+        countdownSeconds: defaultCountdownRef.current,
+        photoRatio: photoRatioRef.current,
+        handAreaPct: Number((currentHandAreaPctRef.current * 100).toFixed(2)),
+      };
+      try {
+        channelRef.current?.postMessage({
+          type: 'HEARTBEAT_PONG',
+          sender: 'KIOSK',
+          timestamp: Date.now(),
+          pingTimestamp,
+          status: statusPayload,
+        });
+      } catch {}
+      return statusPayload;
+    };
+
     channel.onmessage = (event: MessageEvent<ScreenSyncEvent>) => {
       const data = event.data;
       if (!data) return;
 
       if (data.type === 'SCREEN1_RESET') {
-        send({ type: 'FORCE_RESET' });
-        holdStartTimeRef.current = null;
-        fistHoldStartTimeRef.current = null;
-        holdProgressRef.current = 0;
-        prevHoldProgressIntRef.current = 0;
-        setHoldProgress(0);
-        setCountdown(defaultCountdownRef.current);
-        previewGestureLockRef.current = false;
-        setIsPaused(false);
+        executeAdminCommandRef.current('RESET_STANDBY');
       } else if (data.type === 'STAFF_TRIGGER_CAPTURE') {
-        setIsPaused(false);
-        setCountdown(defaultCountdownRef.current);
-        send({ type: 'STAFF_TRIGGER' });
+        executeAdminCommandRef.current('STAFF_TRIGGER');
       } else if (data.type === 'KIOSK_COMMAND') {
-        if (data.command === 'STAFF_TRIGGER' || data.command === 'TRIGGER_SHUTTER') {
-          setIsPaused(false);
-          setCountdown(defaultCountdownRef.current);
-          send({ type: 'STAFF_TRIGGER' });
-        } else if (data.command === 'RESET_STANDBY') {
-          send({ type: 'FORCE_RESET' });
-          holdProgressRef.current = 0;
-          prevHoldProgressIntRef.current = 0;
-          setHoldProgress(0);
-          setCountdown(defaultCountdownRef.current);
-          holdStartTimeRef.current = null;
-          fistHoldStartTimeRef.current = null;
-          previewGestureLockRef.current = false;
-          setIsPaused(false);
-        } else if (data.command === 'SKIP_PREVIEW') {
-          if (isPreviewingRef.current) {
-            handleConfirmUploadRef.current();
-          }
-        } else if (data.command === 'PAUSE_BOOTH') {
-          setIsPaused(true);
-        } else if (data.command === 'RESUME_BOOTH') {
-          setIsPaused(false);
-        } else if (data.command === 'RELOAD_CAMERA') {
-          initCameraRef.current();
-        } else if (data.command === 'CANCEL_COUNTDOWN') {
-          send({ type: 'FORCE_RESET' });
-          setCountdown(defaultCountdownRef.current);
-          holdProgressRef.current = 0;
-          prevHoldProgressIntRef.current = 0;
-          setHoldProgress(0);
-          holdStartTimeRef.current = null;
-        } else if (data.command === 'SET_COUNTDOWN') {
-          if (typeof data.value === 'number' && data.value >= 1 && data.value <= 15) {
-            defaultCountdownRef.current = data.value;
-            setCountdown(data.value);
-            if (typeof window !== 'undefined') {
-              try { localStorage.setItem('swu_countdown_seconds', data.value.toString()); } catch {}
-            }
-          }
-        } else if (data.command === 'SET_THRESHOLD') {
-          if (typeof data.value === 'number' && data.value >= 0.005 && data.value <= 0.1) {
-            handAreaThresholdRef.current = data.value;
-            setHandAreaThreshold(data.value);
-            if (typeof window !== 'undefined') {
-              try { localStorage.setItem('swu_hand_threshold', data.value.toString()); } catch {}
-            }
-          }
-        } else if (data.command === 'SET_PHOTO_RATIO') {
-          const ratio = toPhotoRatio(data.value);
-          if (ratio) {
-            setPhotoRatio(ratio);
-            if (typeof window !== 'undefined') {
-              try { localStorage.setItem('swu_photo_ratio', ratio); } catch {}
-            }
-          }
-        } else if (data.command === 'SET_PUBLIC_DOMAIN') {
-          if (typeof window !== 'undefined') {
-            const val = typeof data.value === 'string' ? data.value.trim() : '';
-            if (val) {
-              localStorage.setItem('swu_booth_host', val);
-            } else {
-              localStorage.removeItem('swu_booth_host');
-            }
-          }
+        const cmdId = (data as any).id;
+        if (cmdId) {
+          if (cmdId === lastExecutedCmdIdRef.current) return;
+          lastExecutedCmdIdRef.current = cmdId;
         }
+        executeAdminCommandRef.current(data.command, data.value);
       } else if (data.type === 'HEARTBEAT_PING') {
-        const video = videoRef.current;
-        const resText = video && video.videoWidth > 0 ? `${video.videoWidth}x${video.videoHeight}` : '1080p';
-        try {
-          channelRef.current?.postMessage({
-            type: 'HEARTBEAT_PONG',
-            sender: 'KIOSK',
-            timestamp: Date.now(),
-            pingTimestamp: data.timestamp,
-            status: {
-              state: stateRef.current,
-              isPaused: isPausedRef.current,
-              cameraActive: cameraActiveRef.current,
-              fps: fpsCounterRef.current.currentFps || 60,
-              resolution: resText,
-              aiLatencyMs: lastAiLatencyRef.current || 11,
-              threshold: handAreaThresholdRef.current,
-              countdownSeconds: defaultCountdownRef.current,
-              photoRatio: photoRatioRef.current,
-            },
-          });
-        } catch {}
+        sendHeartbeatPong(data.timestamp);
       }
     };
 
+    // Server-backed sync poll (every 600ms) so /admin controls work even across different browser windows/profiles/ports
+    let pollActive = true;
+    let tickCount = 0;
+    const syncPoll = async () => {
+      if (!pollActive) return;
+      try {
+        const res = await fetch('/api/kiosk-sync', { cache: 'no-store' });
+        if (res.ok) {
+          const syncData = await res.json();
+          // 1. Execute any newly arrived command from /admin
+          const lastCmd = syncData?.lastCommand;
+          if (
+            lastCmd &&
+            lastCmd.id &&
+            lastCmd.id !== lastExecutedCmdIdRef.current &&
+            Date.now() - (lastCmd.timestamp || 0) < 12000
+          ) {
+            lastExecutedCmdIdRef.current = lastCmd.id;
+            executeAdminCommandRef.current(lastCmd.command, lastCmd.value);
+          }
+
+          // 2. Sync sticky configuration if updated on server
+          const cfg = syncData?.config;
+          if (cfg && typeof cfg.updatedAt === 'number' && cfg.updatedAt > lastSyncedConfigAtRef.current) {
+            lastSyncedConfigAtRef.current = cfg.updatedAt;
+            if (typeof cfg.countdownSeconds === 'number' && cfg.countdownSeconds !== defaultCountdownRef.current) {
+              defaultCountdownRef.current = cfg.countdownSeconds;
+              setCountdownDuration(cfg.countdownSeconds);
+              if (stateRef.current !== 'COUNTDOWN_ACTIVE') {
+                setCountdown(cfg.countdownSeconds);
+              }
+            }
+            if (typeof cfg.handAreaThreshold === 'number' && Math.abs(cfg.handAreaThreshold - handAreaThresholdRef.current) > 0.0005) {
+              handAreaThresholdRef.current = cfg.handAreaThreshold;
+              setHandAreaThreshold(cfg.handAreaThreshold);
+            }
+            if (cfg.photoRatio && cfg.photoRatio !== photoRatioRef.current) {
+              const r = toPhotoRatio(cfg.photoRatio);
+              if (r) {
+                photoRatioRef.current = r;
+                setPhotoRatio(r);
+              }
+            }
+          }
+        }
+
+        // Report kiosk telemetry every ~1.8s (every 3rd poll)
+        tickCount++;
+        if (tickCount % 3 === 0) {
+          const statusPayload = sendHeartbeatPong();
+          fetch('/api/kiosk-sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ telemetry: { kiosk: statusPayload } }),
+          }).catch(() => {});
+        }
+      } catch {}
+    };
+
+    syncPoll();
+    const syncTimer = setInterval(syncPoll, 600);
+
     return () => {
+      pollActive = false;
+      clearInterval(syncTimer);
       if (typeof window !== 'undefined') {
         window.removeEventListener('storage', handleStorageChange);
       }
@@ -662,7 +811,7 @@ function KioskCapturePageContent() {
             delegate: 'GPU' as const,
           },
           runningMode: 'VIDEO' as const,
-          numHands: 2,
+          numHands: 4,
           minHandDetectionConfidence: 0.35,
           minHandPresenceConfidence: 0.35,
           minTrackingConfidence: 0.35,
@@ -754,9 +903,12 @@ function KioskCapturePageContent() {
             const results = landmarker.detectForVideo(inferenceSource, tStart);
             lastAiLatencyRef.current = Math.max(1, Math.round(performance.now() - tStart));
 
-            // Only hands inside the capture area count, and of those the nearest one
+            // Only hands inside the capture area count, and of those the nearest foreground hand (with target lock during hold)
             const pickIdx = results?.landmarks?.length
-              ? pickNearestHandInCapture(results.landmarks, captureAreaOf(vw, vh, photoRatioRef.current))
+              ? pickNearestHandInCapture(results.landmarks, captureAreaOf(vw, vh, photoRatioRef.current), {
+                  minAreaRatio: handAreaThresholdRef.current,
+                  lockedPalm: holdStartTimeRef.current !== null ? lockedPalmRef.current : null,
+                })
               : -1;
 
             if (pickIdx >= 0) {
@@ -780,6 +932,8 @@ function KioskCapturePageContent() {
               }
 
               // Depth & Area Filter: reject distant background passers-by
+              const areaRatio = calculateHandAreaRatio(primaryHand);
+              currentHandAreaPctRef.current = areaRatio;
               const inForeground = isHandInForeground(primaryHand, handAreaThresholdRef.current);
               if (prevIsForegroundRef.current !== inForeground) {
                 prevIsForegroundRef.current = inForeground;
@@ -789,6 +943,7 @@ function KioskCapturePageContent() {
               if (isIdle || isDetecting) {
                 if (detected === 'OPEN_PALM' && inForeground) {
                   lastPalmSeenTimeRef.current = nowPerf;
+                  lockedPalmRef.current = primaryHand[9] ? { x: primaryHand[9].x, y: primaryHand[9].y } : null;
                   if (holdStartTimeRef.current === null) {
                     holdStartTimeRef.current = nowPerf;
                     send({ type: 'HAND_DETECTED' });
@@ -796,6 +951,7 @@ function KioskCapturePageContent() {
                 } else {
                   const timeSinceLast = nowPerf - (lastPalmSeenTimeRef.current || 0);
                   if (timeSinceLast > 500) {
+                    lockedPalmRef.current = null;
                     if (holdStartTimeRef.current !== null) {
                       holdStartTimeRef.current = null;
                       holdProgressRef.current = 0;
@@ -840,6 +996,7 @@ function KioskCapturePageContent() {
               }
             } else {
               handSmootherRef.current.reset();
+              currentHandAreaPctRef.current = 0;
               if (prevHasHandRef.current) {
                 prevHasHandRef.current = false;
                 setHasHand(false);
@@ -854,6 +1011,7 @@ function KioskCapturePageContent() {
               }
               const timeSinceLast = nowPerf - (lastPalmSeenTimeRef.current || 0);
               if (timeSinceLast > 500) {
+                lockedPalmRef.current = null;
                 if (holdStartTimeRef.current !== null) {
                   holdStartTimeRef.current = null;
                   holdProgressRef.current = 0;
@@ -883,8 +1041,10 @@ function KioskCapturePageContent() {
           }
           if (elapsed >= 1500) {
             holdStartTimeRef.current = null;
+            lockedPalmRef.current = null;
             holdProgressRef.current = 100;
             setHoldProgress(100);
+            setCountdown(defaultCountdownRef.current);
             send({ type: 'TRIGGER_ACTIVATED' });
           }
         } else if (holdStartTimeRef.current === null && holdProgressRef.current !== 0) {
@@ -993,6 +1153,7 @@ function KioskCapturePageContent() {
       const key = e.key.toLowerCase();
       if (key === 'p') {
         if (isIdle || isDetecting) {
+          setCountdown(defaultCountdownRef.current);
           send({ type: 'TRIGGER_ACTIVATED' });
         } else if (isPreviewing) {
           handleConfirmUploadRef.current();
@@ -1002,15 +1163,9 @@ function KioskCapturePageContent() {
           handleRetake();
         }
       } else if (key === 's') {
-        send({ type: 'STAFF_TRIGGER' });
+        executeAdminCommandRef.current('STAFF_TRIGGER');
       } else if (key === 'r') {
-        send({ type: 'FORCE_RESET' });
-        holdProgressRef.current = 0;
-        prevHoldProgressIntRef.current = 0;
-        setHoldProgress(0);
-        setCountdown(defaultCountdownRef.current);
-        previewGestureLockRef.current = false;
-        setIsPaused(false);
+        executeAdminCommandRef.current('RESET_STANDBY');
       }
     };
 
@@ -1212,8 +1367,11 @@ function KioskCapturePageContent() {
                       <Camera className="size-[1.1cqw]" />
                     </button>
                     <span className="h-[1cqw] w-px bg-white/20" />
-                    <div className="flex items-center gap-[.2cqw] text-[.55cqw] font-pixel text-[#94a3b8]">
-                      <Sparkles className="size-[.9cqw] text-[var(--px-gold)]" />
+                    <div className="flex items-center gap-[.28cqw] text-[.54cqw] font-pixel text-[#cbd5e1]" title="เวลานับถอยหลัง & ระยะตรวจจับมือที่ตั้งจากหน้า Admin">
+                      <Sparkles className="size-[.85cqw] text-[var(--px-gold)]" />
+                      <span>{countdownDuration}S</span>
+                      <span className="text-white/30">·</span>
+                      <span className="text-[#38bdf8]">{(handAreaThreshold * 100).toFixed(1)}%</span>
                     </div>
                   </div>
 
@@ -1287,6 +1445,15 @@ function KioskCapturePageContent() {
                   >
                     {holdProgress > 0 ? `${Math.round(holdProgress)}%` : 'PRESS START'}
                   </span>
+                </div>
+              )}
+
+              {/* Admin Remote Command Toast Notification */}
+              {adminToast && (
+                <div className="pointer-events-none absolute left-1/2 top-[4.2cqw] z-50 -translate-x-1/2 animate-bounce">
+                  <div className="kc-dialog kc-px flex items-center gap-[.6cqw] px-[1.2cqw] py-[.5cqw] text-[.95cqw] font-bold text-[var(--px-gold)] shadow-[0_8px_24px_rgba(0,0,0,0.85)]">
+                    <span>{adminToast}</span>
+                  </div>
                 </div>
               )}
 
