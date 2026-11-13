@@ -272,6 +272,15 @@ function StaffAdminScreen() {
         }
       }
 
+      // Load saved countdown duration (3s / 5s / 8s)
+      const savedCountdown = localStorage.getItem('swu_countdown_seconds');
+      if (savedCountdown) {
+        const parsedCd = parseInt(savedCountdown, 10);
+        if (!isNaN(parsedCd) && [3, 5, 8].includes(parsedCd)) {
+          setCountdownDuration(parsedCd);
+        }
+      }
+
       // Load saved capture mode (default 'frame': the CPE frames' photo shape; old saved '3:4' means the same)
       const savedRatio = localStorage.getItem('swu_photo_ratio');
       if (savedRatio === '3:4' || savedRatio === 'frame') {
@@ -398,6 +407,9 @@ function StaffAdminScreen() {
             cameraActive: st.cameraActive !== undefined ? st.cameraActive : true,
             lastSeen: now,
           });
+          if (typeof st.isPaused === 'boolean') {
+            setKioskState(st.isPaused ? 'paused' : st.state && st.state !== 'IDLE' ? 'active' : 'standby');
+          }
         } else if (data.sender === 'DISPLAY') {
           lastDisplayPongRef.current = now;
           setDisplayOnline(true);
@@ -1721,6 +1733,9 @@ function StaffAdminScreen() {
                           onClick={() => {
                             setCountdownDuration(sec);
                             sendCommand('SET_COUNTDOWN', `นับ ${sec}s`, sec);
+                            if (typeof window !== 'undefined') {
+                              try { localStorage.setItem('swu_countdown_seconds', sec.toString()); } catch {}
+                            }
                           }}
                           className={`py-1 rounded-lg text-xs font-mono font-bold transition-colors cursor-pointer ${
                             countdownDuration === sec

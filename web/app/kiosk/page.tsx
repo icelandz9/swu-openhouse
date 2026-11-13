@@ -111,12 +111,22 @@ function KioskCapturePageContent() {
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number }>({ width: 16, height: 9 });
   const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.025);
+  const handAreaThresholdRef = useRef<number>(0.025);
+  handAreaThresholdRef.current = handAreaThreshold;
   // 'frame' (default: the CPE frames' photo shape, 986x1080) or 4:3 landscape (wide, for groups); staff switch it in /admin
   const [photoRatio, setPhotoRatio] = useState<PhotoRatio>(PHOTO_ASPECT_RATIO);
   // Read by the hand-tracking loop, which does not re-subscribe when the ratio changes
   const photoRatioRef = useRef<PhotoRatio>(PHOTO_ASPECT_RATIO);
   photoRatioRef.current = photoRatio;
   const currentStreamRef = useRef<MediaStream | null>(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const isPausedRef = useRef<boolean>(isPaused);
+  isPausedRef.current = isPaused;
+  const cameraActiveRef = useRef<boolean>(cameraActive);
+  cameraActiveRef.current = cameraActive;
+  const isPreviewingRef = useRef<boolean>(isPreviewing);
+  isPreviewingRef.current = isPreviewing;
 
   // Gesture detection & tracking (Direct Canvas 2D + Fast Pipeline: zero per-frame React state churn)
   const [holdProgress, setHoldProgress] = useState<number>(0);
@@ -205,13 +215,44 @@ function KioskCapturePageContent() {
         if (savedThreshold) {
           const parsed = parseFloat(savedThreshold);
           if (!isNaN(parsed) && parsed >= 0.005 && parsed <= 0.1) {
+            handAreaThresholdRef.current = parsed;
             setHandAreaThreshold(parsed);
+          }
+        }
+        const savedCountdown = localStorage.getItem('swu_countdown_seconds');
+        if (savedCountdown) {
+          const parsedCd = parseInt(savedCountdown, 10);
+          if (!isNaN(parsedCd) && parsedCd >= 1 && parsedCd <= 15) {
+            defaultCountdownRef.current = parsedCd;
+            setCountdown(parsedCd);
           }
         }
         const savedRatio = localStorage.getItem('swu_photo_ratio');
         const ratio = toPhotoRatio(savedRatio);
         if (ratio) setPhotoRatio(ratio);
       } catch {}
+    }
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'swu_hand_threshold' && e.newValue) {
+        const parsed = parseFloat(e.newValue);
+        if (!isNaN(parsed) && parsed >= 0.005 && parsed <= 0.1) {
+          handAreaThresholdRef.current = parsed;
+          setHandAreaThreshold(parsed);
+        }
+      } else if (e.key === 'swu_countdown_seconds' && e.newValue) {
+        const parsedCd = parseInt(e.newValue, 10);
+        if (!isNaN(parsedCd) && parsedCd >= 1 && parsedCd <= 15) {
+          defaultCountdownRef.current = parsedCd;
+          setCountdown(parsedCd);
+        }
+      } else if (e.key === 'swu_photo_ratio' && e.newValue) {
+        const ratio = toPhotoRatio(e.newValue);
+        if (ratio) setPhotoRatio(ratio);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
     }
 
     const channel = new BroadcastChannel(SCREEN_SYNC_CHANNEL);
@@ -225,20 +266,33 @@ function KioskCapturePageContent() {
         send({ type: 'FORCE_RESET' });
         holdStartTimeRef.current = null;
         fistHoldStartTimeRef.current = null;
+        holdProgressRef.current = 0;
+        prevHoldProgressIntRef.current = 0;
         setHoldProgress(0);
+        setCountdown(defaultCountdownRef.current);
         previewGestureLockRef.current = false;
         setIsPaused(false);
       } else if (data.type === 'STAFF_TRIGGER_CAPTURE') {
+        setIsPaused(false);
+        setCountdown(defaultCountdownRef.current);
         send({ type: 'STAFF_TRIGGER' });
       } else if (data.type === 'KIOSK_COMMAND') {
-        if (data.command === 'RESET_STANDBY') {
+        if (data.command === 'STAFF_TRIGGER' || data.command === 'TRIGGER_SHUTTER') {
+          setIsPaused(false);
+          setCountdown(defaultCountdownRef.current);
+          send({ type: 'STAFF_TRIGGER' });
+        } else if (data.command === 'RESET_STANDBY') {
           send({ type: 'FORCE_RESET' });
+          holdProgressRef.current = 0;
+          prevHoldProgressIntRef.current = 0;
           setHoldProgress(0);
+          setCountdown(defaultCountdownRef.current);
           holdStartTimeRef.current = null;
           fistHoldStartTimeRef.current = null;
+          previewGestureLockRef.current = false;
           setIsPaused(false);
         } else if (data.command === 'SKIP_PREVIEW') {
-          if (isPreviewing) {
+          if (isPreviewingRef.current) {
             handleConfirmUploadRef.current();
           }
         } else if (data.command === 'PAUSE_BOOTH') {
@@ -249,16 +303,22 @@ function KioskCapturePageContent() {
           initCameraRef.current();
         } else if (data.command === 'CANCEL_COUNTDOWN') {
           send({ type: 'FORCE_RESET' });
-          setCountdown(3);
+          setCountdown(defaultCountdownRef.current);
+          holdProgressRef.current = 0;
+          prevHoldProgressIntRef.current = 0;
           setHoldProgress(0);
           holdStartTimeRef.current = null;
         } else if (data.command === 'SET_COUNTDOWN') {
-          if (typeof data.value === 'number') {
+          if (typeof data.value === 'number' && data.value >= 1 && data.value <= 15) {
             defaultCountdownRef.current = data.value;
             setCountdown(data.value);
+            if (typeof window !== 'undefined') {
+              try { localStorage.setItem('swu_countdown_seconds', data.value.toString()); } catch {}
+            }
           }
         } else if (data.command === 'SET_THRESHOLD') {
-          if (typeof data.value === 'number') {
+          if (typeof data.value === 'number' && data.value >= 0.005 && data.value <= 0.1) {
+            handAreaThresholdRef.current = data.value;
             setHandAreaThreshold(data.value);
             if (typeof window !== 'undefined') {
               try { localStorage.setItem('swu_hand_threshold', data.value.toString()); } catch {}
@@ -292,13 +352,15 @@ function KioskCapturePageContent() {
             timestamp: Date.now(),
             pingTimestamp: data.timestamp,
             status: {
-              state: state,
-              isPaused,
-              cameraActive,
+              state: stateRef.current,
+              isPaused: isPausedRef.current,
+              cameraActive: cameraActiveRef.current,
               fps: fpsCounterRef.current.currentFps || 60,
               resolution: resText,
               aiLatencyMs: lastAiLatencyRef.current || 11,
-              threshold: handAreaThreshold,
+              threshold: handAreaThresholdRef.current,
+              countdownSeconds: defaultCountdownRef.current,
+              photoRatio: photoRatioRef.current,
             },
           });
         } catch {}
@@ -306,6 +368,9 @@ function KioskCapturePageContent() {
     };
 
     return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', handleStorageChange);
+      }
       try {
         channel.close();
       } catch {}
@@ -313,7 +378,7 @@ function KioskCapturePageContent() {
         channelRef.current = null;
       }
     };
-  }, [send, isPreviewing]);
+  }, [send]);
 
   // Snapshot: centre crop of the camera feed at the current ratio (1440x1080 or 1080x1440)
   const takeCenterCropSnapshot = useCallback(() => {
@@ -504,10 +569,12 @@ function KioskCapturePageContent() {
 
   const handleRetake = useCallback(() => {
     previewGestureLockRef.current = false;
+    holdProgressRef.current = 0;
+    prevHoldProgressIntRef.current = 0;
     setHoldProgress(0);
     holdStartTimeRef.current = null;
     fistHoldStartTimeRef.current = null;
-    setCountdown(3);
+    setCountdown(defaultCountdownRef.current);
     setPreviewSeconds(10);
     send({ type: 'GESTURE_RETAKE_FIST' });
   }, [send]);
@@ -713,7 +780,7 @@ function KioskCapturePageContent() {
               }
 
               // Depth & Area Filter: reject distant background passers-by
-              const inForeground = isHandInForeground(primaryHand, handAreaThreshold);
+              const inForeground = isHandInForeground(primaryHand, handAreaThresholdRef.current);
               if (prevIsForegroundRef.current !== inForeground) {
                 prevIsForegroundRef.current = inForeground;
                 setIsForeground(inForeground);
@@ -822,6 +889,11 @@ function KioskCapturePageContent() {
           }
         } else if (holdStartTimeRef.current === null && holdProgressRef.current !== 0) {
           holdProgressRef.current = 0;
+          if (holdBarFillRef.current) {
+            holdBarFillRef.current.style.width = '0%';
+          }
+        } else if (holdBarFillRef.current && holdProgressRef.current > 0) {
+          holdBarFillRef.current.style.width = `${holdProgressRef.current}%`;
         }
 
         const overlayCanvas = handCanvasRef.current;
@@ -858,7 +930,7 @@ function KioskCapturePageContent() {
     return () => cancelAnimationFrame(animId);
   }, [isIdle, isDetecting, isPreviewing, isPaused, send, handleRetake, handleConfirmUpload]);
 
-  // Countdown timer logic (3..2..1 pose freely)
+  // Countdown timer logic (3..2..1 or 5..1 / 8..1 configured by /admin)
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isCountingDown) {
@@ -870,11 +942,11 @@ function KioskCapturePageContent() {
           takeCenterCropSnapshot();
           send({ type: 'COUNTDOWN_COMPLETE' });
           playBeep(1200);
-          setCountdown(3);
+          setCountdown(defaultCountdownRef.current);
         }
       }, 1000);
     } else {
-      setCountdown(3);
+      setCountdown(defaultCountdownRef.current);
     }
     return () => clearTimeout(timer);
   }, [isCountingDown, countdown, send, takeCenterCropSnapshot, playBeep]);
@@ -933,7 +1005,10 @@ function KioskCapturePageContent() {
         send({ type: 'STAFF_TRIGGER' });
       } else if (key === 'r') {
         send({ type: 'FORCE_RESET' });
+        holdProgressRef.current = 0;
+        prevHoldProgressIntRef.current = 0;
         setHoldProgress(0);
+        setCountdown(defaultCountdownRef.current);
         previewGestureLockRef.current = false;
         setIsPaused(false);
       }
@@ -1192,11 +1267,11 @@ function KioskCapturePageContent() {
                           : 'ชูมือ 5 นิ้ว เพื่อเริ่มถ่ายรูป'}
                     </p>
                     {holdProgress > 0 ? (
-                      <div className="px-meter mt-[.35cqw] h-[.8cqw] w-full bg-[#0d1017] border border-[#333d4e] rounded-[.25cqw] p-[.1cqw]">
+                      <div className="px-meter mt-[.35cqw] h-[.8cqw] w-full overflow-hidden bg-[#0d1017] border border-[#333d4e] rounded-[.25cqw] p-[.1cqw]">
                         <span
                           ref={holdBarFillRef}
                           className="block h-full rounded-[.15cqw] bg-gradient-to-r from-[#ef4444] via-[#f59e0b] to-[#10b981] shadow-[0_0_10px_rgba(16,185,129,0.55)]"
-                          style={{ width: `${Math.max(0, Math.min(100, holdProgress))}%` }}
+                          style={{ width: `${Math.max(0, Math.min(100, holdProgress))}%`, backgroundSize: '100% 100%' }}
                         />
                       </div>
                     ) : (

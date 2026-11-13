@@ -1,4 +1,5 @@
 import React from 'react';
+import { CpeLogo } from './CpeLogo';
 
 /** Realistic industrial screw with circular metallic bevel and recessed cross slot */
 export function IndustrialScrew({ className = 'size-[1.4cqw]' }: { className?: string }) {
@@ -77,51 +78,44 @@ export function StereoSpeakerGrille({ className = '' }: { className?: string }) 
   );
 }
 
-/** Left wing header: SMO Engineering logo + SWU seal + Slogan */
+/** Left wing header: Official CPE Logo + "Computer Engineering SWU" label */
 export function LeftWingHeader() {
   return (
     <div className="flex flex-col items-center text-center">
-      <div className="flex items-center gap-[.4cqw] bg-[#12151d] border border-[#2f3644] px-[.7cqw] py-[.25cqw] rounded-[.3cqw] shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
-        {/* SWU Seal */}
-        <div className="flex size-[1.6cqw] items-center justify-center rounded-full bg-[#8b1522] border border-[#e63946] shadow-[0_0_6px_rgba(230,57,70,0.4)]">
-          <svg viewBox="0 0 24 24" className="size-[1.1cqw] text-white" fill="none" stroke="currentColor" strokeWidth="2.2">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 3v18M3 12h18" strokeWidth="1.6" />
-            <circle cx="12" cy="12" r="2.8" fill="#ffffff" />
-          </svg>
-        </div>
-        <div className="flex flex-col items-start leading-none">
-          <span className="font-pixel text-[.64cqw] font-bold text-white tracking-wider">SMO</span>
-          <span className="font-pixel-sm text-[.38cqw] text-[var(--px-red-hi)] font-bold tracking-widest mt-[.08cqw]">ENGINEERING</span>
-        </div>
+      <div className="flex items-center justify-center bg-[#12151d] border border-[#2f3644] px-[.8cqw] py-[.28cqw] rounded-[.3cqw] shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+        <CpeLogo className="h-[1.55cqw] w-auto drop-shadow-[0_0_5px_rgba(230,57,70,0.45)]" />
       </div>
-      <p className="font-pixel mt-[.65cqw] text-[.64cqw] leading-[1.45] text-[#cbd5e1] [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]">
-        BUILD YOUR
+      <p className="font-pixel mt-[.6cqw] text-[.54cqw] leading-[1.45] text-[#cbd5e1] [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]">
+        COMPUTER
         <br />
-        <span className="text-[var(--px-red-hi)]">OWN FUTURE</span>
+        <span className="text-[var(--px-red-hi)]">ENGINEERING SWU</span>
       </p>
     </div>
   );
 }
 
-/** Right wing header: SWU OPEN HOUSE title + 2026 seal + Subtitle (mirror height of Left Wing) */
+/** Right wing header: Retro Arcade AI Vision System Badge + Slogan (1:1 mirror height of Left Wing) */
 export function RightWingHeader() {
   return (
     <div className="flex flex-col items-center text-center">
-      <div className="flex items-center gap-[.4cqw] bg-[#12151d] border border-[#2f3644] px-[.7cqw] py-[.25cqw] rounded-[.3cqw] shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
-        {/* Open House Badge */}
-        <div className="flex size-[1.6cqw] items-center justify-center rounded-full bg-[#8b1522] border border-[#e63946] shadow-[0_0_6px_rgba(230,57,70,0.4)]">
-          <span className="font-pixel text-[.6cqw] font-bold text-white">26</span>
+      <div className="flex items-center gap-[.42cqw] bg-[#12151d] border border-[#2f3644] px-[.68cqw] py-[.25cqw] rounded-[.3cqw] shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+        {/* Retro Arcade AI Chip Emblem */}
+        <div className="flex size-[1.6cqw] items-center justify-center rounded-[.22cqw] bg-[#8b1522] border border-[#e63946] shadow-[0_0_6px_rgba(230,57,70,0.4)]">
+          <svg viewBox="0 0 24 24" className="size-[1.08cqw] text-[var(--px-gold)]" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
+            <rect x="6" y="6" width="12" height="12" rx="1.5" fill="#12151d" />
+            <rect x="9.5" y="9.5" width="5" height="5" fill="currentColor" />
+            <path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" strokeLinecap="square" />
+          </svg>
         </div>
         <div className="flex flex-col items-start leading-none">
-          <span className="font-pixel text-[.64cqw] font-bold text-white tracking-wider">SWU</span>
-          <span className="font-pixel-sm text-[.38cqw] text-[var(--px-gold)] font-bold tracking-widest mt-[.08cqw]">OPEN HOUSE</span>
+          <span className="font-pixel text-[.58cqw] font-bold text-white tracking-wider">ARCADE</span>
+          <span className="font-pixel-sm text-[.38cqw] text-[var(--px-gold)] font-bold tracking-widest mt-[.08cqw]">AI EDITION</span>
         </div>
       </div>
-      <p className="font-pixel mt-[.65cqw] text-[.64cqw] leading-[1.45] text-[#cbd5e1] [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]">
-        ENGINEERING
+      <p className="font-pixel mt-[.6cqw] text-[.54cqw] leading-[1.45] text-[#cbd5e1] [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]">
+        HAND TRACKING
         <br />
-        <span className="text-[var(--px-gold)]">SWU 2026</span>
+        <span className="text-[var(--px-gold)]">PHOTO BOOTH</span>
       </p>
     </div>
   );

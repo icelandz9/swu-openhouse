@@ -75,6 +75,8 @@ export type ScreenSyncEvent =
   | {
       type: "KIOSK_COMMAND";
       command:
+        | "STAFF_TRIGGER"
+        | "TRIGGER_SHUTTER"
         | "RESET_STANDBY"
         | "SKIP_PREVIEW"
         | "PAUSE_BOOTH"
@@ -83,6 +85,8 @@ export type ScreenSyncEvent =
         | "CANCEL_COUNTDOWN"
         | "SET_THRESHOLD"
         | "SET_COUNTDOWN"
+        | "SET_PHOTO_RATIO"
+        | "SET_PUBLIC_DOMAIN"
         | "MUTE_DISPLAY"
         | "UNMUTE_DISPLAY"
         | string;

@@ -51,6 +51,7 @@ export function kioskFSMReducer(state: KioskFSMState, event: KioskEvent): KioskF
     case 'PREVIEW_RETAKE':
       // Fist gesture cancels photo and returns to IDLE to wait for palm detection (does NOT start 3 2 1 immediately)
       if (event.type === 'GESTURE_RETAKE_FIST') return 'IDLE';
+      if (event.type === 'STAFF_TRIGGER') return 'COUNTDOWN_ACTIVE';
       // Palm gesture, manual proceed, or 10s timeout triggers upload
       if (
         event.type === 'GESTURE_PROCEED_PALM' ||
@@ -75,6 +76,7 @@ export function kioskFSMReducer(state: KioskFSMState, event: KioskEvent): KioskF
 
     case 'RESET_COOLDOWN':
       if (event.type === 'COOLDOWN_EXPIRED') return 'IDLE';
+      if (event.type === 'STAFF_TRIGGER') return 'COUNTDOWN_ACTIVE';
       return state;
 
     default:
