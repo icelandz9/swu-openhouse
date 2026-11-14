@@ -1,7 +1,7 @@
 'use client';
 
 import React, { use, useState, useRef, useEffect, useCallback } from 'react';
-import { Download, Sparkles, Frame, Check, ShieldAlert, Sun, Sticker, Trash2, ShieldCheck, Lock, Maximize2, X, ChevronLeft } from 'lucide-react';
+import { Download, Sparkles, Frame, Check, ShieldAlert, Sun, Sticker, Trash2, ShieldCheck, Lock, Maximize2, X, ChevronLeft, RefreshCw } from 'lucide-react';
 import { FilterPresetId } from '@/lib/contracts';
 import { applyColorFilter } from '@/lib/mobile/colorFilters';
 import { FRAME_GROUPS, FRAME_TEMPLATES, NO_FRAME_ID, FrameTemplate, PHOTO_ONLY_SIZE, drawPhotoContain, drawPhotoCover } from '@/lib/mobile/frameTemplates';
@@ -81,6 +81,8 @@ export default function MobilePhotoEditorPage({
   const normalizedCode = code.startsWith('OPH-') ? code : `OPH-${code}`;
 
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
+  const [retryCount, setRetryCount] = useState<number>(0);
+  const [isRetrying, setIsRetrying] = useState<boolean>(false);
   const [selectedFilter, setSelectedFilter] = useState<FilterPresetId>('original');
   const [brightness, setBrightness] = useState<number>(0); // -30 to +30
   const [selectedFrameId, setSelectedFrameId] = useState<string>(FRAME_TEMPLATES[0]?.id ?? NO_FRAME_ID);
@@ -112,33 +114,35 @@ export default function MobilePhotoEditorPage({
   const outWidth = activeFrame ? activeFrame.width : photoW;
   const outHeight = activeFrame ? activeFrame.height : photoH;
 
-  // Verify Scan Token / Claim and Load Photo
+  // Verify Scan Token / Claim and Load Photo (with auto-retry on R2 upload delay or network recovery)
   useEffect(() => {
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    async function verifyAndLoadAttendeePhoto() {
-      // 1. Extract ?t= token from URL
+    async function verifyAndLoadAttendeePhoto(attempt: number = 0) {
+      if (cancelled) return;
+      if (attempt > 0) setIsRetrying(true);
+
       let token = '';
       if (typeof window !== 'undefined') {
         const searchParams = new URLSearchParams(window.location.search);
         token = searchParams.get('t') || '';
       }
 
-      // Direct access allowed - bypass 403 blocking
-      if (!cancelled) setAuthStatus('authorized');
+      if (attempt === 0 && !cancelled) setAuthStatus('checking');
 
       if (normalizedCode === DEMO_CODE) {
         const demo = await makeDemoPhoto();
         if (cancelled || !demo) return;
         baseImageRef.current = demo;
+        setAuthStatus('authorized');
         setPhotoLoaded(true);
+        setIsRetrying(false);
         return;
       }
 
-      // 3. Resolve candidate photo URL
       let candidateSrc = `/api/photos/${normalizedCode}/file${token ? `?t=${encodeURIComponent(token)}` : ''}`;
 
-      // A. If scanned on the same machine/kiosk tab, check local storage
       try {
         const savedLatest = localStorage.getItem('swu_latest_photo');
         if (savedLatest) {
@@ -149,9 +153,11 @@ export default function MobilePhotoEditorPage({
         }
       } catch {}
 
-      // B. Fetch metadata from API with token to resolve high-speed CDN photoUrl (Cloudflare R2)
       try {
-        const metaRes = await fetch(`/api/photos/${normalizedCode}${token ? `?t=${encodeURIComponent(token)}` : ''}`);
+        const metaRes = await fetch(
+          `/api/photos/${normalizedCode}${token ? `?t=${encodeURIComponent(token)}&r=${attempt}` : `?r=${attempt}`}`,
+          { cache: 'no-store' }
+        );
         if (metaRes.ok) {
           const data = await metaRes.json();
           if (data?.photoUrl) {
@@ -162,29 +168,52 @@ export default function MobilePhotoEditorPage({
 
       if (cancelled) return;
 
-      // C. Attempt loading strictly from Cloudflare R2 / API endpoint
-      let img = await loadImage(candidateSrc);
+      const bustSrc = attempt > 0
+        ? `${candidateSrc}${candidateSrc.includes('?') ? '&' : '?'}retry=${attempt}`
+        : candidateSrc;
+      let img = await loadImage(bustSrc);
       if (!img && candidateSrc !== `/api/photos/${normalizedCode}/file`) {
-        img = await loadImage(`/api/photos/${normalizedCode}/file${token ? `?t=${encodeURIComponent(token)}` : ''}`);
+        const fallbackUrl = `/api/photos/${normalizedCode}/file${token ? `?t=${encodeURIComponent(token)}&retry=${attempt}` : `?retry=${attempt}`}`;
+        img = await loadImage(fallbackUrl);
       }
 
       if (cancelled) return;
 
-      // If photo is not found on Cloudflare R2, mark not_found (Never use fake sample photo)
       if (!img) {
+        setIsRetrying(false);
         setAuthStatus('not_found');
+        if (attempt < 10) {
+          retryTimer = setTimeout(() => {
+            if (!cancelled) void verifyAndLoadAttendeePhoto(attempt + 1);
+          }, 4000);
+        }
         return;
       }
+
       baseImageRef.current = img;
+      setAuthStatus('authorized');
       setPhotoLoaded(true);
+      setIsRetrying(false);
     }
 
-    verifyAndLoadAttendeePhoto();
+    const onOnline = () => {
+      if (!cancelled) void verifyAndLoadAttendeePhoto(retryCount + 1);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', onOnline);
+    }
+
+    void verifyAndLoadAttendeePhoto(0);
 
     return () => {
       cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('online', onOnline);
+      }
     };
-  }, [normalizedCode]);
+  }, [normalizedCode, retryCount]);
 
   // Preload every frame so switching is instant
   useEffect(() => {
@@ -366,23 +395,35 @@ export default function MobilePhotoEditorPage({
 
 
 
-  // 3. Not Found State
+  // 3. Not Found / Pending Cloud Sync State
   if (authStatus === 'not_found') {
     return (
       <main className="min-h-dvh px-bg text-white flex flex-col items-center justify-center p-6 text-center select-none">
-        <div className="w-full max-w-sm px-panel px-corners p-6">
-          <div className="mx-auto mb-4 flex size-14 items-center justify-center bg-black/30 px-corners text-[var(--px-cream)]">
-            <Trash2 className="size-7" />
+        <div className="w-full max-w-sm px-panel px-corners p-6 space-y-4">
+          <div className="mx-auto flex size-14 items-center justify-center bg-black/30 px-corners text-[var(--px-cream)]">
+            {isRetrying ? <RefreshCw className="size-7 animate-spin text-[var(--px-gold)]" /> : <Trash2 className="size-7" />}
           </div>
-          <p className="font-pixel mb-3 text-sm text-[var(--px-red-hi)]">GAME OVER</p>
-          <h1 className="text-lg font-bold text-white mb-2">ไม่พบรูปภาพนี้</h1>
-          <p className="text-xs text-[var(--px-cream)]/80 mb-6">รูปภาพรหัส {normalizedCode} อาจถูกลบ หรือหมดอายุการจัดเก็บแล้ว (เกิน 7 วัน ตามนโยบาย PDPA)</p>
-          <a
-            href="/"
-            className="flex h-11 w-full items-center justify-center gap-2 px-btn px-btn-red px-corners text-xs"
-          >
-            กลับสู่หน้าหลัก
-          </a>
+          <p className="font-pixel text-sm text-[var(--px-red-hi)]">WAITING / NOT FOUND</p>
+          <h1 className="text-lg font-bold text-white">กำลังค้นหาภาพ #{normalizedCode.replace('OPH-', '')}</h1>
+          <p className="text-xs text-[var(--px-cream)]/80 leading-relaxed">
+            หากเพิ่งถ่ายเสร็จ บูธอาจกำลังอัปโหลดรูปขึ้น Cloud อยู่ ระบบจะตรวจสอบให้อัตโนมัติทุก 4 วินาที หรืออาจถูกลบ/หมดอายุแล้ว (เกิน 7 วัน PDPA)
+          </p>
+          <div className="space-y-2.5 pt-1">
+            <button
+              type="button"
+              onClick={() => setRetryCount((c) => c + 1)}
+              className="flex h-11 w-full items-center justify-center gap-2 px-btn px-btn-gold px-corners text-xs font-bold cursor-pointer"
+            >
+              <RefreshCw className={`size-4 ${isRetrying ? 'animate-spin' : ''}`} />
+              ลองโหลดใหม่อีกครั้ง
+            </button>
+            <a
+              href="/"
+              className="flex h-10 w-full items-center justify-center gap-2 px-btn px-btn-red px-corners text-xs"
+            >
+              กลับสู่หน้าหลัก
+            </a>
+          </div>
         </div>
       </main>
     );

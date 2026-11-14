@@ -79,6 +79,7 @@ export type ScreenSyncEvent =
         | "TRIGGER_SHUTTER"
         | "RESET_STANDBY"
         | "SKIP_PREVIEW"
+        | "CANCEL_PREVIEW"
         | "PAUSE_BOOTH"
         | "RESUME_BOOTH"
         | "RELOAD_CAMERA"
@@ -87,8 +88,10 @@ export type ScreenSyncEvent =
         | "SET_COUNTDOWN"
         | "SET_PHOTO_RATIO"
         | "SET_PUBLIC_DOMAIN"
+        | "PUSH_TO_DISPLAY"
         | "MUTE_DISPLAY"
         | "UNMUTE_DISPLAY"
+        | "PHOTO_DELETED"
         | string;
       value?: any;
     };
@@ -123,6 +126,8 @@ export interface PhotoRecord {
   token?: string;
   createdAt: string;
   expiresAt: string;
+  pendingCloudSync?: boolean;
+  storageDriver?: "local" | "r2";
 }
 
 // 4. Mobile Color Filter & CPE Frame Template Definitions

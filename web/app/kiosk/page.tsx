@@ -22,7 +22,7 @@ import { useKioskFSM } from '@/lib/kiosk/useKioskFSM';
 import { ScreenSyncEvent, SCREEN_SYNC_CHANNEL, DEFAULT_PRODUCTION_APP_URL, PHOTO_ASPECT_RATIO, PhotoRatio, toPhotoRatio, FRAME_PHOTO_ASPECT } from '@/lib/contracts';
 import { generateShortCode } from '@/lib/mobile/shortCodeGenerator';
 import { classifyGesture } from '@/lib/ai-vision/gestureRules';
-import { isHandInForeground, calculateHandAreaRatio } from '@/lib/ai-vision/depthAreaFilter';
+import { isHandInForeground, calculateHandAreaRatio, clampForegroundThreshold, MIN_FOREGROUND_AREA_RATIO } from '@/lib/ai-vision/depthAreaFilter';
 import { pickNearestHandInCapture, type CaptureArea } from '@/lib/ai-vision/handPicker';
 import { AdaptiveHandSmoother, drawHandMeshOnCanvas } from '@/lib/ai-vision/handTrackerFast';
 import { calculateCrop } from '@/lib/kiosk/centerCropper';
@@ -102,6 +102,7 @@ function KioskCapturePageContent() {
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const initCameraRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const handleConfirmUploadRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const handleRetakeRef = useRef<() => void>(() => {});
   // Palm hold, preview timer, keyboard, button and staff command can all confirm; only the first one uploads.
   const uploadInFlightRef = useRef<boolean>(false);
 
@@ -110,8 +111,8 @@ function KioskCapturePageContent() {
   const [isAiVisionReady, setIsAiVisionReady] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number }>({ width: 16, height: 9 });
-  const [handAreaThreshold, setHandAreaThreshold] = useState<number>(0.025);
-  const handAreaThresholdRef = useRef<number>(0.025);
+  const [handAreaThreshold, setHandAreaThreshold] = useState<number>(MIN_FOREGROUND_AREA_RATIO);
+  const handAreaThresholdRef = useRef<number>(MIN_FOREGROUND_AREA_RATIO);
   handAreaThresholdRef.current = handAreaThreshold;
   // 'frame' (default: the CPE frames' photo shape, 986x1080) or 4:3 landscape (wide, for groups); staff switch it in /admin
   const [photoRatio, setPhotoRatio] = useState<PhotoRatio>(PHOTO_ASPECT_RATIO);
@@ -147,6 +148,13 @@ function KioskCapturePageContent() {
   const previewGestureLockRef = useRef<boolean>(false);
   const previewEnterTimeRef = useRef<number>(0);
   const fistHoldStartTimeRef = useRef<number | null>(null);
+  const lastFistSeenTimeRef = useRef<number>(0);
+  const lastPreviewPalmSeenTimeRef = useRef<number>(0);
+  const [previewHoldProgress, setPreviewHoldProgress] = useState<{ mode: 'FIST' | 'PALM' | null; pct: number }>({
+    mode: null,
+    pct: 0,
+  });
+  const previewHoldStepRef = useRef<string>('');
   const lockedPalmRef = useRef<{ x: number; y: number } | null>(null);
   const currentHandAreaPctRef = useRef<number>(0);
 
@@ -180,6 +188,12 @@ function KioskCapturePageContent() {
   const landmarkerRef = useRef<any>(null);
   const animFrameRef = useRef<number | null>(null);
   const lastVideoTimeRef = useRef<number>(-1);
+  const lastDetectTsRef = useRef<number>(0);
+  const lastAnyHandSeenRef = useRef<number>(0);
+  const lastTrackerResetRef = useRef<number>(0);
+  const trackerResetToggleRef = useRef<boolean>(false);
+  const consecutiveAiErrRef = useRef<number>(0);
+  const recreateLandmarkerRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   // Real-time FPS & AI latency tracking (zero overhead, in-memory refs)
   const fpsCounterRef = useRef<{ frames: number; lastTime: number; currentFps: number }>({
@@ -270,6 +284,14 @@ function KioskCapturePageContent() {
           showAdminToast('⏭️ ข้าม Preview ส่งรูปทันที');
           handleConfirmUploadRef.current();
         }
+      } else if (command === 'CANCEL_PREVIEW') {
+        if (isPreviewingRef.current) {
+          showAdminToast('↩️ ยกเลิก Preview (กลับหน้าพร้อมถ่าย)');
+          handleRetakeRef.current();
+        } else {
+          send({ type: 'FORCE_RESET' });
+          showAdminToast('↩️ รีเซ็ตกลับหน้าพร้อมถ่าย');
+        }
       } else if (command === 'PAUSE_BOOTH') {
         setIsPaused(true);
         isPausedRef.current = true;
@@ -311,15 +333,16 @@ function KioskCapturePageContent() {
       } else if (command === 'SET_THRESHOLD') {
         const parsedTh = typeof value === 'number' ? value : parseFloat(String(value));
         if (!isNaN(parsedTh) && parsedTh >= 0.005 && parsedTh <= 0.1) {
-          handAreaThresholdRef.current = parsedTh;
-          setHandAreaThreshold(parsedTh);
+          const clamped = clampForegroundThreshold(parsedTh);
+          handAreaThresholdRef.current = clamped;
+          setHandAreaThreshold(clamped);
           if (typeof window !== 'undefined') {
             try {
-              localStorage.setItem('swu_hand_threshold', parsedTh.toString());
+              localStorage.setItem('swu_hand_threshold', clamped.toString());
             } catch {}
           }
-          const pct = (parsedTh * 100).toFixed(1);
-          const modeLabel = parsedTh <= 0.018 ? 'ไกล 2-3m' : parsedTh <= 0.032 ? 'ปกติ 1.5m' : 'ประชิด คนเยอะ';
+          const pct = (clamped * 100).toFixed(1);
+          const modeLabel = clamped <= 0.029 ? 'ไม่เกิน 1.5m (คล่องตัว)' : clamped <= 0.038 ? '1.2m (ปานกลาง)' : 'ประชิด <1m';
           showAdminToast(`🎯 ระยะตรวจจับมือ: ${pct}% (${modeLabel})`);
         }
       } else if (command === 'SET_PHOTO_RATIO') {
@@ -359,8 +382,12 @@ function KioskCapturePageContent() {
         if (savedThreshold) {
           const parsed = parseFloat(savedThreshold);
           if (!isNaN(parsed) && parsed >= 0.005 && parsed <= 0.1) {
-            handAreaThresholdRef.current = parsed;
-            setHandAreaThreshold(parsed);
+            const clamped = clampForegroundThreshold(parsed);
+            handAreaThresholdRef.current = clamped;
+            setHandAreaThreshold(clamped);
+            if (clamped !== parsed) {
+              localStorage.setItem('swu_hand_threshold', clamped.toString());
+            }
           }
         }
         const savedCountdown = localStorage.getItem('swu_countdown_seconds');
@@ -484,9 +511,12 @@ function KioskCapturePageContent() {
                 setCountdown(cfg.countdownSeconds);
               }
             }
-            if (typeof cfg.handAreaThreshold === 'number' && Math.abs(cfg.handAreaThreshold - handAreaThresholdRef.current) > 0.0005) {
-              handAreaThresholdRef.current = cfg.handAreaThreshold;
-              setHandAreaThreshold(cfg.handAreaThreshold);
+            if (typeof cfg.handAreaThreshold === 'number') {
+              const clamped = clampForegroundThreshold(cfg.handAreaThreshold);
+              if (Math.abs(clamped - handAreaThresholdRef.current) > 0.0005) {
+                handAreaThresholdRef.current = clamped;
+                setHandAreaThreshold(clamped);
+              }
             }
             if (cfg.photoRatio && cfg.photoRatio !== photoRatioRef.current) {
               const r = toPhotoRatio(cfg.photoRatio);
@@ -514,9 +544,34 @@ function KioskCapturePageContent() {
     syncPoll();
     const syncTimer = setInterval(syncPoll, 600);
 
+    // Auto-flush offline cloud queue & sync settings when internet reconnects
+    let reconnectCheckBusy = false;
+    const triggerCloudRecovery = async () => {
+      if (reconnectCheckBusy) return;
+      reconnectCheckBusy = true;
+      try {
+        await fetch('/api/network-status?sync=1', { cache: 'no-store' });
+        await syncPoll();
+      } catch {
+      } finally {
+        reconnectCheckBusy = false;
+      }
+    };
+    const handleBrowserOnline = () => {
+      void triggerCloudRecovery();
+    };
+    window.addEventListener('online', handleBrowserOnline);
+    const recoveryTimer = setInterval(() => {
+      if (stateRef.current === 'IDLE' && typeof navigator !== 'undefined' && navigator.onLine) {
+        void fetch('/api/network-status', { cache: 'no-store' }).catch(() => {});
+      }
+    }, 15000);
+
     return () => {
       pollActive = false;
       clearInterval(syncTimer);
+      clearInterval(recoveryTimer);
+      window.removeEventListener('online', handleBrowserOnline);
       if (typeof window !== 'undefined') {
         window.removeEventListener('storage', handleStorageChange);
       }
@@ -672,10 +727,24 @@ function KioskCapturePageContent() {
         createdAt: new Date().toISOString(),
       };
 
-      // 3. Broadcast to Screen 2 & 3 via BroadcastChannel
+      // 3. Broadcast to Screen 2 & 3 via BroadcastChannel AND cross-machine /api/kiosk-sync
       try {
         channelRef.current?.postMessage(syncEvent);
       } catch {}
+      fetch('/api/kiosk-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          command: 'PHOTO_READY',
+          value: {
+            code: syncEvent.code,
+            qrUrl: syncEvent.qrUrl,
+            photoUrl: syncEvent.photoUrl,
+            createdAt: syncEvent.createdAt,
+            token: syncEvent.token,
+          },
+        }),
+      }).catch(() => {});
 
       // 4. Save to localStorage for cross-window / tab reliability
       if (typeof window !== 'undefined') {
@@ -723,10 +792,16 @@ function KioskCapturePageContent() {
     setHoldProgress(0);
     holdStartTimeRef.current = null;
     fistHoldStartTimeRef.current = null;
+    lastFistSeenTimeRef.current = 0;
+    lastPreviewPalmSeenTimeRef.current = 0;
+    previewHoldStepRef.current = '';
+    setPreviewHoldProgress({ mode: null, pct: 0 });
     setCountdown(defaultCountdownRef.current);
     setPreviewSeconds(10);
     send({ type: 'GESTURE_RETAKE_FIST' });
   }, [send]);
+
+  handleRetakeRef.current = handleRetake;
 
   // Initialize WebRTC Camera
   const initCamera = useCallback(async () => {
@@ -796,44 +871,48 @@ function KioskCapturePageContent() {
     };
   }, [initCamera]);
 
-  // Initialize MediaPipe HandLandmarker dynamically (Client-Only)
+  // Initialize MediaPipe HandLandmarker dynamically (Client-Only) with self-healing recreate support
   useEffect(() => {
     let active = true;
+    let isRecreating = false;
+
+    async function buildLandmarker() {
+      const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision');
+      const vision = await FilesetResolver.forVisionTasks('/mediapipe/wasm');
+      if (!active) return null;
+
+      const landmarkerOptions = {
+        baseOptions: {
+          modelAssetPath: '/mediapipe/hand_landmarker.task',
+          delegate: 'GPU' as const,
+        },
+        runningMode: 'VIDEO' as const,
+        numHands: 4,
+        minHandDetectionConfidence: 0.22,
+        minHandPresenceConfidence: 0.22,
+        minTrackingConfidence: 0.20,
+      };
+
+      try {
+        return await HandLandmarker.createFromOptions(vision, landmarkerOptions);
+      } catch {
+        return await HandLandmarker.createFromOptions(vision, {
+          ...landmarkerOptions,
+          baseOptions: {
+            ...landmarkerOptions.baseOptions,
+            delegate: 'CPU',
+          },
+        });
+      }
+    }
 
     async function initMediaPipe() {
       try {
-        const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision');
-        const vision = await FilesetResolver.forVisionTasks('/mediapipe/wasm');
-
-        if (!active) return;
-
-        const landmarkerOptions = {
-          baseOptions: {
-            modelAssetPath: '/mediapipe/hand_landmarker.task',
-            delegate: 'GPU' as const,
-          },
-          runningMode: 'VIDEO' as const,
-          numHands: 2,
-          minHandDetectionConfidence: 0.35,
-          minHandPresenceConfidence: 0.3,
-          minTrackingConfidence: 0.25,
-        };
-
-        let landmarker: any = null;
-        try {
-          landmarker = await HandLandmarker.createFromOptions(vision, landmarkerOptions);
-        } catch {
-          landmarker = await HandLandmarker.createFromOptions(vision, {
-            ...landmarkerOptions,
-            baseOptions: {
-              ...landmarkerOptions.baseOptions,
-              delegate: 'CPU',
-            },
-          });
-        }
-
+        const landmarker = await buildLandmarker();
         if (active && landmarker) {
           landmarkerRef.current = landmarker;
+          consecutiveAiErrRef.current = 0;
+          lastAnyHandSeenRef.current = performance.now();
           setIsAiVisionReady(true);
         }
       } catch (err) {
@@ -841,10 +920,44 @@ function KioskCapturePageContent() {
       }
     }
 
+    recreateLandmarkerRef.current = async () => {
+      if (!active || isRecreating) return;
+      isRecreating = true;
+      try {
+        if (landmarkerRef.current) {
+          try { landmarkerRef.current.close(); } catch {}
+          landmarkerRef.current = null;
+        }
+        const fresh = await buildLandmarker();
+        if (active && fresh) {
+          landmarkerRef.current = fresh;
+          consecutiveAiErrRef.current = 0;
+          lastTrackerResetRef.current = performance.now();
+          setIsAiVisionReady(true);
+        }
+      } catch (err) {
+        console.warn('MediaPipe recreate failed:', err);
+      } finally {
+        isRecreating = false;
+      }
+    };
+
     initMediaPipe();
+
+    // Camera track freeze / disconnect watchdog (every 5s)
+    const camWatchdog = setInterval(() => {
+      if (!active) return;
+      const stream = currentStreamRef.current;
+      const track = stream?.getVideoTracks()?.[0];
+      if (cameraActiveRef.current && (!track || track.readyState === 'ended')) {
+        console.warn('[kiosk] Camera video track ended unexpectedly, reconnecting...');
+        initCameraRef.current();
+      }
+    }, 5000);
 
     return () => {
       active = false;
+      clearInterval(camWatchdog);
       if (landmarkerRef.current) {
         try {
           landmarkerRef.current.close();
@@ -854,13 +967,27 @@ function KioskCapturePageContent() {
     };
   }, []);
 
-  // Real-time Gesture Detection Animation Frame Loop (Using Updated 3D Hand Model)
+  // Real-time Gesture Detection Animation Frame Loop (Self-healing, monotonic timestamps, zero FSM teardown)
   useEffect(() => {
     let animId: number;
+    let isResettingOptions = false;
+
+    const updatePreviewHoldUi = (mode: 'FIST' | 'PALM' | null, pct: number) => {
+      const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+      const step = mode ? `${mode}:${Math.floor(clamped / 10) * 10}` : '';
+      if (step !== previewHoldStepRef.current) {
+        previewHoldStepRef.current = step;
+        setPreviewHoldProgress({ mode, pct: clamped });
+      }
+    };
 
     const detectLoop = () => {
       const video = videoRef.current;
       const landmarker = landmarkerRef.current;
+      const curState = stateRef.current;
+      const idleOrDetecting = curState === 'IDLE' || curState === 'DETECTING_HAND';
+      const previewing = curState === 'PREVIEW_RETAKE';
+      const paused = isPausedRef.current;
 
       const nowPerf = performance.now();
       fpsCounterRef.current.frames++;
@@ -873,58 +1000,65 @@ function KioskCapturePageContent() {
         fpsCounterRef.current.lastTime = nowPerf;
       }
 
-      if (video && video.readyState >= 2 && landmarker && !isPaused) {
+      if (!previewing && previewHoldStepRef.current !== '') {
+        updatePreviewHoldUi(null, 0);
+      }
+
+      if (video && video.readyState >= 2 && landmarker && !paused && !isResettingOptions) {
         if (video.currentTime !== lastVideoTimeRef.current) {
           lastVideoTimeRef.current = video.currentTime;
           try {
             const vw = video.videoWidth || 1280;
             const vh = video.videoHeight || 720;
 
-            // Direct GPU Texture Pipeline: pass HTMLVideoElement directly to MediaPipe WebGL delegate!
-            // Avoid CPU/GPU 2D canvas readback stall when video is <= 1280px (720p@60fps uploads directly as a GPU texture in < 0.5ms).
+            // Strictly monotonic integer timestamp prevents MediaPipe VIDEO graph stalls or duplicate-ts drops
             const tStart = performance.now();
-            const results = landmarker.detectForVideo(video, tStart);
+            const monotonicTs = Math.max(Math.round(tStart), lastDetectTsRef.current + 1);
+            lastDetectTsRef.current = monotonicTs;
+            const results = landmarker.detectForVideo(video, monotonicTs);
             const inferMs = Math.max(1, Math.round(performance.now() - tStart));
             lastAiLatencyRef.current = inferMs;
+            consecutiveAiErrRef.current = 0;
 
-            // Only hands inside the capture area count, and of those the nearest foreground hand (with target lock during hold)
+            // Enforce <= 1.5m floor in idle/start; in Preview allow compact FIST area (58%) at <=1.5m so closed fists aren't dropped
+            const configuredThreshold = clampForegroundThreshold(handAreaThresholdRef.current);
+            const pickerThreshold = previewing ? Math.max(0.014, configuredThreshold * 0.58) : configuredThreshold;
+
             const pickIdx = results?.landmarks?.length
               ? pickNearestHandInCapture(results.landmarks, captureAreaOf(vw, vh, photoRatioRef.current), {
-                  minAreaRatio: handAreaThresholdRef.current,
+                  minAreaRatio: pickerThreshold,
                   lockedPalm: holdStartTimeRef.current !== null ? lockedPalmRef.current : null,
                 })
               : -1;
 
             if (pickIdx >= 0) {
+              lastAnyHandSeenRef.current = nowPerf;
               const primaryHand = results.landmarks[pickIdx];
               const worldHand = results.worldLandmarks?.[pickIdx];
               const handedness = results.handedness?.[pickIdx]?.[0]?.categoryName ?? 'Right';
               const aspect = vw > 0 && vh > 0 ? vw / vh : 4 / 3;
 
-              // Update velocity-aware smoother immediately (zero React state re-render)
               handSmootherRef.current.update(primaryHand, nowPerf);
               if (!prevHasHandRef.current) {
                 prevHasHandRef.current = true;
                 setHasHand(true);
               }
 
-              // Run the updated 5-finger palm facing model
               const detected = classifyGesture(primaryHand, worldHand, handedness, aspect);
               if (prevDetectedGestureRef.current !== detected) {
                 prevDetectedGestureRef.current = detected;
                 setDetectedGestureText(detected);
               }
 
-              // Depth & Area Filter: reject distant background passers-by
               const areaRatio = calculateHandAreaRatio(primaryHand);
               currentHandAreaPctRef.current = areaRatio;
-              const inForeground = isHandInForeground(primaryHand, handAreaThresholdRef.current);
+              const inForeground = isHandInForeground(primaryHand, configuredThreshold);
               if (prevIsForegroundRef.current !== inForeground) {
                 prevIsForegroundRef.current = inForeground;
                 setIsForeground(inForeground);
               }
 
-              if (isIdle || isDetecting) {
+              if (idleOrDetecting) {
                 if (detected === 'OPEN_PALM' && inForeground) {
                   lastPalmSeenTimeRef.current = nowPerf;
                   lockedPalmRef.current = primaryHand[9] ? { x: primaryHand[9].x, y: primaryHand[9].y } : null;
@@ -945,36 +1079,62 @@ function KioskCapturePageContent() {
                     }
                   }
                 }
-              } else if (isPreviewing && !previewGestureLockRef.current) {
+              } else if (previewing && !previewGestureLockRef.current) {
                 const timeInPreview = nowPerf - previewEnterTimeRef.current;
-                // Grace period: ignore first 1.5s of preview so lingering posing hand does not accidentally trigger retake/confirm
-                if (timeInPreview > 1500) {
+                const PREVIEW_GRACE_MS = 700;
+                const PREVIEW_HOLD_MS = 550;
+                const DROPOUT_GRACE_MS = 400;
+
+                if (timeInPreview > PREVIEW_GRACE_MS) {
                   if (detected === 'FIST') {
                     holdStartTimeRef.current = null;
+                    lastPreviewPalmSeenTimeRef.current = 0;
+                    lastFistSeenTimeRef.current = nowPerf;
                     if (fistHoldStartTimeRef.current === null) {
                       fistHoldStartTimeRef.current = nowPerf;
                     }
                     const fistHold = nowPerf - fistHoldStartTimeRef.current;
-                    if (fistHold >= 800) {
+                    updatePreviewHoldUi('FIST', (fistHold / PREVIEW_HOLD_MS) * 100);
+                    if (fistHold >= PREVIEW_HOLD_MS) {
                       previewGestureLockRef.current = true;
                       fistHoldStartTimeRef.current = null;
+                      updatePreviewHoldUi(null, 0);
                       handleRetake();
                     }
-                  } else if (detected === 'OPEN_PALM') {
+                  } else if (detected === 'OPEN_PALM' && areaRatio >= configuredThreshold * 0.85) {
                     fistHoldStartTimeRef.current = null;
-                    // Require deliberate hold (800ms) during preview to confirm
+                    lastFistSeenTimeRef.current = 0;
+                    lastPreviewPalmSeenTimeRef.current = nowPerf;
                     if (holdStartTimeRef.current === null) {
                       holdStartTimeRef.current = nowPerf;
                     }
                     const palmHold = nowPerf - holdStartTimeRef.current;
-                    if (palmHold >= 800) {
+                    updatePreviewHoldUi('PALM', (palmHold / PREVIEW_HOLD_MS) * 100);
+                    if (palmHold >= PREVIEW_HOLD_MS) {
                       previewGestureLockRef.current = true;
                       holdStartTimeRef.current = null;
+                      updatePreviewHoldUi(null, 0);
                       handleConfirmUploadRef.current();
                     }
                   } else {
-                    fistHoldStartTimeRef.current = null;
-                    holdStartTimeRef.current = null;
+                    // Dropout tolerance: tolerate brief 1-3 frame blips while attendee shifts hand
+                    if (fistHoldStartTimeRef.current !== null) {
+                      if (nowPerf - lastFistSeenTimeRef.current > DROPOUT_GRACE_MS) {
+                        fistHoldStartTimeRef.current = null;
+                        updatePreviewHoldUi(null, 0);
+                      } else {
+                        const fistHold = nowPerf - fistHoldStartTimeRef.current;
+                        updatePreviewHoldUi('FIST', (fistHold / PREVIEW_HOLD_MS) * 100);
+                      }
+                    } else if (holdStartTimeRef.current !== null) {
+                      if (nowPerf - lastPreviewPalmSeenTimeRef.current > DROPOUT_GRACE_MS) {
+                        holdStartTimeRef.current = null;
+                        updatePreviewHoldUi(null, 0);
+                      } else {
+                        const palmHold = nowPerf - holdStartTimeRef.current;
+                        updatePreviewHoldUi('PALM', (palmHold / PREVIEW_HOLD_MS) * 100);
+                      }
+                    }
                   }
                 }
               }
@@ -993,25 +1153,61 @@ function KioskCapturePageContent() {
                 prevIsForegroundRef.current = true;
                 setIsForeground(true);
               }
+
+              if (previewing) {
+                const DROPOUT_GRACE_MS = 400;
+                if (fistHoldStartTimeRef.current !== null && nowPerf - lastFistSeenTimeRef.current > DROPOUT_GRACE_MS) {
+                  fistHoldStartTimeRef.current = null;
+                  updatePreviewHoldUi(null, 0);
+                }
+                if (holdStartTimeRef.current !== null && nowPerf - lastPreviewPalmSeenTimeRef.current > DROPOUT_GRACE_MS) {
+                  holdStartTimeRef.current = null;
+                  updatePreviewHoldUi(null, 0);
+                }
+              }
+
               const timeSinceLast = nowPerf - (lastPalmSeenTimeRef.current || 0);
-              if (timeSinceLast > 500) {
+              if (idleOrDetecting && timeSinceLast > 500) {
                 lockedPalmRef.current = null;
                 if (holdStartTimeRef.current !== null) {
                   holdStartTimeRef.current = null;
                   holdProgressRef.current = 0;
                   prevHoldProgressIntRef.current = 0;
                   setHoldProgress(0);
-                  if (isIdle || isDetecting) {
-                    send({ type: 'HAND_LOST' });
-                  }
+                  send({ type: 'HAND_LOST' });
                 }
               }
+
+              // Self-healing BlazePalm reset: flush stale internal VIDEO ROI tracking when idle finds no hands for >4.2s
+              if (
+                idleOrDetecting &&
+                nowPerf - (lastAnyHandSeenRef.current || 0) >= 4200 &&
+                nowPerf - (lastTrackerResetRef.current || 0) >= 4800 &&
+                typeof landmarker.setOptions === 'function'
+              ) {
+                lastTrackerResetRef.current = nowPerf;
+                trackerResetToggleRef.current = !trackerResetToggleRef.current;
+                isResettingOptions = true;
+                landmarker
+                  .setOptions({ minHandPresenceConfidence: trackerResetToggleRef.current ? 0.22 : 0.23 })
+                  .catch(() => {})
+                  .finally(() => {
+                    isResettingOptions = false;
+                  });
+              }
             }
-          } catch {}
+          } catch (err) {
+            consecutiveAiErrRef.current += 1;
+            if (consecutiveAiErrRef.current >= 4) {
+              console.warn('[kiosk] Repeated MediaPipe errors, recreating detector:', err);
+              consecutiveAiErrRef.current = 0;
+              void recreateLandmarkerRef.current();
+            }
+          }
         }
 
         // 60/120Hz Continuous Hold Progress + Direct Canvas 2D Skeleton Rendering (runs every monitor refresh)
-        if ((isIdle || isDetecting) && holdStartTimeRef.current !== null && prevHasHandRef.current && prevDetectedGestureRef.current === 'OPEN_PALM' && prevIsForegroundRef.current) {
+        if (idleOrDetecting && holdStartTimeRef.current !== null && prevHasHandRef.current && prevDetectedGestureRef.current === 'OPEN_PALM' && prevIsForegroundRef.current) {
           const elapsed = nowPerf - holdStartTimeRef.current;
           const progress = Math.min(100, (elapsed / 1500) * 100);
           holdProgressRef.current = progress;
@@ -1053,7 +1249,7 @@ function KioskCapturePageContent() {
           const ctx = overlayCanvas.getContext('2d', { desynchronized: true }) || overlayCanvas.getContext('2d');
           if (ctx) {
             const activePoints =
-              (isIdle || isDetecting) && prevHasHandRef.current
+              idleOrDetecting && prevHasHandRef.current
                 ? handSmootherRef.current.sample(nowPerf, Math.min(14, lastAiLatencyRef.current))
                 : null;
             drawHandMeshOnCanvas(ctx, overlayCanvas.width, overlayCanvas.height, {
@@ -1073,7 +1269,7 @@ function KioskCapturePageContent() {
 
     animId = requestAnimationFrame(detectLoop);
     return () => cancelAnimationFrame(animId);
-  }, [isIdle, isDetecting, isPreviewing, isPaused, send, handleRetake, handleConfirmUpload]);
+  }, [send, handleRetake]);
 
   // Countdown timer logic (3..2..1 or 5..1 / 8..1 configured by /admin)
   useEffect(() => {
@@ -1456,9 +1652,8 @@ function KioskCapturePageContent() {
               {/* Shutter flash */}
               {isCapturing && <div className="kiosk-flash pointer-events-none absolute inset-0 z-50 bg-white" />}
 
-              {/* Review: retake / timer / confirm */}
+              {/* Review: retake / timer / confirm with live gesture progress bars */}
               {isPreviewing && (
-                // Compact review bar, kept inside the photo (which is centred in the screen in frame mode)
                 <div
                   style={
                     photoRatio === 'frame'
@@ -1467,22 +1662,54 @@ function KioskCapturePageContent() {
                   }
                   className="kc-dialog kc-px absolute bottom-[2.2cqw] z-40 flex items-center justify-between gap-[.8cqw] px-[.8cqw] py-[.6cqw]"
                 >
-                  <button type="button" onClick={handleRetake} className="group px-btn px-corners gap-[.5cqw] px-[.8cqw] py-[.5cqw]">
-                    <RotateCcw className="size-[1cqw] transition-transform group-hover:rotate-[-45deg]" />
-                    <span className="text-left">
-                      <span className="block text-[.8cqw] font-bold text-white">กำมือ เพื่อถ่ายใหม่</span>
-                      <span className="font-pixel-sm block text-[.5cqw] text-white/80">CONTINUE?</span>
+                  <button
+                    type="button"
+                    onClick={handleRetake}
+                    className={`group px-btn px-corners relative overflow-hidden gap-[.5cqw] px-[.8cqw] py-[.5cqw] ${
+                      previewHoldProgress.mode === 'FIST' ? 'ring-2 ring-[var(--px-gold)]' : ''
+                    }`}
+                  >
+                    {previewHoldProgress.mode === 'FIST' && previewHoldProgress.pct > 0 && (
+                      <span
+                        className="pointer-events-none absolute inset-y-0 left-0 bg-[var(--px-gold)]/35 transition-[width] duration-75"
+                        style={{ width: `${previewHoldProgress.pct}%` }}
+                      />
+                    )}
+                    <RotateCcw className="relative z-10 size-[1cqw] transition-transform group-hover:rotate-[-45deg]" />
+                    <span className="relative z-10 text-left">
+                      <span className="block text-[.8cqw] font-bold text-white">
+                        {previewHoldProgress.mode === 'FIST' && previewHoldProgress.pct > 0
+                          ? `กำลังยกเลิก ${previewHoldProgress.pct}%`
+                          : 'กำมือ เพื่อถ่ายใหม่'}
+                      </span>
+                      <span className="font-pixel-sm block text-[.5cqw] text-white/80">FIST = RETAKE</span>
                     </span>
                   </button>
                   <div className="text-center">
                     <div className="font-pixel text-[1.15cqw] text-[var(--px-gold)] tabular-nums">{previewSeconds}s</div>
                     <div className="font-pixel-sm text-[.48cqw] font-bold text-white/70">TIME</div>
                   </div>
-                  <button type="button" onClick={handleConfirmUpload} className="px-btn px-btn-red px-corners gap-[.5cqw] px-[.9cqw] py-[.5cqw]">
-                    <Check className="size-[1.1cqw]" strokeWidth={2.5} />
-                    <span className="text-left">
-                      <span className="block text-[.8cqw] font-bold text-white">แบมือ ยืนยันรูปนี้</span>
-                      <span className="font-pixel-sm block text-[.5cqw] text-white/90">PRESS START</span>
+                  <button
+                    type="button"
+                    onClick={handleConfirmUpload}
+                    className={`px-btn px-btn-red px-corners relative overflow-hidden gap-[.5cqw] px-[.9cqw] py-[.5cqw] ${
+                      previewHoldProgress.mode === 'PALM' ? 'ring-2 ring-emerald-400' : ''
+                    }`}
+                  >
+                    {previewHoldProgress.mode === 'PALM' && previewHoldProgress.pct > 0 && (
+                      <span
+                        className="pointer-events-none absolute inset-y-0 left-0 bg-emerald-400/35 transition-[width] duration-75"
+                        style={{ width: `${previewHoldProgress.pct}%` }}
+                      />
+                    )}
+                    <Check className="relative z-10 size-[1.1cqw]" strokeWidth={2.5} />
+                    <span className="relative z-10 text-left">
+                      <span className="block text-[.8cqw] font-bold text-white">
+                        {previewHoldProgress.mode === 'PALM' && previewHoldProgress.pct > 0
+                          ? `กำลังยืนยัน ${previewHoldProgress.pct}%`
+                          : 'แบมือ ยืนยันรูปนี้'}
+                      </span>
+                      <span className="font-pixel-sm block text-[.5cqw] text-white/90">PALM = CONFIRM</span>
                     </span>
                   </button>
                 </div>

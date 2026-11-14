@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { photoStorageService } from '@/lib/storage/storageService';
+import { photoStorageService, getCloudSyncStatus } from '@/lib/storage/storageService';
 import { generateShortCode, isValidShortCode } from '@/lib/mobile/shortCodeGenerator';
 import { UploadPhotoResponse, DEFAULT_PRODUCTION_APP_URL } from '@/lib/contracts';
 import { generatePhotoToken, isHostAllowed } from '@/lib/security/photoToken';
@@ -37,13 +37,16 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const syncStatus = await getCloudSyncStatus();
+
     return NextResponse.json(
       {
         success: true,
         count: photos.length,
         photos,
+        syncStatus,
       },
-      { headers: CORS_HEADERS }
+      { headers: { ...CORS_HEADERS, 'Cache-Control': 'no-store' } }
     );
   } catch (error: any) {
     console.error('Error fetching photos:', error);
@@ -106,13 +109,15 @@ export async function POST(req: NextRequest) {
     const { token } = generatePhotoToken(shortCode);
     const qrUrl = `${baseHost}/p/${shortCode}?t=${token}`;
 
-    const responsePayload: UploadPhotoResponse = {
+    const responsePayload: UploadPhotoResponse & { storageDriver: 'local' | 'r2'; pendingCloudSync: boolean } = {
       code: shortCode,
       token,
       qrUrl,
       photoUrl: stored.url,
       createdAt: new Date().toISOString(),
       expiresAt: stored.expiresAt,
+      storageDriver: stored.storageDriver,
+      pendingCloudSync: stored.storageDriver !== 'r2',
     };
 
     return NextResponse.json(responsePayload, {

@@ -13,6 +13,10 @@ import {
   ChevronRight,
   Sun,
   Moon,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  CloudUpload,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { CpeLogo } from '@/components/CpeLogo';
@@ -35,6 +39,45 @@ interface AuditLogItem {
 type AdminTab = 'overview' | 'gallery' | 'controls' | 'hardware' | 'logs';
 
 const DEFAULT_SAMPLE_PHOTOS: PhotoRecord[] = [];
+const MIN_ADMIN_SENSITIVITY_PCT = 2.5; // Locked max detection distance = 1.5 meters
+const MAX_ADMIN_SENSITIVITY_PCT = 5.5;
+
+function clampAdminSensitivityPct(pct: number): number {
+  if (!Number.isFinite(pct)) return MIN_ADMIN_SENSITIVITY_PCT;
+  return Math.max(MIN_ADMIN_SENSITIVITY_PCT, Math.min(MAX_ADMIN_SENSITIVITY_PCT, pct));
+}
+
+function toBangkokDateKey(input: Date | string): string {
+  const d = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+}
+
+function getBangkokHourMinute(input: Date | string): { hour: number; minute: number } | null {
+  const d = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(d.getTime())) return null;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Bangkok',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? 'NaN');
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 'NaN');
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  return { hour, minute };
+}
+
+function formatThaiDayLabel(dateKey: string): string {
+  if (!dateKey) return '';
+  const d = new Date(`${dateKey}T12:00:00+07:00`);
+  if (Number.isNaN(d.getTime())) return dateKey;
+  return d.toLocaleDateString('th-TH-u-ca-gregory', {
+    timeZone: 'Asia/Bangkok',
+    day: 'numeric',
+    month: 'short',
+  });
+}
 
 // Safe LocalStorage setter with LRU pruning
 function safeLocalStorageSet<T>(key: string, data: T, maxItems: number = 50): void {
@@ -122,6 +165,8 @@ function StaffAdminScreen() {
   // Filter & Search
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterTab, setFilterTab] = useState<'all' | 'recent1h' | 'recent30m'>('all');
+  const [dayFilter, setDayFilter] = useState<'TODAY' | 'ALL' | string>('TODAY');
+  const [todayKey, setTodayKey] = useState<string>(() => toBangkokDateKey(new Date()));
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(12);
 
@@ -132,6 +177,11 @@ function StaffAdminScreen() {
   const [isDisplayMuted, setIsDisplayMuted] = useState<boolean>(false);
   const [netLatency, setNetLatency] = useState<number | null>(null);
   const [isNetOnline, setIsNetOnline] = useState<boolean>(true);
+  const [pendingCloudUploads, setPendingCloudUploads] = useState<number>(0);
+  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+  const [lastCloudSyncAt, setLastCloudSyncAt] = useState<number | null>(null);
+  const [imageRefreshKey, setImageRefreshKey] = useState<number>(0);
+  const wasCloudOfflineRef = useRef<boolean>(false);
   const [commandNotice, setCommandNotice] = useState<string>('');
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoRecord | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -263,12 +313,16 @@ function StaffAdminScreen() {
         if (saved === 'light' || saved === 'dark') setTheme(saved);
       }
 
-      // Load saved hand threshold sensitivity
+      // Load saved hand threshold sensitivity (strictly clamped to <= 1.5m / >= 2.5%)
       const savedThreshold = localStorage.getItem('swu_hand_threshold');
       if (savedThreshold) {
         const parsed = parseFloat(savedThreshold);
         if (!isNaN(parsed) && parsed >= 0.005 && parsed <= 0.1) {
-          setSensitivity(parsed * 100);
+          const clampedPct = clampAdminSensitivityPct(parsed * 100);
+          setSensitivity(clampedPct);
+          if (clampedPct !== parsed * 100) {
+            localStorage.setItem('swu_hand_threshold', (clampedPct / 100).toString());
+          }
         }
       }
 
@@ -299,20 +353,22 @@ function StaffAdminScreen() {
     }
   };
 
-  // Clock ticker (clean HH:mm)
+  // Clock ticker (clean HH:mm) + automatic midnight Day 1 -> Day 2 rollover in Asia/Bangkok
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
       setCurrentTime(
         now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
       );
+      const nextDayKey = toBangkokDateKey(now);
+      setTodayKey((prev) => (prev !== nextDayKey ? nextDayKey : prev));
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Heartbeat watchdog (Zero-overhead IPC, pings every 3s, timeout 8s + Server-backed /api/kiosk-sync fallback)
+  // Heartbeat watchdog (BroadcastChannel + Server-backed /api/kiosk-sync for Machine 1 & Machine 2 telemetry)
   useEffect(() => {
     const sendPing = async () => {
       safePostMessage({
@@ -326,7 +382,7 @@ function StaffAdminScreen() {
         if (res.ok) {
           const syncData = await res.json();
           const kTel = syncData?.telemetry?.kiosk;
-          if (kTel && typeof kTel.lastSeen === 'number' && Date.now() - kTel.lastSeen < 8000) {
+          if (kTel && typeof kTel.lastSeen === 'number' && Date.now() - kTel.lastSeen < 10000) {
             lastKioskPongRef.current = kTel.lastSeen;
             setKioskOnline(true);
             setKioskTelemetry({
@@ -342,15 +398,33 @@ function StaffAdminScreen() {
               setKioskState(kTel.isPaused ? 'paused' : kTel.state && kTel.state !== 'IDLE' ? 'active' : 'standby');
             }
           }
+
+          const dTel = syncData?.telemetry?.display;
+          if (dTel && typeof dTel.lastSeen === 'number' && Date.now() - dTel.lastSeen < 12000) {
+            lastDisplayPongRef.current = dTel.lastSeen;
+            setDisplayOnline(true);
+            setDisplayTelemetry({
+              online: true,
+              latencyMs: typeof dTel.latencyMs === 'number' ? dTel.latencyMs : 12,
+              activeCode: dTel.activeCode || null,
+              queueLength: typeof dTel.queueLength === 'number' ? dTel.queueLength : 0,
+              totalPhotos: typeof dTel.totalPhotos === 'number' ? dTel.totalPhotos : 0,
+              isMuted: typeof syncData.displayMuted === 'boolean' ? syncData.displayMuted : !!dTel.isMuted,
+              lastSeen: dTel.lastSeen,
+            });
+          }
+          if (typeof syncData?.displayMuted === 'boolean') {
+            setIsDisplayMuted(syncData.displayMuted);
+          }
         }
       } catch {}
 
       const now = Date.now();
-      if (lastKioskPongRef.current > 0 && now - lastKioskPongRef.current > 8000) {
+      if (lastKioskPongRef.current > 0 && now - lastKioskPongRef.current > 10000) {
         setKioskOnline(false);
         setKioskTelemetry((prev) => (prev.online ? { ...prev, online: false } : prev));
       }
-      if (lastDisplayPongRef.current > 0 && now - lastDisplayPongRef.current > 8000) {
+      if (lastDisplayPongRef.current > 0 && now - lastDisplayPongRef.current > 12000) {
         setDisplayOnline(false);
         setDisplayTelemetry((prev) => (prev.online ? { ...prev, online: false } : prev));
       }
@@ -361,35 +435,131 @@ function StaffAdminScreen() {
     return () => clearInterval(pingTimer);
   }, [safePostMessage]);
 
-  // Network latency check
-  const checkNetwork = useCallback(async () => {
-    const start = performance.now();
+  // Load photos (with local fallback merge)
+  const loadPhotos = useCallback(async (currentDeleted?: string[] | unknown) => {
     try {
+      let activeDeleted = Array.isArray(currentDeleted) ? currentDeleted : undefined;
+      if (!activeDeleted && typeof window !== 'undefined') {
+        try {
+          activeDeleted = JSON.parse(localStorage.getItem('swu_deleted_codes') || '[]');
+        } catch {}
+      }
+      const deletedSet = new Set(activeDeleted || []);
+
       const res = await fetch('/api/photos?t=' + Date.now(), { cache: 'no-store' });
-      if (!res.ok) throw new Error();
-      const lat = Math.round(performance.now() - start);
-      setNetLatency(lat);
-      setIsNetOnline(true);
-      setCommandNotice(`เน็ตตอบสนอง ${lat} ms`);
-      setTimeout(() => setCommandNotice(''), 2000);
-    } catch {
-      setIsNetOnline(false);
-      setCommandNotice('สัญญาณเน็ตขัดข้อง');
-      setTimeout(() => setCommandNotice(''), 2500);
-    }
+      const data = await res.json();
+      const serverPhotos: PhotoRecord[] = data?.photos && Array.isArray(data.photos) ? data.photos : [];
+      if (typeof data?.syncStatus?.pendingUploads === 'number') {
+        setPendingCloudUploads(data.syncStatus.pendingUploads);
+      }
+
+      let localPhotos: PhotoRecord[] = [];
+      if (typeof window !== 'undefined') {
+        try {
+          localPhotos = JSON.parse(localStorage.getItem('swu_photo_gallery') || '[]');
+        } catch {}
+      }
+
+      const map = new Map<string, PhotoRecord>();
+      [...serverPhotos, ...localPhotos, ...DEFAULT_SAMPLE_PHOTOS].forEach((p) => {
+        if (p?.code && !deletedSet.has(p.code) && !map.has(p.code)) {
+          map.set(p.code, p);
+        }
+      });
+
+      const list = Array.from(map.values()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setPhotos(list);
+    } catch {}
   }, []);
 
+  // Real-time Cloud & Internet probe (/api/network-status) with automatic recovery refresh & queue flush
+  const checkNetwork = useCallback(
+    async (forceSyncNow: boolean = false) => {
+      try {
+        const res = await fetch('/api/network-status' + (forceSyncNow ? '' : '?t=' + Date.now()), {
+          method: forceSyncNow ? 'POST' : 'GET',
+          cache: 'no-store',
+        });
+        if (!res.ok) throw new Error('Network status failed');
+        const data = await res.json();
+        const isOnlineNow = Boolean(data?.online && data?.cloudReachable);
+        setIsNetOnline(isOnlineNow);
+        setNetLatency(typeof data?.latencyMs === 'number' ? data.latencyMs : null);
+        if (typeof data?.pendingUploads === 'number') setPendingCloudUploads(data.pendingUploads);
+        setIsCloudSyncing(Boolean(data?.syncing));
+        if (typeof data?.lastSyncAt === 'number') setLastCloudSyncAt(data.lastSyncAt);
+
+        if (isOnlineNow) {
+          if (wasCloudOfflineRef.current || (data?.syncResult?.synced ?? 0) > 0) {
+            wasCloudOfflineRef.current = false;
+            addAuditLog('NETWORK', 'เชื่อมต่อเน็ตกลับมาแล้ว — รีเฟรชและซิงค์ข้อมูลอัตโนมัติ');
+            setCommandNotice(
+              data?.syncResult?.synced > 0
+                ? `เชื่อมต่อเน็ตแล้ว · ซิงค์รูปค้างขึ้น Cloud ${data.syncResult.synced} รูปสำเร็จ`
+                : 'เชื่อมต่อเน็ตกลับมาแล้ว · รีเฟรชข้อมูลอัตโนมัติ'
+            );
+            setTimeout(() => setCommandNotice(''), 3500);
+            setImageRefreshKey((k) => k + 1);
+            void loadPhotos();
+          } else if (forceSyncNow) {
+            const synced = data?.syncResult?.synced ?? 0;
+            setCommandNotice(synced > 0 ? `ซิงค์ขึ้น Cloud สำเร็จ ${synced} รูป` : `ข้อมูลซิงค์ครบแล้ว (${data?.latencyMs ?? 0}ms)`);
+            setTimeout(() => setCommandNotice(''), 2500);
+            if (synced > 0) setImageRefreshKey((k) => k + 1);
+            void loadPhotos();
+          }
+        } else {
+          if (!wasCloudOfflineRef.current) {
+            addAuditLog('NETWORK', 'อินเทอร์เน็ตขัดข้อง — เปิดโหมดสำรองในเครื่องอัตโนมัติ');
+          }
+          wasCloudOfflineRef.current = true;
+          if (forceSyncNow) {
+            setCommandNotice('ยังไม่มีอินเทอร์เน็ต — รูปยังปลอดภัยในเครื่อง (รอซิงค์อัตโนมัติ)');
+            setTimeout(() => setCommandNotice(''), 3000);
+          }
+        }
+      } catch {
+        setIsNetOnline(false);
+        setNetLatency(null);
+        if (!wasCloudOfflineRef.current) {
+          addAuditLog('NETWORK', 'ขาดการติดต่อเซิร์ฟเวอร์ชั่วคราว');
+        }
+        wasCloudOfflineRef.current = true;
+      }
+    },
+    [addAuditLog, loadPhotos]
+  );
+
   useEffect(() => {
-    const onOnline = () => setIsNetOnline(true);
-    const onOffline = () => setIsNetOnline(false);
+    const onOnline = () => {
+      setIsNetOnline(true);
+      void checkNetwork(true);
+    };
+    const onOffline = () => {
+      setIsNetOnline(false);
+      wasCloudOfflineRef.current = true;
+      addAuditLog('NETWORK', 'สัญญาณเน็ตหลุด — สลับใช้การจัดเก็บในเครื่องชั่วคราว');
+    };
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
-    checkNetwork();
+
+    void checkNetwork(false);
+    const netInterval = setInterval(() => {
+      void checkNetwork(false);
+    }, 4500);
+    const photosRefreshInterval = setInterval(() => {
+      void loadPhotos();
+    }, 10000);
+
     return () => {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
+      clearInterval(netInterval);
+      clearInterval(photosRefreshInterval);
     };
-  }, [checkNetwork]);
+  }, [checkNetwork, loadPhotos, addAuditLog]);
 
   // BroadcastChannel setup
   useEffect(() => {
@@ -465,42 +635,6 @@ function StaffAdminScreen() {
     };
   }, [addAuditLog]);
 
-  // Load photos
-  const loadPhotos = async (currentDeleted?: string[] | unknown) => {
-    try {
-      let activeDeleted = Array.isArray(currentDeleted) ? currentDeleted : undefined;
-      if (!activeDeleted && typeof window !== 'undefined') {
-        try {
-          activeDeleted = JSON.parse(localStorage.getItem('swu_deleted_codes') || '[]');
-        } catch {}
-      }
-      const deletedSet = new Set(activeDeleted || deletedCodes);
-
-      const res = await fetch('/api/photos');
-      const data = await res.json();
-      const serverPhotos: PhotoRecord[] = data?.photos && Array.isArray(data.photos) ? data.photos : [];
-
-      let localPhotos: PhotoRecord[] = [];
-      if (typeof window !== 'undefined') {
-        try {
-          localPhotos = JSON.parse(localStorage.getItem('swu_photo_gallery') || '[]');
-        } catch {}
-      }
-
-      const map = new Map<string, PhotoRecord>();
-      [...serverPhotos, ...localPhotos, ...DEFAULT_SAMPLE_PHOTOS].forEach((p) => {
-        if (p?.code && !deletedSet.has(p.code) && !map.has(p.code)) {
-          map.set(p.code, p);
-        }
-      });
-
-      const list = Array.from(map.values()).sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      setPhotos(list);
-    } catch {}
-  };
-
   useEffect(() => {
     let initialDeleted: string[] = [];
     if (typeof window !== 'undefined') {
@@ -516,8 +650,8 @@ function StaffAdminScreen() {
       }
       setPublicDomain(domain);
     }
-    loadPhotos(initialDeleted);
-  }, []);
+    void loadPhotos(initialDeleted);
+  }, [loadPhotos]);
 
   const sendCommand = (command: string, label: string, value?: any) => {
     const cmdId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -561,8 +695,17 @@ function StaffAdminScreen() {
   const toggleDisplayMute = () => {
     const next = !isDisplayMuted;
     setIsDisplayMuted(next);
+    const cmdId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     safePostMessage({ type: next ? 'MUTE_DISPLAY' : 'UNMUTE_DISPLAY' } as ScreenSyncEvent);
-    setCommandNotice(next ? 'ม่านดำเปิดใช้งาน' : 'ปลดม่านดำแล้ว');
+    fetch('/api/kiosk-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: cmdId,
+        command: next ? 'MUTE_DISPLAY' : 'UNMUTE_DISPLAY',
+      }),
+    }).catch(() => {});
+    setCommandNotice(next ? 'ม่านดำเปิดใช้งาน (ซิงค์จอ 2)' : 'ปลดม่านดำแล้ว (ซิงค์จอ 2)');
     addAuditLog('STAFF', next ? 'เปิดม่านดำ' : 'ปลดม่านดำ');
     setTimeout(() => setCommandNotice(''), 2000);
   };
@@ -579,10 +722,22 @@ function StaffAdminScreen() {
   };
 
   const handlePushToDisplay = (photo: PhotoRecord) => {
+    const cmdId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     safePostMessage({ type: 'PUSH_TO_DISPLAY', photo } as ScreenSyncEvent);
+    fetch('/api/kiosk-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: cmdId,
+        command: 'PUSH_TO_DISPLAY',
+        value: photo,
+      }),
+    }).catch(() => {});
     setPushedCode(photo.code);
-    setCommandNotice(`ส่งรูป #${photo.code.replace('OPH-', '')} ขึ้นจอแล้ว`);
+    setCommandNotice(`ส่งรูป #${photo.code.replace('OPH-', '')} ขึ้นจอ 2 แล้ว`);
+    addAuditLog('STAFF', `ส่งรูป #${photo.code.replace('OPH-', '')} ขึ้นจอ 2`);
     setTimeout(() => setPushedCode(null), 2000);
+    setTimeout(() => setCommandNotice(''), 2500);
   };
 
   const handleDeletePhoto = async (code: string) => {
@@ -607,22 +762,57 @@ function StaffAdminScreen() {
     } catch {}
 
     safePostMessage({ type: 'PHOTO_DELETED', code } as ScreenSyncEvent);
+    fetch('/api/kiosk-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        command: 'PHOTO_DELETED',
+        value: code,
+      }),
+    }).catch(() => {});
 
     setCommandNotice(`ลบรูป ${code} แล้ว`);
     setTimeout(() => setCommandNotice(''), 2000);
   };
 
-  // Filtered photos
-  const filteredPhotos = useMemo(() => {
+  // Multi-day breakdown (Asia/Bangkok calendar days stored across 2-day event + 7-day retention)
+  const dayCountsMap = useMemo(() => {
+    const counts = new Map<string, number>();
+    photos.forEach((p) => {
+      if (deletedCodes.includes(p.code)) return;
+      const key = toBangkokDateKey(p.createdAt);
+      if (key) counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    return counts;
+  }, [photos, deletedCodes]);
+
+  const availableDateKeys = useMemo(() => {
+    const keys = new Set<string>(dayCountsMap.keys());
+    if (todayKey) keys.add(todayKey);
+    return Array.from(keys).sort();
+  }, [dayCountsMap, todayKey]);
+
+  const effectiveDateKey = dayFilter === 'TODAY' ? todayKey : dayFilter === 'ALL' ? null : dayFilter;
+
+  const activeDayPhotos = useMemo(() => {
     return photos.filter((photo) => {
       if (deletedCodes.includes(photo.code)) return false;
+      if (effectiveDateKey && toBangkokDateKey(photo.createdAt) !== effectiveDateKey) return false;
+      return true;
+    });
+  }, [photos, deletedCodes, effectiveDateKey]);
+
+  // Filtered photos
+  const filteredPhotos = useMemo(() => {
+    return activeDayPhotos.filter((photo) => {
       if (filterTab === 'recent30m' && Date.now() - new Date(photo.createdAt).getTime() > 30 * 60 * 1000) return false;
       if (filterTab === 'recent1h' && Date.now() - new Date(photo.createdAt).getTime() > 60 * 60 * 1000) return false;
       const q = searchQuery.trim().toUpperCase();
       if (!q) return true;
       return photo.code.toUpperCase().includes(q);
     });
-  }, [photos, deletedCodes, searchQuery, filterTab]);
+  }, [activeDayPhotos, searchQuery, filterTab]);
 
   // Paginated photos
   const totalPages = Math.ceil(filteredPhotos.length / pageSize) || 1;
@@ -631,29 +821,26 @@ function StaffAdminScreen() {
     return filteredPhotos.slice(start, start + pageSize);
   }, [filteredPhotos, currentPage, pageSize]);
 
-  useEffect(() => setCurrentPage(1), [searchQuery, filterTab, pageSize]);
+  useEffect(() => setCurrentPage(1), [searchQuery, filterTab, dayFilter, pageSize]);
 
-  // Dynamic High-Frequency Attendee Data (08:00 - 17:00, 15/30/60 min intervals)
+  // Real Dynamic Attendee Data per selected day (08:00 - 17:00 Asia/Bangkok, 15/30/60 min intervals)
   const frequencyData = useMemo(() => {
     const startHour = 8;
     const endHour = 17;
     const totalMinutes = (endHour - startHour) * 60; // 540 min
     const slotCount = Math.floor(totalMinutes / chartInterval) + 1;
 
-    // Count actual photos falling into each interval
     const counts: Record<number, number> = {};
-    photos.forEach((p) => {
-      try {
-        const d = new Date(p.createdAt);
-        const mins = (d.getHours() - startHour) * 60 + d.getMinutes();
-        if (mins >= 0 && mins <= totalMinutes) {
-          const slot = Math.floor(mins / chartInterval);
-          counts[slot] = (counts[slot] || 0) + 1;
-        }
-      } catch {}
+    activeDayPhotos.forEach((p) => {
+      const hm = getBangkokHourMinute(p.createdAt);
+      if (!hm) return;
+      const mins = (hm.hour - startHour) * 60 + hm.minute;
+      if (mins >= 0 && mins <= totalMinutes) {
+        const slot = Math.floor(mins / chartInterval);
+        counts[slot] = (counts[slot] || 0) + 1;
+      }
     });
 
-    const hasData = photos.length >= 10;
     const result = [];
     for (let i = 0; i < slotCount; i++) {
       const curMins = i * chartInterval;
@@ -661,30 +848,55 @@ function StaffAdminScreen() {
       const m = curMins % 60;
       const label = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
-      // High-frequency Open House attendance distribution curve with natural variation
-      const progress = curMins / totalMinutes; // 0 to 1
-      const distFromPeak = Math.abs(progress - 0.44); // Peak rush at ~11:45-12:15
-      const bell = Math.exp(-Math.pow(distFromPeak / 0.28, 2));
-      const scale = chartInterval === 15 ? 26 : chartInterval === 30 ? 46 : 58;
-      const ripple = (Math.sin(i * 1.6) * 0.14 + Math.cos(i * 2.5) * 0.08) * scale;
-      const baseVal = Math.max(2, Math.round(bell * scale + ripple));
-
       result.push({
         label,
         hour: h,
         minute: m,
-        count: hasData ? (counts[i] || 0) : baseVal,
+        count: counts[i] || 0,
         isMajorHour: m === 0,
       });
     }
     return result;
-  }, [photos, chartInterval]);
+  }, [activeDayPhotos, chartInterval]);
 
   const filteredFrequencyData = useMemo(() => {
     if (chartTimeRange === 'morning') return frequencyData.filter((d) => d.hour <= 12);
     if (chartTimeRange === 'afternoon') return frequencyData.filter((d) => d.hour >= 12);
     return frequencyData;
   }, [frequencyData, chartTimeRange]);
+
+  const chartMaxVal = useMemo(() => {
+    const peak = Math.max(0, ...filteredFrequencyData.map((d) => d.count));
+    const base = chartInterval === 15 ? 16 : chartInterval === 30 ? 24 : 32;
+    return Math.max(base, Math.ceil(peak / 4) * 4);
+  }, [filteredFrequencyData, chartInterval]);
+
+  const hourlyStats = useMemo(() => {
+    if (activeDayPhotos.length === 0) {
+      return { avgPerHour: 0, peakLabel: '--:--', peakRange: '--:--' };
+    }
+    const hourBuckets = new Map<number, number>();
+    activeDayPhotos.forEach((p) => {
+      const hm = getBangkokHourMinute(p.createdAt);
+      if (hm) hourBuckets.set(hm.hour, (hourBuckets.get(hm.hour) || 0) + 1);
+    });
+    let bestHour = -1;
+    let bestCount = 0;
+    hourBuckets.forEach((count, hour) => {
+      if (count > bestCount) {
+        bestCount = count;
+        bestHour = hour;
+      }
+    });
+    const activeHours = Math.max(1, hourBuckets.size);
+    const avgPerHour = Math.round(activeDayPhotos.length / activeHours);
+    const pad = (h: number) => `${String(h).padStart(2, '0')}:00`;
+    return {
+      avgPerHour,
+      peakLabel: bestHour >= 0 ? `พีค ${pad(bestHour)}` : '--:--',
+      peakRange: bestHour >= 0 ? `${pad(bestHour)} - ${pad((bestHour + 1) % 24)}` : '--:--',
+    };
+  }, [activeDayPhotos]);
 
   const isDark = theme === 'dark';
   const themeClasses = {
@@ -793,8 +1005,14 @@ function StaffAdminScreen() {
       <div className="mx-auto max-w-[1600px] p-6 space-y-6">
         {/* Status Strip (Glanceable Minimalist, zero icon spam) */}
         <section
-          className={`rounded-2xl border px-4 py-2.5 flex flex-wrap items-center justify-between text-xs font-mono ${
-            isDark ? 'bg-[#121824] border-slate-800/80 text-slate-400' : 'bg-white border-slate-200/90 text-slate-600 shadow-xs'
+          className={`rounded-2xl border px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs font-mono ${
+            !isNetOnline
+              ? 'bg-red-950/30 border-red-500/40 text-red-200'
+              : pendingCloudUploads > 0
+              ? 'bg-amber-950/25 border-amber-500/40 text-amber-200'
+              : isDark
+              ? 'bg-[#121824] border-slate-800/80 text-slate-400'
+              : 'bg-white border-slate-200/90 text-slate-600 shadow-xs'
           }`}
         >
           <div className="flex flex-wrap items-center gap-3">
@@ -805,20 +1023,129 @@ function StaffAdminScreen() {
             <span className="text-slate-600">•</span>
             <span className="flex items-center gap-1.5">
               <span className={`size-2 rounded-full ${displayTelemetry.online ? 'bg-emerald-500' : 'bg-red-500'}`} />
-              {displayTelemetry.online ? `ซิงค์ ${displayTelemetry.latencyMs}ms` : 'จอ 2 ออฟไลน์'}
+              {displayTelemetry.online ? `จอ 2 ออนไลน์ (${displayTelemetry.latencyMs}ms)` : 'จอ 2 ออฟไลน์'}
             </span>
             <span className="text-slate-600">•</span>
-            <span className="flex items-center gap-1.5">
-              <span className={`size-2 rounded-full ${isNetOnline ? 'bg-emerald-500' : 'bg-red-500'}`} />
-              เน็ต {netLatency !== null ? `${netLatency}ms` : '5GHz'}
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-bold ${
+                isNetOnline
+                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-red-500/20 text-red-300 border border-red-500/40 animate-pulse'
+              }`}
+            >
+              {isNetOnline ? <Wifi className="size-3.5" /> : <WifiOff className="size-3.5" />}
+              {isNetOnline
+                ? `เน็ตออนไลน์ · Cloud ${netLatency !== null ? `${netLatency}ms` : 'พร้อม'}`
+                : 'เน็ตหลุด (โหมดออฟไลน์ · บันทึกในเครื่อง)'}
             </span>
+            {pendingCloudUploads > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
+                <CloudUpload className="size-3.5" />
+                รอซิงค์ Cloud {pendingCloudUploads} รูป
+              </span>
+            )}
             <span className="text-slate-600">•</span>
             <span>PDPA 7 วัน</span>
           </div>
-          <div className="text-[11px] text-slate-500">
-            {publicDomain ? publicDomain.replace(/^https?:\/\//, '') : 'localhost:3000'}
+          <div className="flex items-center gap-2">
+            {(pendingCloudUploads > 0 || !isNetOnline || isCloudSyncing) && (
+              <button
+                type="button"
+                onClick={() => void checkNetwork(true)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                  isNetOnline
+                    ? 'bg-amber-500 text-slate-950 hover:bg-amber-400'
+                    : 'bg-red-500/20 text-red-200 border border-red-500/40 hover:bg-red-500/30'
+                }`}
+              >
+                <RefreshCw className={`size-3 ${isCloudSyncing ? 'animate-spin' : ''}`} />
+                {isCloudSyncing ? 'กำลังซิงค์...' : isNetOnline ? 'ซิงค์ขึ้น Cloud ทันที' : 'เช็คเน็ตใหม่'}
+              </button>
+            )}
+            <div className="text-[11px] text-slate-500">
+              {publicDomain ? publicDomain.replace(/^https?:\/\//, '') : 'localhost:3000'}
+            </div>
           </div>
         </section>
+
+        {/* Offline / Pending Sync Alert Banner */}
+        {(!isNetOnline || pendingCloudUploads > 0) && (
+          <div
+            className={`rounded-2xl border px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs ${
+              !isNetOnline
+                ? 'bg-red-500/10 border-red-500/35 text-red-200'
+                : 'bg-amber-500/10 border-amber-500/35 text-amber-200'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              {!isNetOnline ? <WifiOff className="size-4 text-red-400 shrink-0" /> : <CloudUpload className="size-4 text-amber-400 shrink-0" />}
+              <span>
+                {!isNetOnline
+                  ? `เครื่อง 1 ขาดการเชื่อมต่ออินเทอร์เน็ตชั่วคราว — ยังถ่ายภาพและดูรูปในหน้า Admin ได้ปกติ ภาพทั้งหมดถูกสำรองไว้ในเครื่องแล้ว (ค้างซิงค์ ${pendingCloudUploads} รูป) และจะส่งขึ้นจอ 2 อัตโนมัติทันทีที่เน็ตกลับมา`
+                  : `เชื่อมต่อเน็ตกลับมาแล้ว — มีรูปจากช่วงออฟไลน์รออัปโหลดขึ้น Cloud ${pendingCloudUploads} รูป (ระบบกำลังทยอยซิงค์อัตโนมัติ)`}
+              </span>
+            </div>
+            <div className="text-[11px] font-mono opacity-80">
+              {lastCloudSyncAt ? `ซิงค์ล่าสุด ${new Date(lastCloudSyncAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'รอดำเนินการ'}
+            </div>
+          </div>
+        )}
+
+        {/* 2-Day Event Switcher (Used in Overview & Gallery) */}
+        {(activeTab === 'overview' || activeTab === 'gallery') && (
+          <section
+            className={`rounded-2xl border px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs ${themeClasses.cardBg}`}
+          >
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className={`font-semibold mr-1 ${themeClasses.textMuted}`}>ข้อมูลประจำวัน:</span>
+              <button
+                type="button"
+                onClick={() => setDayFilter('TODAY')}
+                className={`px-3 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${
+                  dayFilter === 'TODAY'
+                    ? 'bg-[#CE1126] text-white shadow-xs'
+                    : isDark
+                    ? 'bg-slate-900 text-slate-300 border border-slate-800 hover:bg-slate-800'
+                    : 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200'
+                }`}
+              >
+                วันนี้ ({formatThaiDayLabel(todayKey)}) · {dayCountsMap.get(todayKey) || 0} รูป
+              </button>
+              {availableDateKeys.map((dateKey, idx) => (
+                <button
+                  key={dateKey}
+                  type="button"
+                  onClick={() => setDayFilter(dateKey)}
+                  className={`px-3 py-1 rounded-lg font-mono font-semibold transition-colors cursor-pointer ${
+                    dayFilter === dateKey
+                      ? 'bg-cyan-600 text-white shadow-xs'
+                      : isDark
+                      ? 'bg-slate-900 text-slate-300 border border-slate-800 hover:bg-slate-800'
+                      : 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200'
+                  }`}
+                >
+                  วันที่ {idx + 1} ({formatThaiDayLabel(dateKey)}) · {dayCountsMap.get(dateKey) || 0}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setDayFilter('ALL')}
+                className={`px-3 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${
+                  dayFilter === 'ALL'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : isDark
+                    ? 'bg-slate-900 text-slate-300 border border-slate-800 hover:bg-slate-800'
+                    : 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200'
+                }`}
+              >
+                รวมทุกวัน ({photos.length})
+              </button>
+            </div>
+            <div className="text-[11px] font-mono text-slate-500">
+              สลับวันอัตโนมัติ 00:00 น. · ดูย้อนหลังได้ 7 วัน
+            </div>
+          </section>
+        )}
 
         {/* =========================================================================
             TAB 1: ภาพรวม (Overview - Image 1 pure aesthetic)
@@ -830,10 +1157,18 @@ function StaffAdminScreen() {
               {/* Card 1: Photos */}
               <article className={`rounded-2xl border p-5 flex flex-col justify-between ${themeClasses.cardBg}`}>
                 <div>
-                  <div className={`text-xs font-medium ${themeClasses.textMuted}`}>ภาพถ่ายวันนี้</div>
+                  <div className={`text-xs font-medium ${themeClasses.textMuted}`}>
+                    {dayFilter === 'ALL'
+                      ? 'ภาพถ่ายรวมทุกวัน'
+                      : dayFilter === 'TODAY'
+                      ? `ภาพถ่ายวันนี้ (${formatThaiDayLabel(todayKey)})`
+                      : `ภาพถ่าย ${formatThaiDayLabel(dayFilter)}`}
+                  </div>
                   <div className="mt-1.5 flex items-baseline justify-between">
-                    <div className={`font-mono text-2xl font-bold ${themeClasses.textTitle}`}>{photos.length}</div>
-                    <span className="font-mono text-xs font-semibold text-emerald-500">+14%</span>
+                    <div className={`font-mono text-2xl font-bold ${themeClasses.textTitle}`}>{activeDayPhotos.length}</div>
+                    <span className="font-mono text-xs font-semibold text-emerald-500">
+                      ทั้งหมด {photos.length} รูป
+                    </span>
                   </div>
                 </div>
                 <div className="mt-3">
@@ -874,8 +1209,8 @@ function StaffAdminScreen() {
                 <div>
                   <div className={`text-xs font-medium ${themeClasses.textMuted}`}>เฉลี่ยต่อชั่วโมง</div>
                   <div className="mt-1.5 flex items-baseline justify-between">
-                    <div className={`font-mono text-2xl font-bold ${themeClasses.textTitle}`}>38</div>
-                    <span className="font-mono text-xs font-semibold text-amber-500">พีค 11:00</span>
+                    <div className={`font-mono text-2xl font-bold ${themeClasses.textTitle}`}>{hourlyStats.avgPerHour}</div>
+                    <span className="font-mono text-xs font-semibold text-amber-500">{hourlyStats.peakLabel}</span>
                   </div>
                 </div>
                 <div className="mt-3">
@@ -979,7 +1314,7 @@ function StaffAdminScreen() {
 
                         const count = filteredFrequencyData.length;
                         if (count < 2) return;
-                        const maxVal = chartInterval === 15 ? 32 : chartInterval === 30 ? 55 : 65;
+                        const maxVal = chartMaxVal;
                         const chartH = 160;
                         const baseBottomY = 185;
 
@@ -1019,7 +1354,7 @@ function StaffAdminScreen() {
 
                       {/* Left Y-Axis Labels & Horizontal Grid Lines */}
                       {(() => {
-                        const maxVal = chartInterval === 15 ? 32 : chartInterval === 30 ? 55 : 65;
+                        const maxVal = chartMaxVal;
                         const step = Math.round(maxVal / 4);
                         return [
                           { label: String(step * 4), y: 25 },
@@ -1067,7 +1402,7 @@ function StaffAdminScreen() {
                       {(() => {
                         const count = filteredFrequencyData.length;
                         if (count < 2) return null;
-                        const maxVal = chartInterval === 15 ? 32 : chartInterval === 30 ? 55 : 65;
+                        const maxVal = chartMaxVal;
                         const chartH = 160;
                         const baseBottomY = 185;
 
@@ -1332,7 +1667,7 @@ function StaffAdminScreen() {
                   <div className={`border-t border-slate-800/40 pt-3 space-y-2 text-xs font-mono`}>
                     <div className="flex justify-between items-center">
                       <span className={themeClasses.textMuted}>ช่วงพีคสุด</span>
-                      <span className="font-bold text-[#CE1126]">11:00 - 13:00</span>
+                      <span className="font-bold text-[#CE1126]">{hourlyStats.peakRange}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className={themeClasses.textMuted}>ความเร็วคิว</span>
@@ -1408,8 +1743,7 @@ function StaffAdminScreen() {
                   </div>
                   <button
                     onClick={toggleDisplayMute}
-                    disabled={!displayTelemetry.online}
-                    className={`h-8 px-3 rounded-lg text-xs font-bold text-white transition-colors cursor-pointer disabled:opacity-40 ${
+                    className={`h-8 px-3 rounded-lg text-xs font-bold text-white transition-colors cursor-pointer ${
                       isDisplayMuted ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-slate-700 hover:bg-slate-600'
                     }`}
                   >
@@ -1479,7 +1813,7 @@ function StaffAdminScreen() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
                     {paginatedPhotos.map((photo, index) => (
                       <article
-                        key={`${photo.code}-${index}`}
+                        key={`${photo.code}-${imageRefreshKey}-${index}`}
                         className={`overflow-hidden rounded-xl border transition-all flex flex-col justify-between ${
                           isDark ? 'border-slate-800 bg-slate-900/40' : 'border-slate-200 bg-white shadow-xs'
                         }`}
@@ -1489,8 +1823,22 @@ function StaffAdminScreen() {
                             src={photo.photoUrl}
                             alt={photo.code}
                             className="h-full w-full object-cover"
-                            onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
+                            onError={(e) => {
+                              const img = e.currentTarget as HTMLImageElement;
+                              if (!img.dataset.fallbackTried) {
+                                img.dataset.fallbackTried = '1';
+                                img.src = `/api/photos/${encodeURIComponent(photo.code)}/file`;
+                              } else {
+                                img.style.display = 'none';
+                              }
+                            }}
                           />
+                          {photo.pendingCloudSync && (
+                            <div className="absolute top-1.5 right-1.5 rounded bg-amber-500/90 px-1.5 py-0.5 text-[9px] font-mono font-bold text-slate-950 flex items-center gap-1">
+                              <CloudUpload className="size-2.5" />
+                              รอซิงค์
+                            </div>
+                          )}
                           <div className="absolute bottom-1.5 left-1.5 rounded bg-black/80 px-1.5 py-0.2 text-[10px] font-mono font-bold text-white">
                             #{photo.code.replace('OPH-', '')}
                           </div>
@@ -1616,6 +1964,14 @@ function StaffAdminScreen() {
                     >
                       ข้าม Preview
                     </button>
+                    <button
+                      onClick={() => sendCommand('CANCEL_PREVIEW', 'ยกเลิก Preview แล้ว')}
+                      className={`h-9 w-full rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
+                        isDark ? 'border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
+                      }`}
+                    >
+                      ยกเลิก Preview
+                    </button>
                   </div>
                 </div>
 
@@ -1683,25 +2039,25 @@ function StaffAdminScreen() {
               {/* Minimal Tuners (Clean, Compact 4-Column) */}
               <div className="border-t border-slate-800/40 pt-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                  {/* Tuner 1: Sensitivity (Hand Detection Range) */}
+                  {/* Tuner 1: Sensitivity (Locked max distance <= 1.5m) */}
                   <div className={`p-3.5 rounded-xl border space-y-2.5 ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                     <div className="flex justify-between items-center text-xs">
-                      <span className="font-semibold text-slate-300">ระยะตรวจจับมือ</span>
+                      <span className="font-semibold text-slate-300">ระยะตรวจจับมือ (ล็อกไม่เกิน 1.5m)</span>
                       <span className="font-mono text-cyan-400 font-bold bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded-md text-[11px]">
-                        {sensitivity.toFixed(1)}% ({sensitivity <= 1.8 ? 'ไกล 2-3m' : sensitivity <= 3.2 ? 'ปกติ 1.5m' : 'ประชิด <1m'})
+                        {sensitivity.toFixed(1)}% ({sensitivity <= 2.9 ? 'ไม่เกิน 1.5m' : sensitivity <= 3.8 ? 'กลาง ~1.2m' : 'ประชิด <1m'})
                       </span>
                     </div>
 
                     <input
                       type="range"
-                      min="0.8"
-                      max="5.0"
+                      min="2.5"
+                      max="5.5"
                       step="0.1"
-                      value={sensitivity}
+                      value={clampAdminSensitivityPct(sensitivity)}
                       onChange={(e) => {
-                        const val = parseFloat(e.target.value);
+                        const val = clampAdminSensitivityPct(parseFloat(e.target.value));
                         setSensitivity(val);
-                        sendCommand('SET_THRESHOLD', `เกณฑ์ ${val.toFixed(1)}%`, val / 100);
+                        sendCommand('SET_THRESHOLD', `เกณฑ์ ${val.toFixed(1)}% (≤1.5m)`, val / 100);
                         if (typeof window !== 'undefined') {
                           try { localStorage.setItem('swu_hand_threshold', (val / 100).toString()); } catch {}
                         }
@@ -1709,60 +2065,60 @@ function StaffAdminScreen() {
                       className="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg"
                     />
 
-                    {/* Quick Distance Presets */}
+                    {/* Quick Distance Presets (Strictly <= 1.5m) */}
                     <div className="grid grid-cols-3 gap-1 pt-0.5">
                       <button
                         type="button"
                         onClick={() => {
-                          setSensitivity(1.5);
-                          sendCommand('SET_THRESHOLD', 'โหมดระยะไกล 1.5%', 0.015);
-                          if (typeof window !== 'undefined') {
-                            try { localStorage.setItem('swu_hand_threshold', '0.015'); } catch {}
-                          }
-                        }}
-                        className={`px-1.5 py-1 text-[10px] rounded-lg font-medium transition-all cursor-pointer ${
-                          sensitivity <= 1.8
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
-                            : isDark ? 'bg-slate-800/60 text-slate-400 hover:text-slate-200 border border-transparent' : 'bg-slate-200 text-slate-600 hover:text-slate-800 border border-transparent'
-                        }`}
-                      >
-                        🔭 ไกล (1.5%)
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
                           setSensitivity(2.5);
-                          sendCommand('SET_THRESHOLD', 'โหมดปกติ 2.5%', 0.025);
+                          sendCommand('SET_THRESHOLD', 'ระยะ 1.5m (ล็อกสูงสุด) 2.5%', 0.025);
                           if (typeof window !== 'undefined') {
                             try { localStorage.setItem('swu_hand_threshold', '0.025'); } catch {}
                           }
                         }}
                         className={`px-1.5 py-1 text-[10px] rounded-lg font-medium transition-all cursor-pointer ${
-                          sensitivity > 1.8 && sensitivity <= 3.2
+                          sensitivity <= 2.9
                             ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
                             : isDark ? 'bg-slate-800/60 text-slate-400 hover:text-slate-200 border border-transparent' : 'bg-slate-200 text-slate-600 hover:text-slate-800 border border-transparent'
                         }`}
                       >
-                        🎯 ปกติ (2.5%)
+                        🎯 1.5m (2.5%)
                       </button>
 
                       <button
                         type="button"
                         onClick={() => {
-                          setSensitivity(4.0);
-                          sendCommand('SET_THRESHOLD', 'โหมดคนแน่น 4.0%', 0.04);
+                          setSensitivity(3.2);
+                          sendCommand('SET_THRESHOLD', 'ระยะมาตรฐาน ~1.2m (3.2%)', 0.032);
                           if (typeof window !== 'undefined') {
-                            try { localStorage.setItem('swu_hand_threshold', '0.04'); } catch {}
+                            try { localStorage.setItem('swu_hand_threshold', '0.032'); } catch {}
                           }
                         }}
                         className={`px-1.5 py-1 text-[10px] rounded-lg font-medium transition-all cursor-pointer ${
-                          sensitivity > 3.2
+                          sensitivity > 2.9 && sensitivity <= 3.8
                             ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
                             : isDark ? 'bg-slate-800/60 text-slate-400 hover:text-slate-200 border border-transparent' : 'bg-slate-200 text-slate-600 hover:text-slate-800 border border-transparent'
                         }`}
                       >
-                        🛡️ ประชิด (4.0%)
+                        📏 1.2m (3.2%)
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSensitivity(4.2);
+                          sendCommand('SET_THRESHOLD', 'ระยะประชิด <1m (4.2%)', 0.042);
+                          if (typeof window !== 'undefined') {
+                            try { localStorage.setItem('swu_hand_threshold', '0.042'); } catch {}
+                          }
+                        }}
+                        className={`px-1.5 py-1 text-[10px] rounded-lg font-medium transition-all cursor-pointer ${
+                          sensitivity > 3.8
+                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                            : isDark ? 'bg-slate-800/60 text-slate-400 hover:text-slate-200 border border-transparent' : 'bg-slate-200 text-slate-600 hover:text-slate-800 border border-transparent'
+                        }`}
+                      >
+                        🛡️ &lt;1m (4.2%)
                       </button>
                     </div>
                   </div>
@@ -1941,11 +2297,30 @@ function StaffAdminScreen() {
                 {/* 3 */}
                 <div className={`p-3.5 rounded-xl border space-y-2 ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                   <div className="flex justify-between items-center text-slate-400">
-                    <span>Network Gateway</span>
-                    <span className={isNetOnline ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold'}>{isNetOnline ? 'OK' : 'OFF'}</span>
+                    <span>Cloud & Internet</span>
+                    <span className={isNetOnline ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold'}>
+                      {isNetOnline ? 'ONLINE' : 'OFFLINE'}
+                    </span>
                   </div>
-                  <div className="text-slate-200 text-sm font-bold">{netLatency !== null ? `${netLatency} ms` : '5GHz'}</div>
-                  <div className="text-slate-500 text-[11px]">HTTPS Ready</div>
+                  <div className="text-slate-200 text-sm font-bold">
+                    {isNetOnline ? `${netLatency !== null ? `${netLatency} ms` : 'พร้อม'} (R2 Sync)` : 'ออฟไลน์ · เก็บในเครื่อง'}
+                  </div>
+                  <div className="flex items-center justify-between text-slate-500 text-[11px]">
+                    <span>
+                      {pendingCloudUploads > 0
+                        ? `รอซิงค์ ${pendingCloudUploads} รูป`
+                        : lastCloudSyncAt
+                        ? `ซิงค์ ${new Date(lastCloudSyncAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`
+                        : 'ซิงค์ครบแล้ว'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void checkNetwork(true)}
+                      className="text-cyan-400 hover:text-cyan-300 underline cursor-pointer"
+                    >
+                      ซิงค์ทันที
+                    </button>
+                  </div>
                 </div>
 
                 {/* 4 */}

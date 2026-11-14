@@ -24,17 +24,30 @@ export function calculateHandAreaRatio(landmarks: LandmarkPoint[]): number {
 }
 
 /**
+ * Hard ceiling for hand detection distance: 1.5 meters (~2.5% bounding-box area).
+ * Staff tuners cannot go below 0.025 so background attendees walking >1.5m behind never trigger the booth.
+ */
+export const MIN_FOREGROUND_AREA_RATIO = 0.025;
+export const MAX_FOREGROUND_AREA_RATIO = 0.08;
+
+export function clampForegroundThreshold(value: number): number {
+  if (!Number.isFinite(value)) return MIN_FOREGROUND_AREA_RATIO;
+  return Math.max(MIN_FOREGROUND_AREA_RATIO, Math.min(MAX_FOREGROUND_AREA_RATIO, value));
+}
+
+/**
  * Filter hand bounding box area to reject background people walking past.
- * Calibrated distance guidelines:
- * - Close distance (< 1.2m): occupies ~4.0% - 7.0%+
- * - Standard distance (1.2m - 1.8m): occupies ~2.2% - 3.5%
- * - Long / Group distance (1.8m - 3.0m): occupies ~1.0% - 2.0%
- * Default threshold set to 0.025 (2.5%) for responsive detection up to ~2m.
+ * Calibrated distance guidelines (locked to <= 1.5m):
+ * - Close distance (< 0.8m): occupies ~4.0% - 7.0%+
+ * - Mid distance (0.8m - 1.2m): occupies ~3.0% - 4.0%
+ * - Max range (1.5m): occupies ~2.5%
+ * Default threshold set to 0.025 (2.5%) for reliable detection up to 1.5m max.
  */
 export function isHandInForeground(
   landmarks: LandmarkPoint[],
-  minAreaRatio: number = 0.025
+  minAreaRatio: number = MIN_FOREGROUND_AREA_RATIO
 ): boolean {
+  const effectiveMin = clampForegroundThreshold(minAreaRatio);
   const area = calculateHandAreaRatio(landmarks);
-  return area >= minAreaRatio;
+  return area >= effectiveMin;
 }

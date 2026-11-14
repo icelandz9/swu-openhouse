@@ -45,8 +45,9 @@ export function pickNearestHandInCapture(
   if (!hands || hands.length === 0) return -1;
 
   const minAreaRatio = options?.minAreaRatio ?? 0.025;
-  // Reject tiny background noise hands (< 45% of threshold when options.minAreaRatio is explicitly provided)
-  const noiseFloor = options?.minAreaRatio !== undefined ? minAreaRatio * 0.45 : 0.002;
+  // Reject distant background hands: when explicit threshold is given (default 2.5% = 1.5m),
+  // ignore noise smaller than 58% of threshold unless lower unconfigured fallback is used.
+  const noiseFloor = options?.minAreaRatio !== undefined ? minAreaRatio * 0.58 : 0.002;
   const lockedPalm = options?.lockedPalm ?? null;
 
   const SOFT_MARGIN_X = 0.12;
@@ -101,27 +102,27 @@ export function pickNearestHandInCapture(
       palm.y >= area.top &&
       palm.y <= area.bottom;
 
-    // 3. Base score from bounding-box area
+    // 3. Base score from bounding-box area (closest physical hand is largest in area)
     let score = size;
     if (!isStrictlyInside) {
-      score = size >= minAreaRatio ? size * 0.85 : size * 0.3;
+      score = size >= minAreaRatio ? size * 0.92 : size * 0.3;
     }
 
-    // 4. Foreground threshold dominance: hands that meet the configured distance threshold strongly beat sub-threshold hands
+    // 4. Foreground threshold dominance: hands within the <= 1.5m foreground band strongly beat sub-threshold hands
     if (size >= minAreaRatio) {
-      score *= 2.5;
+      score *= 4.0;
     }
 
-    // 5. Gentle center-of-frame preference (up to +15% for hands near the middle of the capture frame)
+    // 5. Gentle tie-breaker toward frame center (kept mild so a closer/larger hand always beats a distant centered hand)
     const distFromCenter = Math.hypot(palm.x - centerX, palm.y - centerY);
-    const centerBonus = Math.max(0.85, 1.15 - distFromCenter * 0.4);
+    const centerBonus = Math.max(0.95, 1.05 - distFromCenter * 0.14);
     score *= centerBonus;
 
-    // 6. Target Lock Hysteresis during active palm hold (prevents hand-switching jitter in group shots)
-    if (lockedPalm && size >= minAreaRatio * 0.85) {
+    // 6. Target Lock Hysteresis during active palm hold (anti-jitter without blocking a much closer hand)
+    if (lockedPalm && size >= minAreaRatio * 0.9) {
       const distFromLocked = Math.hypot(palm.x - lockedPalm.x, palm.y - lockedPalm.y);
       if (distFromLocked <= 0.14) {
-        score *= 1.45;
+        score *= 1.3;
       }
     }
 

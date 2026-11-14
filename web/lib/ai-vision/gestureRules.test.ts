@@ -137,4 +137,15 @@ assert.equal(classifyGesture(fist3D.imagePts, fist3D.worldPts, 'Right'), 'FIST',
 const peace3D = make3DHand([true, true, false, false], false, 'palm', 'Right');
 assert.equal(classifyGesture(peace3D.imagePts, peace3D.worldPts, 'Right'), 'PEACE_SIGN', '3D index+middle extended must be PEACE_SIGN');
 
-console.log('gestureRules: all 8 test suites passed');
+// 9. Casual slightly-angled FIST (e.g. one finger tip/PIP at 1.07, loose thumb beside knuckles ~1.25)
+const casualFist = make3DHand([false, false, false, false], false, 'palm', 'Right');
+casualFist.worldPts[8] = { x: -0.02, y: 0.015, z: 0 }; // index tip slightly further than tight fist
+casualFist.worldPts[6] = { x: -0.02, y: 0.02, z: 0 };  // dist ~ 0.082 vs pip ~ 0.082 -> ratio ~1.00-1.06
+casualFist.worldPts[4] = { x: -0.048, y: 0.03, z: 0 }; // thumb loosely along index side (ratio ~ 1.24 <= 1.32)
+assert.equal(classifyGesture(casualFist.imagePts, casualFist.worldPts, 'Right'), 'FIST', '3D casual clenched fist with loose thumb must still classify as FIST');
+
+// 10. Thumbs-up (4 folded fingers + upright thumb >= 1.35) must NOT falsely trigger FIST
+const thumbsUp = make3DHand([false, false, false, false], true, 'palm', 'Right');
+assert.notEqual(classifyGesture(thumbsUp.imagePts, thumbsUp.worldPts, 'Right'), 'FIST', 'thumbs-up must not misclassify as FIST');
+
+console.log('gestureRules: all 10 test suites passed');

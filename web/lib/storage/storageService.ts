@@ -1,29 +1,70 @@
 import { IPhotoStorage } from './IPhotoStorage';
 import { LocalStorageAdapter } from './LocalStorageAdapter';
-import { CloudflareR2Adapter, isR2Configured } from './CloudflareR2Adapter';
+import { CloudflareR2Adapter, CloudSyncStatus, isR2Configured } from './CloudflareR2Adapter';
 
 /**
  * Picks the photo storage:
  * - STORAGE_DRIVER=r2, or R2 keys set and STORAGE_DRIVER unset → Cloudflare R2 (needed on Vercel)
  * - otherwise → files in web/data/ on this machine
  *
- * Created on first use, so a missing setting fails the request with a clear error instead of the build.
+ * Stored on globalThis so Next.js dev route bundles share one instance and one single-flight R2 sync lock.
  */
-let instance: IPhotoStorage | null = null;
+const globalForStorage = globalThis as typeof globalThis & {
+  __boothStorageInstance?: IPhotoStorage;
+};
 
 function getStorage(): IPhotoStorage {
-  if (instance) return instance;
+  if (globalForStorage.__boothStorageInstance) {
+    return globalForStorage.__boothStorageInstance;
+  }
 
   const driver = process.env.STORAGE_DRIVER || (isR2Configured() ? 'r2' : 'local');
   if (driver === 'r2') {
-    instance = new CloudflareR2Adapter();
+    globalForStorage.__boothStorageInstance = new CloudflareR2Adapter();
   } else if (process.env.VERCEL) {
     // Vercel has no lasting disk: photos saved to web/data/ would vanish or 404 on the next request.
     throw new Error('On Vercel, photos must go to Cloudflare R2: set STORAGE_DRIVER=r2 and the R2_* variables');
   } else {
-    instance = new LocalStorageAdapter();
+    globalForStorage.__boothStorageInstance = new LocalStorageAdapter();
   }
-  return instance;
+  return globalForStorage.__boothStorageInstance;
+}
+
+export function getR2Adapter(): CloudflareR2Adapter | null {
+  const s = getStorage();
+  return s instanceof CloudflareR2Adapter ? s : null;
+}
+
+export async function syncCloudStorageNow() {
+  const r2 = getR2Adapter();
+  if (!r2) {
+    return { synced: 0, failed: 0, remaining: 0 };
+  }
+  return r2.syncPendingToR2();
+}
+
+export async function getCloudSyncStatus(): Promise<CloudSyncStatus> {
+  const r2 = getR2Adapter();
+  if (!r2) {
+    return {
+      pendingUploads: 0,
+      pendingDeletes: 0,
+      pendingCodes: [],
+      syncing: false,
+      lastSyncAt: null,
+      lastSyncedCount: 0,
+      lastError: null,
+    };
+  }
+  return r2.getSyncStatus();
+}
+
+export async function probeCloudConnectivity() {
+  const r2 = getR2Adapter();
+  if (!r2) {
+    return { online: true, latencyMs: 0 };
+  }
+  return r2.probeCloud();
 }
 
 export const photoStorageService: IPhotoStorage = {

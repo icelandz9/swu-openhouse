@@ -44,5 +44,25 @@ assert.equal(
   0,
   'locked foreground hand must not be hijacked by another person in the group'
 );
+// 9. Closest foreground hand wins over slightly more centered smaller foreground hand
+assert.equal(
+  pickNearestHandInCapture(
+    [hand(0.5, 0.5, 0.17), hand(0.32, 0.5, 0.21)],
+    frame,
+    { minAreaRatio: 0.025 }
+  ),
+  1,
+  'closer larger foreground hand (area 4.41%) must beat smaller centered hand (area 2.89%)'
+);
+// 10. Distant > 1.5m hand (size 0.11 -> area 1.21%) must be rejected under 1.5m limit (0.025 -> floor 1.45%)
+assert.equal(
+  pickNearestHandInCapture(
+    [hand(0.5, 0.5, 0.11)],
+    frame,
+    { minAreaRatio: 0.025 }
+  ),
+  -1,
+  'background hand beyond 1.5m must be rejected'
+);
 
-console.log('handPicker: all 9 checks passed');
+console.log('handPicker: all 11 checks passed');

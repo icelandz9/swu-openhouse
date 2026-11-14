@@ -6,16 +6,19 @@ export interface LandmarkPoint {
   z: number;
 }
 
-// Thresholds calibrated for robust, responsive palm detection
-// wrist->tip / wrist->PIP is 0.61-0.83 for folded fingers and 1.10+ for extended ones.
-const FINGER_EXTENDED_RATIO = 1.10;
-const FINGER_FOLDED_RATIO = 1.0;
-// Thumb tip->Pinky MCP / Thumb MCP->Pinky MCP is 0.65-0.88 tucked and 1.00+ extended.
-const THUMB_EXTENDED_RATIO = 1.00;
-// A fist tolerates a loosely held thumb; a thumbs-up measures 1.35+.
-const FIST_THUMB_MAX_RATIO = 1.2;
+// Thresholds calibrated for robust, responsive palm & fist detection
+// wrist->tip / wrist->PIP is 0.61-0.95 for folded fingers and 1.07+ for extended ones.
+const FINGER_EXTENDED_RATIO = 1.07;
+const FINGER_FOLDED_RATIO = 1.04;
+// Relaxed tolerance for casual/angled closed fists where one knuckle can reach 1.12 while average remains curled
+const FIST_MAX_SINGLE_FINGER_RATIO = 1.12;
+const FIST_MAX_AVG_RATIO = 1.04;
+// Thumb tip->Pinky MCP / Thumb MCP->Pinky MCP is 0.65-0.88 tucked and 0.94+ extended.
+const THUMB_EXTENDED_RATIO = 0.94;
+// A fist tolerates a relaxed thumb beside index/middle; a thumbs-up measures 1.35+.
+const FIST_THUMB_MAX_RATIO = 1.32;
 // Below this the hand is too edge-on to tell its palm from its back.
-const PALM_MIN_FACING = 0.12;
+const PALM_MIN_FACING = 0.08;
 
 const WRIST = 0;
 const THUMB_MCP = 2;
@@ -96,7 +99,13 @@ export function classifyGesture(
       distance(worldLandmarks[THUMB_TIP], pinkyMcp) /
       Math.max(distance(worldLandmarks[THUMB_MCP], pinkyMcp), 1e-6);
 
-    if (ratios.every(isFolded) && thumbRatio <= FIST_THUMB_MAX_RATIO) {
+    const avgRatio = (ratios[0] + ratios[1] + ratios[2] + ratios[3]) / 4;
+    const isCasualFist =
+      ratios.every((r) => r <= FIST_MAX_SINGLE_FINGER_RATIO) &&
+      avgRatio <= FIST_MAX_AVG_RATIO &&
+      thumbRatio <= FIST_THUMB_MAX_RATIO;
+
+    if (isCasualFist) {
       return 'FIST';
     }
 

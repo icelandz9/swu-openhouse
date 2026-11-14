@@ -31,9 +31,10 @@ function formatPhotoDate(iso: string) {
   };
 }
 
-// How often the display asks the server for the newest photo. Covers a display that runs on another
-// machine or browser, where the kiosk's BroadcastChannel message never arrives.
-const POLL_LATEST_MS = 3000;
+// How often the display asks the server for sync commands / latest photo across machines.
+const POLL_LATEST_MS = 2500;
+const POLL_SYNC_MS = 2000;
+const POLL_GALLERY_MS = 10000;
 // Only photos taken this recently count as "new" when found by polling (older ones are history).
 const NEW_PHOTO_WINDOW_MS = 60000;
 
@@ -45,10 +46,60 @@ function ShowcaseDisplayScreenContent() {
   const [newestCode, setNewestCode] = useState<string>('');
   const [isMounted, setIsMounted] = useState<boolean>(false);
   const [hostOrigin, setHostOrigin] = useState<string>('');
+  const [peerUrl, setPeerUrl] = useState<string>('');
+  const [isNetOnline, setIsNetOnline] = useState<boolean>(true);
+  const [imageRefreshKey, setImageRefreshKey] = useState<number>(0);
+
   const channelRef = useRef<BroadcastChannel | null>(null);
   const queueTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Codes already shown, so the BroadcastChannel event and the poll don't announce the same photo twice
+  // Codes already shown, so BroadcastChannel, /api/photos?latest=1, and /api/kiosk-sync don't double-trigger
   const seenCodesRef = useRef<Set<string>>(new Set());
+  const initialGalleryLoadedRef = useRef<boolean>(false);
+  const lastDisplayActionIdRef = useRef<string | null>(null);
+  const lastDisplayMuteTsRef = useRef<number>(0);
+  const lastDeletedAtRef = useRef<number>(0);
+  const lastSyncBootedAtRef = useRef<number>(Date.now());
+  const wasOfflineRef = useRef<boolean>(false);
+  const netLatencyRef = useRef<number>(0);
+
+  const activePhotoRef = useRef<GalleryItem | null>(null);
+  const photosCountRef = useRef<number>(0);
+  const isMutedRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    activePhotoRef.current = activePhoto;
+  }, [activePhoto]);
+
+  useEffect(() => {
+    photosCountRef.current = photos.length;
+  }, [photos.length]);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  const buildApiUrl = useCallback(
+    (path: string) => (peerUrl ? `${peerUrl}${path}` : path),
+    [peerUrl]
+  );
+
+  const resolvePhotoSrc = useCallback(
+    (photoUrl: string, code: string) => {
+      const clean = (photoUrl || '').trim();
+      const base =
+        clean && /^https?:\/\//i.test(clean)
+          ? clean
+          : clean && clean.startsWith('/api/') && peerUrl
+          ? `${peerUrl}${clean}`
+          : clean || `${peerUrl}/api/photos/${encodeURIComponent(code)}/file`;
+      if (imageRefreshKey > 0) {
+        const sep = base.includes('?') ? '&' : '?';
+        return `${base}${sep}r=${imageRefreshKey}`;
+      }
+      return base;
+    },
+    [peerUrl, imageRefreshKey]
+  );
 
   // Activates a photo on the left showcase for 30s. If next photo arrives, resets timer immediately.
   const showPhotoInQueue = useCallback((photo: GalleryItem) => {
@@ -79,10 +130,27 @@ function ShowcaseDisplayScreenContent() {
     [showPhotoInQueue]
   );
 
-  // Mount tracking and host resolution for hydration safety
+  // Mount tracking, host resolution, and optional ?peer= LAN URL for direct Machine 1 <-> Machine 2 sync
   useEffect(() => {
     setIsMounted(true);
     if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const peerParam = params.get('peer');
+      if (peerParam !== null) {
+        const cleanPeer = peerParam.trim().replace(/\/+$/, '');
+        if (!cleanPeer || cleanPeer === 'off' || cleanPeer === 'clear') {
+          localStorage.removeItem('swu_kiosk_peer_url');
+          setPeerUrl('');
+        } else {
+          const normalized = /^https?:\/\//i.test(cleanPeer) ? cleanPeer : `http://${cleanPeer}`;
+          localStorage.setItem('swu_kiosk_peer_url', normalized);
+          setPeerUrl(normalized);
+        }
+      } else {
+        const savedPeer = localStorage.getItem('swu_kiosk_peer_url') || '';
+        if (savedPeer) setPeerUrl(savedPeer.replace(/\/+$/, ''));
+      }
+
       let customHost = localStorage.getItem('swu_booth_host');
       if (customHost && customHost.includes('swu-openhouse.vercel.app')) {
         customHost = DEFAULT_PRODUCTION_APP_URL;
@@ -95,6 +163,104 @@ function ShowcaseDisplayScreenContent() {
     }
   }, []);
 
+  // Shared helper to remove a deleted photo everywhere in Display state & cache
+  const removeDeletedCode = useCallback((deletedCode: string) => {
+    if (!deletedCode) return;
+    setActivePhoto((prev) => {
+      if (prev?.code === deletedCode) {
+        if (queueTimerRef.current) {
+          clearTimeout(queueTimerRef.current);
+          queueTimerRef.current = null;
+        }
+        return null;
+      }
+      return prev;
+    });
+
+    if (typeof window !== 'undefined') {
+      try {
+        const rawDel = localStorage.getItem('swu_deleted_codes') || '[]';
+        const cur: string[] = JSON.parse(rawDel);
+        localStorage.setItem('swu_deleted_codes', JSON.stringify(Array.from(new Set([...cur, deletedCode]))));
+      } catch {}
+    }
+
+    setPhotos((prev) => {
+      const updated = prev.filter((p) => p.code !== deletedCode);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('swu_photo_gallery', JSON.stringify(updated));
+          const latestStored = localStorage.getItem('swu_latest_photo');
+          if (latestStored) {
+            const parsed = JSON.parse(latestStored);
+            if (parsed?.code === deletedCode) {
+              localStorage.removeItem('swu_latest_photo');
+            }
+          }
+        } catch {}
+      }
+      return updated;
+    });
+  }, []);
+
+  // Reconcile full photo list from server/R2 (recovers missed offline backlog + removes server-deleted items)
+  const reconcileGalleryFromServer = useCallback(async () => {
+    try {
+      const res = await fetch(buildApiUrl(`/api/photos?t=${Date.now()}`), { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const serverPhotos: GalleryItem[] = Array.isArray(data?.photos) ? data.photos : [];
+      if (!serverPhotos) return;
+
+      let deletedCodes: string[] = [];
+      try {
+        deletedCodes = JSON.parse(localStorage.getItem('swu_deleted_codes') || '[]');
+      } catch {}
+
+      const cleanServerPhotos = serverPhotos.filter((p) => p?.code && !deletedCodes.includes(p.code));
+      const serverCodes = new Set(cleanServerPhotos.map((p) => p.code));
+
+      if (!initialGalleryLoadedRef.current) {
+        cleanServerPhotos.forEach((p) => seenCodesRef.current.add(p.code));
+        initialGalleryLoadedRef.current = true;
+      } else {
+        // Announce genuinely new photos synced from Machine 1 after offline backlog flush!
+        const unseenNewest = cleanServerPhotos
+          .filter((p) => !seenCodesRef.current.has(p.code))
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+        cleanServerPhotos.forEach((p) => seenCodesRef.current.add(p.code));
+        if (unseenNewest && Date.now() - new Date(unseenNewest.createdAt).getTime() < 5 * 60 * 1000) {
+          setNewestCode(unseenNewest.code);
+          showPhotoInQueue(unseenNewest);
+        }
+      }
+
+      setPhotos((prev) => {
+        const prevMap = new Map(prev.map((p) => [p.code, p]));
+        // Keep only items confirmed on server OR very recently captured local items (< 90s old)
+        const now = Date.now();
+        const merged = new Map<string, GalleryItem>();
+        cleanServerPhotos.forEach((item) => {
+          merged.set(item.code, item);
+        });
+        prevMap.forEach((item, code) => {
+          if (!serverCodes.has(code) && !deletedCodes.includes(code)) {
+            const ageMs = now - new Date(item.createdAt).getTime();
+            if (ageMs < 90000) merged.set(code, item);
+          }
+        });
+        const sorted = Array.from(merged.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        try {
+          localStorage.setItem('swu_photo_gallery', JSON.stringify(sorted.slice(0, 60)));
+        } catch {}
+        return sorted;
+      });
+    } catch {}
+  }, [buildApiUrl, showPhotoInQueue]);
+
   // Live time ticker
   useEffect(() => {
     const updateTime = () => {
@@ -106,7 +272,7 @@ function ShowcaseDisplayScreenContent() {
     return () => clearInterval(interval);
   }, []);
 
-  // Load photos from localStorage / API on start, excluding deleted codes
+  // Load initial photos from localStorage / API and reconcile every 10s
   useEffect(() => {
     let deletedCodes: string[] = [];
     if (typeof window !== 'undefined') {
@@ -122,12 +288,11 @@ function ShowcaseDisplayScreenContent() {
         if (savedGallery) {
           const parsed = JSON.parse(savedGallery);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            const clean = parsed.filter((p: any) => !deletedCodes.includes(p?.code));
-            setPhotos(clean.length > 0 ? clean : DEFAULT_SEEDS.filter(s => !deletedCodes.includes(s.code)));
+            const clean = parsed.filter((p: any) => p?.code && !deletedCodes.includes(p.code));
+            setPhotos(clean.length > 0 ? clean : DEFAULT_SEEDS.filter((s) => !deletedCodes.includes(s.code)));
           }
         }
 
-        // Check if there was a photo captured within the last 30 seconds
         const savedLatest = localStorage.getItem('swu_latest_photo');
         if (savedLatest) {
           const parsedLatest: GalleryItem = JSON.parse(savedLatest);
@@ -144,33 +309,20 @@ function ShowcaseDisplayScreenContent() {
       } catch {}
     }
 
-    // Also fetch latest from server
-    fetch('/api/photos')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.photos && Array.isArray(data.photos)) {
-          setPhotos((prev) => {
-            const map = new Map<string, GalleryItem>();
-            [...data.photos, ...prev].forEach((item: any) => {
-              if (item?.code && !deletedCodes.includes(item.code)) {
-                map.set(item.code, item);
-              }
-            });
-            return Array.from(map.values());
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
+    void reconcileGalleryFromServer();
+    const wallInterval = setInterval(() => {
+      void reconcileGalleryFromServer();
+    }, POLL_GALLERY_MS);
+    return () => clearInterval(wallInterval);
+  }, [reconcileGalleryFromServer]);
 
-  // Poll the server for the newest photo, so a new shot appears without a page refresh even when the
-  // kiosk runs in another browser or on another machine (BroadcastChannel only reaches the same browser).
+  // Poll the server for the newest photo (fast path)
   useEffect(() => {
     let stopped = false;
     let firstPoll = true;
     const poll = async () => {
       try {
-        const res = await fetch('/api/photos?latest=1', { cache: 'no-store' });
+        const res = await fetch(buildApiUrl('/api/photos?latest=1'), { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
         const latest = data?.photo as (GalleryItem & { token?: string }) | null;
@@ -180,7 +332,6 @@ function ShowcaseDisplayScreenContent() {
           deleted = JSON.parse(localStorage.getItem('swu_deleted_codes') || '[]');
         } catch {}
         const isFresh = Date.now() - new Date(latest.createdAt).getTime() < NEW_PHOTO_WINDOW_MS;
-        // The first answer only records what is already there; later answers announce new photos.
         if (firstPoll || seenCodesRef.current.has(latest.code) || deleted.includes(latest.code) || !isFresh) {
           seenCodesRef.current.add(latest.code);
           return;
@@ -194,7 +345,6 @@ function ShowcaseDisplayScreenContent() {
           style: 'NEURAL RED',
         });
       } catch {
-        // offline or not staff: the BroadcastChannel path still works
       } finally {
         firstPoll = false;
       }
@@ -205,7 +355,186 @@ function ShowcaseDisplayScreenContent() {
       stopped = true;
       clearInterval(id);
     };
-  }, [receiveNewPhoto]);
+  }, [buildApiUrl, receiveNewPhoto]);
+
+  // Cross-machine Admin <-> Display sync (PUSH_TO_DISPLAY, MUTE_DISPLAY, PHOTO_DELETED, publicDomain & Display telemetry)
+  useEffect(() => {
+    let stopped = false;
+    let firstSync = true;
+
+    const pollSync = async () => {
+      try {
+        const res = await fetch(buildApiUrl(`/api/kiosk-sync?t=${Date.now()}`), { cache: 'no-store' });
+        if (!res.ok) return;
+        const sync = await res.json();
+        if (stopped || !sync) return;
+
+        // 1. Sync publicDomain if Admin updated it on Machine 1
+        const remoteDomain = typeof sync.config?.publicDomain === 'string' ? sync.config.publicDomain.trim() : '';
+        if (remoteDomain && typeof window !== 'undefined') {
+          setHostOrigin(remoteDomain);
+          try {
+            localStorage.setItem('swu_booth_host', remoteDomain);
+          } catch {}
+        }
+
+        // 2. Sync displayMuted state from Machine 1 Admin
+        const remoteMuteTs = typeof sync.displayUpdatedAt === 'number' ? sync.displayUpdatedAt : 0;
+        if (firstSync || remoteMuteTs > lastDisplayMuteTsRef.current) {
+          lastDisplayMuteTsRef.current = remoteMuteTs;
+          const nextMute = Boolean(sync.displayMuted);
+          setIsMuted(nextMute);
+          if (nextMute) {
+            if (queueTimerRef.current) {
+              clearTimeout(queueTimerRef.current);
+              queueTimerRef.current = null;
+            }
+            setActivePhoto(null);
+          }
+        }
+
+        // 3. Process cross-machine displayAction (PUSH_TO_DISPLAY, PHOTO_READY, RESET_STANDBY)
+        const action = sync.displayAction;
+        if (action?.id && action.id !== lastDisplayActionIdRef.current) {
+          lastDisplayActionIdRef.current = action.id;
+          const actionTs = typeof action.timestamp === 'number' ? action.timestamp : 0;
+          const isRecentOnBoot = Date.now() - actionTs < 45000;
+          if (!firstSync || isRecentOnBoot) {
+            if (action.type === 'PUSH_TO_DISPLAY' && action.photo?.code) {
+              const pushed: GalleryItem = {
+                code: action.photo.code,
+                qrUrl: action.photo.qrUrl,
+                token: action.photo.token,
+                photoUrl: action.photo.photoUrl,
+                createdAt: action.photo.createdAt,
+                style: 'NEURAL RED',
+              };
+              setIsMuted(false);
+              setNewestCode(pushed.code);
+              showPhotoInQueue(pushed);
+              setPhotos((prev) =>
+                prev.some((p) => p.code === pushed.code) ? prev : [pushed, ...prev].slice(0, 60)
+              );
+            } else if (action.type === 'PHOTO_READY' && action.photo?.code) {
+              if (!seenCodesRef.current.has(action.photo.code)) {
+                receiveNewPhoto({
+                  code: action.photo.code,
+                  qrUrl: action.photo.qrUrl,
+                  token: action.photo.token,
+                  photoUrl: action.photo.photoUrl,
+                  createdAt: action.photo.createdAt,
+                  style: 'NEURAL RED',
+                });
+              }
+            } else if (action.type === 'RESET_STANDBY') {
+              if (!firstSync || actionTs >= lastSyncBootedAtRef.current - 5000) {
+                if (queueTimerRef.current) {
+                  clearTimeout(queueTimerRef.current);
+                  queueTimerRef.current = null;
+                }
+                setActivePhoto(null);
+              }
+            }
+          }
+        }
+
+        // 4. Sync remote photo deletion (PDPA instant removal on Screen 2)
+        if (sync.lastDeleted?.code && typeof sync.lastDeleted.at === 'number') {
+          if (sync.lastDeleted.at > lastDeletedAtRef.current) {
+            lastDeletedAtRef.current = sync.lastDeleted.at;
+            removeDeletedCode(sync.lastDeleted.code);
+          }
+        }
+      } catch {
+      } finally {
+        firstSync = false;
+      }
+    };
+
+    const sendDisplayHeartbeat = async () => {
+      try {
+        await fetch(buildApiUrl('/api/kiosk-sync'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telemetry: {
+              display: {
+                activeCode: activePhotoRef.current?.code || null,
+                queueLength: activePhotoRef.current ? 1 : 0,
+                totalPhotos: photosCountRef.current,
+                isMuted: isMutedRef.current,
+                latencyMs: netLatencyRef.current ?? 0,
+              },
+            },
+          }),
+        });
+      } catch {}
+    };
+
+    void pollSync();
+    void sendDisplayHeartbeat();
+    const syncTimer = setInterval(() => void pollSync(), POLL_SYNC_MS);
+    const hbTimer = setInterval(() => void sendDisplayHeartbeat(), 4000);
+    return () => {
+      stopped = true;
+      clearInterval(syncTimer);
+      clearInterval(hbTimer);
+    };
+  }, [buildApiUrl, receiveNewPhoto, removeDeletedCode, showPhotoInQueue]);
+
+  // Network health monitor + automatic reconnect refresh (no F5 required when internet returns!)
+  useEffect(() => {
+    const checkConnection = async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine && !peerUrl) {
+        wasOfflineRef.current = true;
+        setIsNetOnline(false);
+        return;
+      }
+      try {
+        const res = await fetch(buildApiUrl(`/api/network-status?t=${Date.now()}`), { cache: 'no-store' });
+        if (!res.ok) throw new Error('offline');
+        const data = await res.json();
+        const onlineNow = peerUrl ? true : Boolean(data?.online && data?.cloudReachable);
+        if (typeof data?.latencyMs === 'number') netLatencyRef.current = data.latencyMs;
+        setIsNetOnline(onlineNow);
+        if (onlineNow && wasOfflineRef.current) {
+          wasOfflineRef.current = false;
+          setImageRefreshKey((k) => k + 1);
+          void reconcileGalleryFromServer();
+        } else if (!onlineNow) {
+          wasOfflineRef.current = true;
+        }
+      } catch {
+        wasOfflineRef.current = true;
+        setIsNetOnline(false);
+      }
+    };
+
+    const onOnline = () => {
+      setIsNetOnline(true);
+      setImageRefreshKey((k) => k + 1);
+      void checkConnection();
+      void reconcileGalleryFromServer();
+    };
+    const onOffline = () => {
+      wasOfflineRef.current = true;
+      setIsNetOnline(false);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', onOnline);
+      window.addEventListener('offline', onOffline);
+    }
+    void checkConnection();
+    const probeTimer = setInterval(() => void checkConnection(), 5000);
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('online', onOnline);
+        window.removeEventListener('offline', onOffline);
+      }
+      clearInterval(probeTimer);
+    };
+  }, [buildApiUrl, peerUrl, reconcileGalleryFromServer]);
 
   // Listen to live capture events from Screen 1 (Kiosk)
   useEffect(() => {
@@ -288,40 +617,7 @@ function ShowcaseDisplayScreenContent() {
           });
         } catch {}
       } else if (data.type === 'PHOTO_DELETED') {
-        const deletedCode = data.code;
-
-        // If the deleted photo is currently in the active 30s showcase, return to standby immediately
-        setActivePhoto((prev) => {
-          if (prev?.code === deletedCode) {
-            if (queueTimerRef.current) clearTimeout(queueTimerRef.current);
-            return null;
-          }
-          return prev;
-        });
-
-        if (typeof window !== 'undefined') {
-          try {
-            const rawDel = localStorage.getItem('swu_deleted_codes') || '[]';
-            const cur: string[] = JSON.parse(rawDel);
-            localStorage.setItem('swu_deleted_codes', JSON.stringify(Array.from(new Set([...cur, deletedCode]))));
-          } catch {}
-        }
-        setPhotos((prev) => {
-          const updated = prev.filter((p) => p.code !== deletedCode);
-          if (typeof window !== 'undefined') {
-            try {
-              localStorage.setItem('swu_photo_gallery', JSON.stringify(updated));
-              const latestStored = localStorage.getItem('swu_latest_photo');
-              if (latestStored) {
-                const parsed = JSON.parse(latestStored);
-                if (parsed?.code === deletedCode) {
-                  localStorage.removeItem('swu_latest_photo');
-                }
-              }
-            } catch {}
-          }
-          return updated;
-        });
+        removeDeletedCode(data.code);
       }
     };
 
@@ -336,7 +632,7 @@ function ShowcaseDisplayScreenContent() {
         clearTimeout(queueTimerRef.current);
       }
     };
-  }, [showPhotoInQueue, receiveNewPhoto]);
+  }, [showPhotoInQueue, receiveNewPhoto, removeDeletedCode]);
 
   // Compute clean QR URL (Hydration-safe with hostOrigin fallback)
   const cleanHostOrigin = hostOrigin?.trim().replace(/\/+$/, '');
@@ -399,12 +695,19 @@ function ShowcaseDisplayScreenContent() {
             <div className="relative z-[2] aspect-[4/3] overflow-hidden px-screen">
               {activePhoto ? (
                 <img
-                  src={activePhoto.photoUrl}
+                  key={`${activePhoto.code}-${imageRefreshKey}`}
+                  src={resolvePhotoSrc(activePhoto.photoUrl, activePhoto.code)}
                   alt={`รูปล่าสุด ${activePhoto.code}`}
                   /* contain: a 3:4 portrait shot shows whole instead of being cut to the 4:3 card */
                   className="h-full w-full object-contain"
                   onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                    const img = e.currentTarget as HTMLImageElement;
+                    if (!img.dataset.fallbackTried) {
+                      img.dataset.fallbackTried = '1';
+                      img.src = buildApiUrl(`/api/photos/${encodeURIComponent(activePhoto.code)}/file?r=${imageRefreshKey}`);
+                    } else {
+                      img.style.display = 'none';
+                    }
                   }}
                 />
               ) : (
@@ -504,8 +807,16 @@ function ShowcaseDisplayScreenContent() {
                 </div>
               </div>
               <div className="px-screen px-corners px-[.9vw] py-[.45vw] text-center">
-                <div className="font-pixel-sm text-[clamp(.38rem,.5vw,.62rem)] text-[var(--px-muted)]">STAGE</div>
-                <div className="font-pixel text-[clamp(.6rem,.95vw,1.15rem)] text-[var(--px-green)]">CPE</div>
+                <div className="font-pixel-sm text-[clamp(.38rem,.5vw,.62rem)] text-[var(--px-muted)]">
+                  {!isNetOnline ? 'NETWORK' : peerUrl ? 'LAN SYNC' : 'STAGE'}
+                </div>
+                <div
+                  className={`font-pixel text-[clamp(.6rem,.95vw,1.15rem)] ${
+                    !isNetOnline ? 'px-blink text-red-400' : 'text-[var(--px-green)]'
+                  }`}
+                >
+                  {!isNetOnline ? 'OFFLINE' : peerUrl ? 'PEER' : 'CPE'}
+                </div>
               </div>
             </div>
           </header>
@@ -528,16 +839,22 @@ function ShowcaseDisplayScreenContent() {
                   const isNew = photo.code === newestCode;
                   return (
                     <figure
-                      key={`${photo.code}-${index}`}
+                      key={`${photo.code}-${imageRefreshKey}-${index}`}
                       className={`group relative aspect-[4/3] overflow-hidden px-corners px-panel p-[.35vw] ${isNew ? 'photo-wall-enter' : ''}`}
                     >
                       <div className="relative h-full w-full overflow-hidden bg-black">
                         <img
-                          src={photo.photoUrl}
+                          src={resolvePhotoSrc(photo.photoUrl, photo.code)}
                           alt={`ภาพถ่าย ${photo.code}`}
                           className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
                           onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).style.display = 'none';
+                            const img = e.currentTarget as HTMLImageElement;
+                            if (!img.dataset.fallbackTried) {
+                              img.dataset.fallbackTried = '1';
+                              img.src = buildApiUrl(`/api/photos/${encodeURIComponent(photo.code)}/file?r=${imageRefreshKey}`);
+                            } else {
+                              img.style.display = 'none';
+                            }
                           }}
                         />
                       </div>
