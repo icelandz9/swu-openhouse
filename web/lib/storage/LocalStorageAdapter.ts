@@ -226,6 +226,39 @@ export class LocalStorageAdapter implements IPhotoStorage {
     return true;
   }
 
+  async getLocalPhotoCodes(): Promise<string[]> {
+    await this.ensureInit();
+    return Array.from(this.metaCache.keys());
+  }
+
+  /**
+   * Deletes ONLY local cached .jpg files & meta entries (without marking PDPA deletedCodes),
+   * used after confirming the photos are safely stored on Cloudflare R2.
+   */
+  async removeLocalCacheFiles(codes: string[]): Promise<number> {
+    await this.ensureInit();
+    let removed = 0;
+    for (const shortCode of codes) {
+      this.memoryCache.delete(shortCode);
+      const hadMeta = this.metaCache.delete(shortCode);
+      const filePath = path.join(this.baseDir, `${shortCode}.jpg`);
+      let removedFile = false;
+      try {
+        await fs.unlink(filePath);
+        removedFile = true;
+      } catch {
+        // Ignore if file already absent
+      }
+      if (hadMeta || removedFile) {
+        removed += 1;
+      }
+    }
+    if (removed > 0) {
+      await this.saveMeta();
+    }
+    return removed;
+  }
+
   isExpired(createdAtIso: string): boolean {
     const ageDays = (Date.now() - new Date(createdAtIso).getTime()) / (1000 * 60 * 60 * 24);
     return ageDays > 7;

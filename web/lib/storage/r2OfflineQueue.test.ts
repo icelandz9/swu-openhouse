@@ -211,6 +211,21 @@ async function runOfflineRecoveryIntegrationTest() {
     };
     await adapter.syncPendingToR2();
     assert.ok(!r2Objects.has('OPH-PDPA.jpg'), 'PDPA delete mid-PUT must not leave photo live on R2');
+
+    // Phase 5: clearSyncedLocalCache must ONLY delete photos confirmed on R2, never pending/offline ones
+    r2Online = false;
+    await adapter.savePhoto('OPH-PEND', fakeJpeg2);
+    const clearOffline = await (adapter as any).clearSyncedLocalCache();
+    assert.equal(clearOffline.cleared, 0, 'Must not clear local cache when R2 is unreachable');
+
+    r2Online = true;
+    const clearOnline = await (adapter as any).clearSyncedLocalCache();
+    assert.ok(clearOnline.cleared >= 1, 'Must clear at least OPH-OFF1 confirmed on R2');
+    assert.ok(clearOnline.keptPending >= 1, 'Must keep OPH-PEND not yet uploaded to R2');
+    const localPend = await adapter.getPhotoBuffer('OPH-PEND');
+    assert.ok(localPend && localPend.equals(fakeJpeg2), 'OPH-PEND must remain readable locally');
+    // OPH-OFF1 still exists on R2
+    assert.ok(r2Objects.has('OPH-OFF1.jpg'), 'OPH-OFF1 must stay intact on R2');
   } finally {
     globalThis.fetch = origFetch;
     if (origVercel === undefined) delete process.env.VERCEL;

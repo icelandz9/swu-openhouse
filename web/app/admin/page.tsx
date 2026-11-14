@@ -179,6 +179,7 @@ function StaffAdminScreen() {
   const [isNetOnline, setIsNetOnline] = useState<boolean>(true);
   const [pendingCloudUploads, setPendingCloudUploads] = useState<number>(0);
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+  const [isClearingLocalCache, setIsClearingLocalCache] = useState<boolean>(false);
   const [lastCloudSyncAt, setLastCloudSyncAt] = useState<number | null>(null);
   const [imageRefreshKey, setImageRefreshKey] = useState<number>(0);
   const wasCloudOfflineRef = useRef<boolean>(false);
@@ -531,6 +532,46 @@ function StaffAdminScreen() {
     },
     [addAuditLog, loadPhotos]
   );
+
+  const handleClearLocalCache = useCallback(async () => {
+    if (!isNetOnline) {
+      setCommandNotice('ไม่สามารถเคลียร์แคชได้ขณะออฟไลน์ — ต้องเชื่อมต่อ Cloud ก่อน');
+      setTimeout(() => setCommandNotice(''), 3500);
+      return;
+    }
+    if (
+      !window.confirm(
+        'ต้องการลบไฟล์รูปสำรองในเครื่องที่ซิงค์ขึ้น Cloud เรียบร้อยแล้วหรือไม่?\n(รูปที่ยังไม่ได้ซิงค์ขึ้น Cloud จะถูกเก็บไว้ปลอดภัย)'
+      )
+    ) {
+      return;
+    }
+    setIsClearingLocalCache(true);
+    try {
+      const res = await fetch('/api/network-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clear_local_cache' }),
+        cache: 'no-store',
+      });
+      const data = await res.json();
+      const result = data?.cacheClearResult;
+      if (!res.ok || result?.error) {
+        setCommandNotice(result?.error || 'เคลียร์แคชในเครื่องไม่สำเร็จ');
+      } else {
+        const cleared = result?.cleared ?? 0;
+        const keptPending = result?.keptPending ?? 0;
+        addAuditLog('NETWORK', `เคลียร์แคชในเครื่อง ${cleared} รูป (เก็บค้างส่ง ${keptPending} รูป)`);
+        setCommandNotice(`เคลียร์แคชในเครื่อง ${cleared} รูปแล้ว (เก็บค้างส่ง ${keptPending} รูป)`);
+        void loadPhotos();
+      }
+    } catch {
+      setCommandNotice('เกิดข้อผิดพลาดระหว่างเคลียร์แคชในเครื่อง');
+    } finally {
+      setIsClearingLocalCache(false);
+      setTimeout(() => setCommandNotice(''), 4000);
+    }
+  }, [isNetOnline, addAuditLog, loadPhotos]);
 
   useEffect(() => {
     const onOnline = () => {
@@ -1047,21 +1088,45 @@ function StaffAdminScreen() {
             <span className="text-slate-600">•</span>
             <span>PDPA 7 วัน</span>
           </div>
-          <div className="flex items-center gap-2">
-            {(pendingCloudUploads > 0 || !isNetOnline || isCloudSyncing) && (
-              <button
-                type="button"
-                onClick={() => void checkNetwork(true)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
-                  isNetOnline
-                    ? 'bg-amber-500 text-slate-950 hover:bg-amber-400'
-                    : 'bg-red-500/20 text-red-200 border border-red-500/40 hover:bg-red-500/30'
-                }`}
-              >
-                <RefreshCw className={`size-3 ${isCloudSyncing ? 'animate-spin' : ''}`} />
-                {isCloudSyncing ? 'กำลังซิงค์...' : isNetOnline ? 'ซิงค์ขึ้น Cloud ทันที' : 'เช็คเน็ตใหม่'}
-              </button>
-            )}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void checkNetwork(true)}
+              disabled={isCloudSyncing}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer disabled:opacity-50 ${
+                !isNetOnline
+                  ? 'bg-red-500/20 text-red-200 border border-red-500/40 hover:bg-red-500/30'
+                  : pendingCloudUploads > 0
+                  ? 'bg-amber-500 text-slate-950 hover:bg-amber-400'
+                  : isDark
+                  ? 'bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700'
+                  : 'bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200'
+              }`}
+              title="สั่งซิงค์รูปที่ค้างอยู่ในเครื่องขึ้น Cloud ทันที"
+            >
+              <RefreshCw className={`size-3 ${isCloudSyncing ? 'animate-spin' : ''}`} />
+              {isCloudSyncing
+                ? 'กำลังซิงค์...'
+                : !isNetOnline
+                ? 'เช็คเน็ตใหม่'
+                : pendingCloudUploads > 0
+                ? `สั่งขึ้น Cloud (${pendingCloudUploads})`
+                : 'สั่งขึ้น Cloud'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleClearLocalCache()}
+              disabled={isClearingLocalCache || !isNetOnline}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                isDark
+                  ? 'bg-slate-800 text-slate-300 border border-slate-700 hover:bg-rose-950/60 hover:text-rose-200 hover:border-rose-500/40'
+                  : 'bg-slate-100 text-slate-700 border border-slate-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300'
+              }`}
+              title="ลบไฟล์รูปสำรองในเครื่องเฉพาะรูปที่ขึ้น Cloud แล้ว (ไม่ลบรูปที่ค้างส่ง)"
+            >
+              <Trash2 className="size-3" />
+              {isClearingLocalCache ? 'กำลังเคลียร์...' : 'เคลียร์แคชในเครื่อง'}
+            </button>
             <div className="text-[11px] text-slate-500">
               {publicDomain ? publicDomain.replace(/^https?:\/\//, '') : 'localhost:3000'}
             </div>

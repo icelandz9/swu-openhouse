@@ -742,6 +742,50 @@ export class CloudflareR2Adapter implements IPhotoStorage {
     return true;
   }
 
+  /**
+   * Removes local backup .jpg cache ONLY for photos confirmed to exist on Cloudflare R2
+   * and not waiting in pendingUploads. Keeps pending/offline photos safe on disk.
+   */
+  async clearSyncedLocalCache(): Promise<{ cleared: number; keptPending: number; error?: string }> {
+    if (process.env.VERCEL || !this.localBackup) {
+      return { cleared: 0, keptPending: 0 };
+    }
+    const localCodes = await this.localBackup.getLocalPhotoCodes();
+    if (localCodes.length === 0) {
+      return { cleared: 0, keptPending: 0 };
+    }
+
+    let r2Codes: Set<string>;
+    try {
+      const r2Photos = await this.listR2Photos();
+      r2Codes = new Set(r2Photos.map((p) => p.code));
+    } catch (err: any) {
+      return {
+        cleared: 0,
+        keptPending: localCodes.length,
+        error: err?.message || 'Cloud unreachable',
+      };
+    }
+
+    const pendingQueue = await this.withQueueLock(() =>
+      this.readJsonQueue<PendingR2Upload>(this.pendingUploadsFile)
+    );
+    const pendingSet = new Set(pendingQueue.map((u) => u.code));
+
+    const safeToClear: string[] = [];
+    let keptPending = 0;
+    for (const code of localCodes) {
+      if (r2Codes.has(code) && !pendingSet.has(code)) {
+        safeToClear.push(code);
+      } else {
+        keptPending += 1;
+      }
+    }
+
+    const cleared = safeToClear.length > 0 ? await this.localBackup.removeLocalCacheFiles(safeToClear) : 0;
+    return { cleared, keptPending };
+  }
+
   isExpired(createdAtIso: string): boolean {
     return !this.isFresh(createdAtIso);
   }

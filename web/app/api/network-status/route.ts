@@ -3,6 +3,7 @@ import {
   probeCloudConnectivity,
   getCloudSyncStatus,
   syncCloudStorageNow,
+  clearSyncedLocalCache,
 } from '@/lib/storage/storageService';
 
 export const dynamic = 'force-dynamic';
@@ -47,7 +48,17 @@ export async function GET(req: NextRequest) {
   );
 }
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  let action = 'sync';
+  try {
+    const body = await req.json();
+    if (body && typeof body.action === 'string') {
+      action = body.action;
+    }
+  } catch {
+    // Empty body defaults to 'sync'
+  }
+
   const probe = await probeCloudConnectivity();
   if (!probe.online) {
     const syncStatus = await getCloudSyncStatus();
@@ -58,6 +69,23 @@ export async function POST() {
         latencyMs: null,
         error: probe.error ?? 'Offline',
         syncResult: { synced: 0, failed: syncStatus.pendingUploads, remaining: syncStatus.pendingUploads },
+        ...syncStatus,
+        timestamp: Date.now(),
+      },
+      { headers: CORS_HEADERS }
+    );
+  }
+
+  if (action === 'clear_local_cache') {
+    const cacheClearResult = await clearSyncedLocalCache();
+    const syncStatus = await getCloudSyncStatus();
+    return NextResponse.json(
+      {
+        online: true,
+        cloudReachable: true,
+        latencyMs: probe.latencyMs,
+        error: cacheClearResult.error ?? null,
+        cacheClearResult,
         ...syncStatus,
         timestamp: Date.now(),
       },

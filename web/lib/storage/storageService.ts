@@ -84,6 +84,14 @@ export async function probeCloudConnectivity() {
   return r2.probeCloud();
 }
 
+export async function clearSyncedLocalCache() {
+  const r2 = getR2Adapter();
+  if (!r2) {
+    return { cleared: 0, keptPending: 0 };
+  }
+  return r2.clearSyncedLocalCache();
+}
+
 export const photoStorageService: IPhotoStorage = {
   savePhoto: (code, buffer, mimeType) => getStorage().savePhoto(code, buffer, mimeType),
   getPhotoUrl: (code) => getStorage().getPhotoUrl(code),
