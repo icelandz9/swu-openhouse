@@ -50,9 +50,12 @@ export function checkPin(pin: unknown): boolean {
 }
 
 export function isStaffRequest(req: NextRequest): boolean {
-  // 1. Dedicated Onsite Operator: localhost / 127.0.0.1 is always authorized
-  const host = req.headers.get('host') || '';
-  if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) {
+  // 1. Dedicated Onsite Operator: exact localhost / 127.0.0.1 / [::1] host (with optional :port)
+  const rawHost = (req.headers.get('host') || '').trim().toLowerCase();
+  const hostname = rawHost.startsWith('[')
+    ? rawHost.slice(0, rawHost.indexOf(']') + 1)
+    : rawHost.split(':')[0];
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]') {
     return true;
   }
   // 2. Otherwise verify signed staff cookie

@@ -89,6 +89,7 @@ export class CloudflareR2Adapter implements IPhotoStorage {
   private pendingUploadsFile: string;
   private pendingDeletesFile: string;
   private activeSyncPromise: Promise<{ synced: number; failed: number; remaining: number }> | null = null;
+  private queueLock: Promise<unknown> = Promise.resolve();
   private lastSyncAt: number | null = null;
   private lastSyncedCount = 0;
   private lastSyncError: string | null = null;
@@ -180,12 +181,21 @@ export class CloudflareR2Adapter implements IPhotoStorage {
     return Date.now() - new Date(lastModified).getTime() <= RETENTION_MS;
   }
 
-  private async readJsonQueue<T>(filePath: string): Promise<T[]> {
+  private withQueueLock<T>(fn: () => Promise<T>): Promise<T> {
+    const next = this.queueLock.then(fn, fn);
+    this.queueLock = next.catch(() => {});
+    return next;
+  }
+
+  private async readJsonQueue<T extends { code?: unknown }>(filePath: string): Promise<T[]> {
     if (process.env.VERCEL) return [];
     try {
       const raw = await fs.readFile(filePath, 'utf-8');
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(
+        (item): item is T => Boolean(item && typeof item.code === 'string' && /^[A-Z0-9_-]{3,24}$/i.test(item.code))
+      );
     } catch {
       return [];
     }
@@ -195,57 +205,67 @@ export class CloudflareR2Adapter implements IPhotoStorage {
     if (process.env.VERCEL) return;
     try {
       await fs.mkdir(path.dirname(filePath), { recursive: true });
-      await fs.writeFile(filePath, JSON.stringify(list, null, 2), 'utf-8');
+      const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+      await fs.writeFile(tmpPath, JSON.stringify(list, null, 2), 'utf-8');
+      await fs.rename(tmpPath, filePath);
     } catch (err) {
       console.warn('Failed to persist R2 queue file:', filePath, err);
     }
   }
 
-  private async enqueueUpload(code: string, createdAt: string, errorMsg: string): Promise<void> {
-    if (process.env.VERCEL) return;
-    const queue = await this.readJsonQueue<PendingR2Upload>(this.pendingUploadsFile);
-    const existing = queue.find((item) => item.code === code);
-    if (existing) {
-      existing.attempts += 1;
-      existing.lastAttemptAt = Date.now();
-      existing.lastError = errorMsg;
-    } else {
-      queue.push({
-        code,
-        createdAt,
-        attempts: 1,
-        lastAttemptAt: Date.now(),
-        lastError: errorMsg,
-      });
-    }
-    await this.writeJsonQueue(this.pendingUploadsFile, queue);
+  private enqueueUpload(code: string, createdAt: string, errorMsg: string): Promise<void> {
+    if (process.env.VERCEL) return Promise.resolve();
+    return this.withQueueLock(async () => {
+      const queue = await this.readJsonQueue<PendingR2Upload>(this.pendingUploadsFile);
+      const existing = queue.find((item) => item.code === code);
+      if (existing) {
+        existing.attempts += 1;
+        existing.lastAttemptAt = Date.now();
+        existing.lastError = errorMsg;
+      } else {
+        queue.push({
+          code,
+          createdAt,
+          attempts: 1,
+          lastAttemptAt: Date.now(),
+          lastError: errorMsg,
+        });
+      }
+      await this.writeJsonQueue(this.pendingUploadsFile, queue);
+    });
   }
 
-  private async removePendingUpload(code: string): Promise<void> {
-    if (process.env.VERCEL) return;
-    const queue = await this.readJsonQueue<PendingR2Upload>(this.pendingUploadsFile);
-    const filtered = queue.filter((item) => item.code !== code);
-    if (filtered.length !== queue.length) {
-      await this.writeJsonQueue(this.pendingUploadsFile, filtered);
-    }
+  private removePendingUpload(code: string): Promise<void> {
+    if (process.env.VERCEL) return Promise.resolve();
+    return this.withQueueLock(async () => {
+      const queue = await this.readJsonQueue<PendingR2Upload>(this.pendingUploadsFile);
+      const filtered = queue.filter((item) => item.code !== code);
+      if (filtered.length !== queue.length) {
+        await this.writeJsonQueue(this.pendingUploadsFile, filtered);
+      }
+    });
   }
 
-  private async enqueueDelete(code: string): Promise<void> {
-    if (process.env.VERCEL) return;
-    const queue = await this.readJsonQueue<PendingR2Delete>(this.pendingDeletesFile);
-    if (!queue.some((item) => item.code === code)) {
-      queue.push({ code, deletedAt: new Date().toISOString() });
-      await this.writeJsonQueue(this.pendingDeletesFile, queue);
-    }
+  private enqueueDelete(code: string): Promise<void> {
+    if (process.env.VERCEL) return Promise.resolve();
+    return this.withQueueLock(async () => {
+      const queue = await this.readJsonQueue<PendingR2Delete>(this.pendingDeletesFile);
+      if (!queue.some((item) => item.code === code)) {
+        queue.push({ code, deletedAt: new Date().toISOString() });
+        await this.writeJsonQueue(this.pendingDeletesFile, queue);
+      }
+    });
   }
 
-  private async removePendingDelete(code: string): Promise<void> {
-    if (process.env.VERCEL) return;
-    const queue = await this.readJsonQueue<PendingR2Delete>(this.pendingDeletesFile);
-    const filtered = queue.filter((item) => item.code !== code);
-    if (filtered.length !== queue.length) {
-      await this.writeJsonQueue(this.pendingDeletesFile, filtered);
-    }
+  private removePendingDelete(code: string): Promise<void> {
+    if (process.env.VERCEL) return Promise.resolve();
+    return this.withQueueLock(async () => {
+      const queue = await this.readJsonQueue<PendingR2Delete>(this.pendingDeletesFile);
+      const filtered = queue.filter((item) => item.code !== code);
+      if (filtered.length !== queue.length) {
+        await this.writeJsonQueue(this.pendingDeletesFile, filtered);
+      }
+    });
   }
 
   private async listR2Photos(): Promise<PhotoRecord[]> {
@@ -362,22 +382,32 @@ export class CloudflareR2Adapter implements IPhotoStorage {
 
       try {
         // 1. Flush any deferred offline deletes first (PDPA guarantee)
-        const pendingDeletes = await this.readJsonQueue<PendingR2Delete>(this.pendingDeletesFile);
-        const remainingDeletes: PendingR2Delete[] = [];
+        const pendingDeletes = await this.withQueueLock(() =>
+          this.readJsonQueue<PendingR2Delete>(this.pendingDeletesFile)
+        );
+        const completedDeleteCodes = new Set<string>();
         for (const delItem of pendingDeletes) {
           try {
             const res = await this.request('DELETE', `${delItem.code}.jpg`, { timeoutMs: 5000 });
-            if (!res.ok) {
-              remainingDeletes.push(delItem);
+            if (res.ok || res.status === 404) {
+              completedDeleteCodes.add(delItem.code);
             }
           } catch {
-            remainingDeletes.push(delItem);
+            // Keep failed delete in queue for next sync attempt
           }
         }
-        await this.writeJsonQueue(this.pendingDeletesFile, remainingDeletes);
+        if (completedDeleteCodes.size > 0) {
+          await this.withQueueLock(async () => {
+            const latestDeletes = await this.readJsonQueue<PendingR2Delete>(this.pendingDeletesFile);
+            const updatedDeletes = latestDeletes.filter((item) => !completedDeleteCodes.has(item.code));
+            await this.writeJsonQueue(this.pendingDeletesFile, updatedDeletes);
+          });
+        }
 
         // 2. Gather candidate uploads from explicit queue + local photos missing in R2
-        const pendingQueue = await this.readJsonQueue<PendingR2Upload>(this.pendingUploadsFile);
+        const pendingQueue = await this.withQueueLock(() =>
+          this.readJsonQueue<PendingR2Upload>(this.pendingUploadsFile)
+        );
         const queuedCodes = new Set(pendingQueue.map((u) => u.code));
 
         let r2Set = knownR2Codes;
@@ -413,21 +443,25 @@ export class CloudflareR2Adapter implements IPhotoStorage {
           return { synced: 0, failed: 0, remaining: 0 };
         }
 
-        const remainingQueue: PendingR2Upload[] = [];
+        const completedUploadCodes = new Set<string>();
+        const failedUploadMap = new Map<string, PendingR2Upload>();
         const CONCURRENCY = 2;
         for (let i = 0; i < pendingQueue.length; i += CONCURRENCY) {
           const batch = pendingQueue.slice(i, i + CONCURRENCY);
           await Promise.all(
             batch.map(async (entry) => {
               if (await this.localBackup!.isDeleted(entry.code)) {
+                completedUploadCodes.add(entry.code);
                 return;
               }
               if (r2Set!.has(entry.code)) {
+                completedUploadCodes.add(entry.code);
                 return;
               }
               const buf = await this.localBackup!.getPhotoBuffer(entry.code);
               if (!buf) {
-                return; // Missing on disk (cleaned or expired); drop stale queue entry
+                completedUploadCodes.add(entry.code); // Missing on disk (cleaned or expired); drop stale queue entry
+                return;
               }
               try {
                 const res = await this.request('PUT', `${entry.code}.jpg`, {
@@ -436,10 +470,24 @@ export class CloudflareR2Adapter implements IPhotoStorage {
                   timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
                 });
                 if (res.ok) {
-                  synced += 1;
+                  // Guard against PDPA delete arriving while PUT was in flight
+                  if (await this.localBackup!.isDeleted(entry.code)) {
+                    try {
+                      const compRes = await this.request('DELETE', `${entry.code}.jpg`, { timeoutMs: 5000 });
+                      if (!compRes.ok && compRes.status !== 404) {
+                        await this.enqueueDelete(entry.code);
+                      }
+                    } catch {
+                      await this.enqueueDelete(entry.code);
+                    }
+                    completedUploadCodes.add(entry.code);
+                  } else {
+                    synced += 1;
+                    completedUploadCodes.add(entry.code);
+                  }
                 } else {
                   failed += 1;
-                  remainingQueue.push({
+                  failedUploadMap.set(entry.code, {
                     ...entry,
                     attempts: entry.attempts + 1,
                     lastAttemptAt: Date.now(),
@@ -448,7 +496,7 @@ export class CloudflareR2Adapter implements IPhotoStorage {
                 }
               } catch (err: any) {
                 failed += 1;
-                remainingQueue.push({
+                failedUploadMap.set(entry.code, {
                   ...entry,
                   attempts: entry.attempts + 1,
                   lastAttemptAt: Date.now(),
@@ -459,13 +507,33 @@ export class CloudflareR2Adapter implements IPhotoStorage {
           );
         }
 
-        await this.writeJsonQueue(this.pendingUploadsFile, remainingQueue);
+        // Merge queue inside lock so concurrent savePhoto()/enqueueUpload() calls made mid-sync are never overwritten
+        const finalRemainingCount = await this.withQueueLock(async () => {
+          const latestQueue = await this.readJsonQueue<PendingR2Upload>(this.pendingUploadsFile);
+          const merged = new Map<string, PendingR2Upload>();
+
+          for (const item of latestQueue) {
+            if (!completedUploadCodes.has(item.code) && !(await this.localBackup!.isDeleted(item.code))) {
+              merged.set(item.code, item);
+            }
+          }
+          for (const [code, failedEntry] of failedUploadMap.entries()) {
+            if (!(await this.localBackup!.isDeleted(code))) {
+              merged.set(code, failedEntry);
+            }
+          }
+
+          const finalList = Array.from(merged.values());
+          await this.writeJsonQueue(this.pendingUploadsFile, finalList);
+          return finalList.length;
+        });
+
         if (synced > 0) {
           this.lastSyncAt = Date.now();
           this.lastSyncedCount = synced;
         }
         this.lastSyncError = failed > 0 ? `${failed} upload(s) waiting for stable connection` : null;
-        return { synced, failed, remaining: remainingQueue.length };
+        return { synced, failed, remaining: finalRemainingCount };
       } finally {
         this.activeSyncPromise = null;
       }
@@ -663,7 +731,7 @@ export class CloudflareR2Adapter implements IPhotoStorage {
     }
     try {
       const res = await this.request('DELETE', `${shortCode}.jpg`, { timeoutMs: 5000 });
-      if (res.ok) {
+      if (res.ok || res.status === 404) {
         await this.removePendingDelete(shortCode);
         return true;
       }

@@ -18,34 +18,50 @@ export class LocalStorageAdapter implements IPhotoStorage {
   private memoryCache: Map<string, Buffer> = new Map();
   private metaCache: Map<string, StoredMetadata> = new Map();
   private deletedCodes: Set<string> = new Set();
-  private initialized = false;
+  private initPromise: Promise<void> | null = null;
+  private writeLock: Promise<unknown> = Promise.resolve();
   // Keep only the most recent photos in RAM; older ones are read from disk when asked for.
   private static readonly MEMORY_CACHE_LIMIT = 100;
 
-  private async ensureInit() {
-    if (this.initialized) return;
+  private withWriteLock<T>(fn: () => Promise<T>): Promise<T> {
+    const next = this.writeLock.then(fn, fn);
+    this.writeLock = next.catch(() => {});
+    return next;
+  }
+
+  private async ensureInit(): Promise<void> {
+    if (!this.initPromise) {
+      this.initPromise = this.doInit();
+    }
+    return this.initPromise;
+  }
+
+  private async doInit(): Promise<void> {
     try {
       await fs.mkdir(this.baseDir, { recursive: true });
       const metaContent = await fs.readFile(this.metaFile, 'utf-8').catch(() => '[]');
       const list: StoredMetadata[] = JSON.parse(metaContent);
-      for (const item of list) {
-        this.metaCache.set(item.code, item);
+      if (Array.isArray(list)) {
+        for (const item of list) {
+          if (item?.code) this.metaCache.set(item.code, item);
+        }
       }
-    } catch {
-      // Ignore initial file read errors
+    } catch (err) {
+      console.warn('LocalStorageAdapter meta init warning:', err);
     }
 
     try {
       const delContent = await fs.readFile(this.deletedFile, 'utf-8').catch(() => '[]');
       const delList: string[] = JSON.parse(delContent);
-      for (const c of delList) {
-        this.deletedCodes.add(c);
+      if (Array.isArray(delList)) {
+        for (const c of delList) {
+          if (typeof c === 'string') this.deletedCodes.add(c);
+        }
       }
-    } catch {
-      // Ignore initial file read errors
+    } catch (err) {
+      console.warn('LocalStorageAdapter deleted-codes init warning:', err);
     }
 
-    this.initialized = true;
     this.pruneExpiredPhotos().catch(() => {});
   }
 
@@ -77,22 +93,32 @@ export class LocalStorageAdapter implements IPhotoStorage {
     return meta ? this.isExpired(meta.createdAt) : false;
   }
 
-  private async saveMeta() {
-    try {
-      const list = Array.from(this.metaCache.values());
-      await fs.writeFile(this.metaFile, JSON.stringify(list, null, 2), 'utf-8');
-    } catch (err) {
-      console.error('Failed to save photo metadata:', err);
-    }
+  private saveMeta(): Promise<void> {
+    return this.withWriteLock(async () => {
+      try {
+        await fs.mkdir(path.dirname(this.metaFile), { recursive: true });
+        const list = Array.from(this.metaCache.values());
+        const tmpPath = `${this.metaFile}.${process.pid}.${Date.now()}.tmp`;
+        await fs.writeFile(tmpPath, JSON.stringify(list, null, 2), 'utf-8');
+        await fs.rename(tmpPath, this.metaFile);
+      } catch (err) {
+        console.error('Failed to save photo metadata:', err);
+      }
+    });
   }
 
-  private async saveDeleted() {
-    try {
-      const list = Array.from(this.deletedCodes);
-      await fs.writeFile(this.deletedFile, JSON.stringify(list, null, 2), 'utf-8');
-    } catch (err) {
-      console.error('Failed to save deleted codes list:', err);
-    }
+  private saveDeleted(): Promise<void> {
+    return this.withWriteLock(async () => {
+      try {
+        await fs.mkdir(path.dirname(this.deletedFile), { recursive: true });
+        const list = Array.from(this.deletedCodes);
+        const tmpPath = `${this.deletedFile}.${process.pid}.${Date.now()}.tmp`;
+        await fs.writeFile(tmpPath, JSON.stringify(list, null, 2), 'utf-8');
+        await fs.rename(tmpPath, this.deletedFile);
+      } catch (err) {
+        console.error('Failed to save deleted codes list:', err);
+      }
+    });
   }
 
   async savePhoto(shortCode: string, imageBuffer: Buffer): Promise<StoredPhotoResult> {

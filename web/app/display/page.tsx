@@ -38,8 +38,31 @@ const POLL_GALLERY_MS = 10000;
 // Only photos taken this recently count as "new" when found by polling (older ones are history).
 const NEW_PHOTO_WINDOW_MS = 60000;
 
+const WALL_DOM_CAP = 80;
+
+function isAllowedPeerOrigin(urlStr: string): boolean {
+  try {
+    const parsed = new URL(urlStr);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    const h = parsed.hostname.toLowerCase();
+    return (
+      h === 'localhost' ||
+      h === '127.0.0.1' ||
+      /^192\.168\.\d{1,3}\.\d{1,3}$/.test(h) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(h) ||
+      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h) ||
+      h.endsWith('.vercel.app') ||
+      h === 'booth.cpe-swu.com' ||
+      h === 'photos.cpe-swu.com'
+    );
+  } catch {
+    return false;
+  }
+}
+
 function ShowcaseDisplayScreenContent() {
   const [photos, setPhotos] = useState<GalleryItem[]>(DEFAULT_SEEDS);
+  const [totalPhotoCount, setTotalPhotoCount] = useState<number>(0);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [activePhoto, setActivePhoto] = useState<GalleryItem | null>(null);
   const [currentTime, setCurrentTime] = useState<string>('12:00');
@@ -71,8 +94,8 @@ function ShowcaseDisplayScreenContent() {
   }, [activePhoto]);
 
   useEffect(() => {
-    photosCountRef.current = photos.length;
-  }, [photos.length]);
+    photosCountRef.current = Math.max(totalPhotoCount, photos.length);
+  }, [totalPhotoCount, photos.length]);
 
   useEffect(() => {
     isMutedRef.current = isMuted;
@@ -118,11 +141,17 @@ function ShowcaseDisplayScreenContent() {
       seenCodesRef.current.add(item.code);
       setNewestCode(item.code);
       showPhotoInQueue(item); // 30 s on the left; replaces the previous one
-      setPhotos((prev) => [item, ...prev.filter((p) => p.code !== item.code)].slice(0, 50));
+      setPhotos((prev) => {
+        const isDuplicate = prev.some((p) => p.code === item.code);
+        if (!isDuplicate) {
+          setTotalPhotoCount((c) => Math.max(c, prev.length) + 1);
+        }
+        return [item, ...prev.filter((p) => p.code !== item.code)].slice(0, WALL_DOM_CAP);
+      });
       try {
         const rawGallery = localStorage.getItem('swu_photo_gallery') || '[]';
         const gallery: GalleryItem[] = JSON.parse(rawGallery);
-        const updated = [item, ...gallery.filter((p) => p?.code !== item.code)].slice(0, 50);
+        const updated = [item, ...gallery.filter((p) => p?.code !== item.code)].slice(0, 60);
         localStorage.setItem('swu_photo_gallery', JSON.stringify(updated));
         localStorage.setItem('swu_latest_photo', JSON.stringify(item));
       } catch {}
@@ -143,12 +172,18 @@ function ShowcaseDisplayScreenContent() {
           setPeerUrl('');
         } else {
           const normalized = /^https?:\/\//i.test(cleanPeer) ? cleanPeer : `http://${cleanPeer}`;
-          localStorage.setItem('swu_kiosk_peer_url', normalized);
-          setPeerUrl(normalized);
+          if (isAllowedPeerOrigin(normalized)) {
+            localStorage.setItem('swu_kiosk_peer_url', normalized);
+            setPeerUrl(normalized);
+          }
         }
       } else {
         const savedPeer = localStorage.getItem('swu_kiosk_peer_url') || '';
-        if (savedPeer) setPeerUrl(savedPeer.replace(/\/+$/, ''));
+        if (savedPeer && isAllowedPeerOrigin(savedPeer)) {
+          setPeerUrl(savedPeer.replace(/\/+$/, ''));
+        } else if (savedPeer) {
+          localStorage.removeItem('swu_kiosk_peer_url');
+        }
       }
 
       let customHost = localStorage.getItem('swu_booth_host');
@@ -181,15 +216,19 @@ function ShowcaseDisplayScreenContent() {
       try {
         const rawDel = localStorage.getItem('swu_deleted_codes') || '[]';
         const cur: string[] = JSON.parse(rawDel);
-        localStorage.setItem('swu_deleted_codes', JSON.stringify(Array.from(new Set([...cur, deletedCode]))));
+        localStorage.setItem('swu_deleted_codes', JSON.stringify(Array.from(new Set([...cur, deletedCode])).slice(-200)));
       } catch {}
     }
 
     setPhotos((prev) => {
+      const hadItem = prev.some((p) => p.code === deletedCode);
       const updated = prev.filter((p) => p.code !== deletedCode);
+      if (hadItem) {
+        setTotalPhotoCount((c) => Math.max(updated.length, c - 1));
+      }
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem('swu_photo_gallery', JSON.stringify(updated));
+          localStorage.setItem('swu_photo_gallery', JSON.stringify(updated.slice(0, 60)));
           const latestStored = localStorage.getItem('swu_latest_photo');
           if (latestStored) {
             const parsed = JSON.parse(latestStored);
@@ -203,10 +242,19 @@ function ShowcaseDisplayScreenContent() {
     });
   }, []);
 
+  const reconcileBusyRef = useRef<boolean>(false);
+
   // Reconcile full photo list from server/R2 (recovers missed offline backlog + removes server-deleted items)
   const reconcileGalleryFromServer = useCallback(async () => {
+    if (reconcileBusyRef.current) return;
+    reconcileBusyRef.current = true;
+    const controller = new AbortController();
+    const abortTimer = setTimeout(() => controller.abort(), 9000);
     try {
-      const res = await fetch(buildApiUrl(`/api/photos?t=${Date.now()}`), { cache: 'no-store' });
+      const res = await fetch(buildApiUrl(`/api/photos?t=${Date.now()}`), {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
       if (!res.ok) return;
       const data = await res.json();
       const serverPhotos: GalleryItem[] = Array.isArray(data?.photos) ? data.photos : [];
@@ -253,12 +301,18 @@ function ShowcaseDisplayScreenContent() {
         const sorted = Array.from(merged.values()).sort(
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
+        setTotalPhotoCount(sorted.length);
+        const capped = sorted.slice(0, WALL_DOM_CAP);
         try {
-          localStorage.setItem('swu_photo_gallery', JSON.stringify(sorted.slice(0, 60)));
+          localStorage.setItem('swu_photo_gallery', JSON.stringify(capped.slice(0, 60)));
         } catch {}
-        return sorted;
+        return capped;
       });
-    } catch {}
+    } catch {
+    } finally {
+      clearTimeout(abortTimer);
+      reconcileBusyRef.current = false;
+    }
   }, [buildApiUrl, showPhotoInQueue]);
 
   // Live time ticker
@@ -439,11 +493,15 @@ function ShowcaseDisplayScreenContent() {
         }
 
         // 4. Sync remote photo deletion (PDPA instant removal on Screen 2)
-        if (sync.lastDeleted?.code && typeof sync.lastDeleted.at === 'number') {
-          if (sync.lastDeleted.at > lastDeletedAtRef.current) {
-            lastDeletedAtRef.current = sync.lastDeleted.at;
-            removeDeletedCode(sync.lastDeleted.code);
-          }
+        const deletedTs =
+          typeof sync.lastDeleted?.timestamp === 'number'
+            ? sync.lastDeleted.timestamp
+            : typeof sync.lastDeleted?.at === 'number'
+            ? sync.lastDeleted.at
+            : 0;
+        if (sync.lastDeleted?.code && deletedTs > lastDeletedAtRef.current) {
+          lastDeletedAtRef.current = deletedTs;
+          removeDeletedCode(sync.lastDeleted.code);
         }
       } catch {
       } finally {
@@ -512,7 +570,6 @@ function ShowcaseDisplayScreenContent() {
 
     const onOnline = () => {
       setIsNetOnline(true);
-      setImageRefreshKey((k) => k + 1);
       void checkConnection();
       void reconcileGalleryFromServer();
     };
@@ -594,6 +651,7 @@ function ShowcaseDisplayScreenContent() {
         const pushItem: GalleryItem = {
           code: data.photo.code,
           qrUrl: data.photo.qrUrl,
+          token: data.photo.token,
           photoUrl: data.photo.photoUrl,
           createdAt: data.photo.createdAt,
           style: 'NEURAL RED',
@@ -609,10 +667,10 @@ function ShowcaseDisplayScreenContent() {
             timestamp: Date.now(),
             pingTimestamp: data.timestamp,
             status: {
-              activeCode: activePhoto?.code || null,
-              totalPhotos: photos.length,
-              queueLength: activePhoto ? 1 : 0,
-              isMuted,
+              activeCode: activePhotoRef.current?.code || null,
+              totalPhotos: photosCountRef.current,
+              queueLength: activePhotoRef.current ? 1 : 0,
+              isMuted: isMutedRef.current,
             },
           });
         } catch {}
@@ -803,7 +861,7 @@ function ShowcaseDisplayScreenContent() {
               <div className="px-screen px-corners px-[.9vw] py-[.45vw] text-center">
                 <div className="font-pixel-sm text-[clamp(.38rem,.5vw,.62rem)] text-[var(--px-muted)]">PHOTOS</div>
                 <div className="font-pixel text-[clamp(.6rem,.95vw,1.15rem)] text-[var(--px-gold)] tabular-nums">
-                  {String(photos.length).padStart(3, '0')}
+                  {String(Math.max(totalPhotoCount, photos.length)).padStart(3, '0')}
                 </div>
               </div>
               <div className="px-screen px-corners px-[.9vw] py-[.45vw] text-center">

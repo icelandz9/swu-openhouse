@@ -77,7 +77,13 @@ export default function MobilePhotoEditorPage({
   params: Promise<{ code: string }>;
 }) {
   const { code: rawCode } = use(params);
-  const code = decodeURIComponent(rawCode).toUpperCase();
+  let decodedCode = rawCode;
+  try {
+    decodedCode = decodeURIComponent(rawCode);
+  } catch {
+    decodedCode = rawCode;
+  }
+  const code = decodedCode.toUpperCase();
   const normalizedCode = code.startsWith('OPH-') ? code : `OPH-${code}`;
 
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
@@ -141,7 +147,8 @@ export default function MobilePhotoEditorPage({
         return;
       }
 
-      let candidateSrc = `/api/photos/${normalizedCode}/file${token ? `?t=${encodeURIComponent(token)}` : ''}`;
+      const encodedCode = encodeURIComponent(normalizedCode);
+      let candidateSrc = `/api/photos/${encodedCode}/file${token ? `?t=${encodeURIComponent(token)}` : ''}`;
 
       try {
         const savedLatest = localStorage.getItem('swu_latest_photo');
@@ -155,7 +162,7 @@ export default function MobilePhotoEditorPage({
 
       try {
         const metaRes = await fetch(
-          `/api/photos/${normalizedCode}${token ? `?t=${encodeURIComponent(token)}&r=${attempt}` : `?r=${attempt}`}`,
+          `/api/photos/${encodedCode}${token ? `?t=${encodeURIComponent(token)}&r=${attempt}` : `?r=${attempt}`}`,
           { cache: 'no-store' }
         );
         if (metaRes.ok) {
@@ -172,8 +179,8 @@ export default function MobilePhotoEditorPage({
         ? `${candidateSrc}${candidateSrc.includes('?') ? '&' : '?'}retry=${attempt}`
         : candidateSrc;
       let img = await loadImage(bustSrc);
-      if (!img && candidateSrc !== `/api/photos/${normalizedCode}/file`) {
-        const fallbackUrl = `/api/photos/${normalizedCode}/file${token ? `?t=${encodeURIComponent(token)}&retry=${attempt}` : `?retry=${attempt}`}`;
+      if (!img && candidateSrc !== `/api/photos/${encodedCode}/file`) {
+        const fallbackUrl = `/api/photos/${encodedCode}/file${token ? `?t=${encodeURIComponent(token)}&retry=${attempt}` : `?retry=${attempt}`}`;
         img = await loadImage(fallbackUrl);
       }
 
@@ -197,6 +204,10 @@ export default function MobilePhotoEditorPage({
     }
 
     const onOnline = () => {
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
       if (!cancelled) void verifyAndLoadAttendeePhoto(retryCount + 1);
     };
 
@@ -217,13 +228,18 @@ export default function MobilePhotoEditorPage({
 
   // Preload every frame so switching is instant
   useEffect(() => {
+    let active = true;
     Promise.all(FRAME_TEMPLATES.map((f) => loadImage(f.src))).then((imgs) => {
+      if (!active) return;
       const loaded: Record<string, HTMLImageElement> = {};
       imgs.forEach((img, i) => {
         if (img) loaded[FRAME_TEMPLATES[i].id] = img;
       });
       setFrameImages(loaded);
     });
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Sticker list from public/stickers/stickers.json

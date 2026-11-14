@@ -105,6 +105,14 @@ function KioskCapturePageContent() {
   const handleRetakeRef = useRef<() => void>(() => {});
   // Palm hold, preview timer, keyboard, button and staff command can all confirm; only the first one uploads.
   const uploadInFlightRef = useRef<boolean>(false);
+  const cameraInitInFlightRef = useRef<boolean>(false);
+  const hadCameraActiveRef = useRef<boolean>(false);
+  const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const previewFistHoldMsRef = useRef<number>(0);
+  const previewPalmHoldMsRef = useRef<number>(0);
+  const previewLastFistFrameRef = useRef<number>(0);
+  const previewLastPalmFrameRef = useRef<number>(0);
+  const takeCenterCropSnapshotRef = useRef<() => string>(() => '');
 
   // Camera & Stream state
   const [cameraActive, setCameraActive] = useState<boolean>(false);
@@ -240,11 +248,16 @@ function KioskCapturePageContent() {
   const executeAdminCommand = useCallback(
     (command: string, value?: any) => {
       if (command === 'STAFF_TRIGGER' || command === 'TRIGGER_SHUTTER') {
+        if (cooldownTimerRef.current) {
+          clearTimeout(cooldownTimerRef.current);
+          cooldownTimerRef.current = null;
+        }
         setIsPaused(false);
         isPausedRef.current = false;
         setIsSyncing(false);
         isSyncingRef.current = false;
         uploadInFlightRef.current = false;
+        setCapturedPhotoUrl('');
         holdStartTimeRef.current = null;
         fistHoldStartTimeRef.current = null;
         lockedPalmRef.current = null;
@@ -256,6 +269,10 @@ function KioskCapturePageContent() {
         showAdminToast(`📸 สั่งถ่ายฉุกเฉิน (${defaultCountdownRef.current}s)`);
         send({ type: 'STAFF_TRIGGER' });
       } else if (command === 'RESET_STANDBY' || command === 'SCREEN1_RESET') {
+        if (cooldownTimerRef.current) {
+          clearTimeout(cooldownTimerRef.current);
+          cooldownTimerRef.current = null;
+        }
         send({ type: 'FORCE_RESET' });
         holdProgressRef.current = 0;
         prevHoldProgressIntRef.current = 0;
@@ -481,11 +498,15 @@ function KioskCapturePageContent() {
 
     // Server-backed sync poll (every 600ms) so /admin controls work even across different browser windows/profiles/ports
     let pollActive = true;
+    let syncPollBusy = false;
     let tickCount = 0;
     const syncPoll = async () => {
-      if (!pollActive) return;
+      if (!pollActive || syncPollBusy) return;
+      syncPollBusy = true;
+      const controller = new AbortController();
+      const abortTimer = setTimeout(() => controller.abort(), 3500);
       try {
-        const res = await fetch('/api/kiosk-sync', { cache: 'no-store' });
+        const res = await fetch('/api/kiosk-sync', { cache: 'no-store', signal: controller.signal });
         if (res.ok) {
           const syncData = await res.json();
           // 1. Execute any newly arrived command from /admin
@@ -525,6 +546,15 @@ function KioskCapturePageContent() {
                 setPhotoRatio(r);
               }
             }
+            if (typeof cfg.isPaused === 'boolean' && cfg.isPaused !== isPausedRef.current) {
+              isPausedRef.current = cfg.isPaused;
+              setIsPaused(cfg.isPaused);
+            }
+            if (typeof cfg.publicDomain === 'string' && typeof window !== 'undefined') {
+              const cleanDomain = cfg.publicDomain.trim();
+              if (cleanDomain) localStorage.setItem('swu_booth_host', cleanDomain);
+              else localStorage.removeItem('swu_booth_host');
+            }
           }
         }
 
@@ -538,7 +568,11 @@ function KioskCapturePageContent() {
             body: JSON.stringify({ telemetry: { kiosk: statusPayload } }),
           }).catch(() => {});
         }
-      } catch {}
+      } catch {
+      } finally {
+        clearTimeout(abortTimer);
+        syncPollBusy = false;
+      }
     };
 
     syncPoll();
@@ -571,6 +605,14 @@ function KioskCapturePageContent() {
       pollActive = false;
       clearInterval(syncTimer);
       clearInterval(recoveryTimer);
+      if (adminToastTimerRef.current) {
+        clearTimeout(adminToastTimerRef.current);
+        adminToastTimerRef.current = null;
+      }
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current);
+        cooldownTimerRef.current = null;
+      }
       window.removeEventListener('online', handleBrowserOnline);
       if (typeof window !== 'undefined') {
         window.removeEventListener('storage', handleStorageChange);
@@ -587,20 +629,23 @@ function KioskCapturePageContent() {
   // Snapshot: centre crop of the camera feed at the current ratio (1440x1080 or 1080x1440)
   const takeCenterCropSnapshot = useCallback(() => {
     try {
-      const canvas = offscreenCanvasRef.current || document.createElement('canvas');
+      if (!offscreenCanvasRef.current) {
+        offscreenCanvasRef.current = document.createElement('canvas');
+      }
+      const canvas = offscreenCanvasRef.current;
       const video = videoRef.current;
       const crop = calculateCrop(
         video && video.videoWidth > 0 ? video.videoWidth : 1920,
         video && video.videoHeight > 0 ? video.videoHeight : 1080,
-        photoRatio
+        photoRatioRef.current
       );
       canvas.width = crop.dWidth;
       canvas.height = crop.dHeight;
       const ctx = canvas.getContext('2d');
 
       if (ctx) {
-        if (video && cameraActive && video.videoWidth > 0) {
-
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        if (video && cameraActiveRef.current && video.videoWidth > 0) {
           // Mirror horizontally for natural selfie perspective
           ctx.translate(canvas.width, 0);
           ctx.scale(-1, 1);
@@ -647,12 +692,17 @@ function KioskCapturePageContent() {
     } catch (err) {
       console.error('Error taking snapshot:', err);
     }
-    return capturedPhotoUrl;
-  }, [cameraActive, capturedPhotoUrl, photoRatio]);
+    return '';
+  }, []);
 
   // Confirm photo, post to API, broadcast to Screen 2, and reset
   const handleConfirmUpload = useCallback(async () => {
     if (uploadInFlightRef.current || isSyncingRef.current) return;
+    if (!capturedPhotoUrl) {
+      setCapturedPhotoUrl('');
+      send({ type: 'FORCE_RESET' });
+      return;
+    }
     uploadInFlightRef.current = true;
     isSyncingRef.current = true;
     send({ type: 'CONFIRM_UPLOAD' });
@@ -763,7 +813,10 @@ function KioskCapturePageContent() {
 
       // 5. Success feedback & smooth reset
       send({ type: 'UPLOAD_SUCCESS' });
-      setTimeout(() => {
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+      cooldownTimerRef.current = setTimeout(() => {
+        cooldownTimerRef.current = null;
+        setCapturedPhotoUrl('');
         setIsSyncing(false);
         isSyncingRef.current = false;
         previewGestureLockRef.current = false;
@@ -774,7 +827,10 @@ function KioskCapturePageContent() {
     } catch (err) {
       console.error('Error during photo upload:', err);
       send({ type: 'UPLOAD_SUCCESS' });
-      setTimeout(() => {
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+      cooldownTimerRef.current = setTimeout(() => {
+        cooldownTimerRef.current = null;
+        setCapturedPhotoUrl('');
         setIsSyncing(false);
         isSyncingRef.current = false;
         previewGestureLockRef.current = false;
@@ -792,10 +848,15 @@ function KioskCapturePageContent() {
     setHoldProgress(0);
     holdStartTimeRef.current = null;
     fistHoldStartTimeRef.current = null;
+    previewFistHoldMsRef.current = 0;
+    previewPalmHoldMsRef.current = 0;
+    previewLastFistFrameRef.current = 0;
+    previewLastPalmFrameRef.current = 0;
     lastFistSeenTimeRef.current = 0;
     lastPreviewPalmSeenTimeRef.current = 0;
     previewHoldStepRef.current = '';
     setPreviewHoldProgress({ mode: null, pct: 0 });
+    setCapturedPhotoUrl('');
     setCountdown(defaultCountdownRef.current);
     setPreviewSeconds(10);
     send({ type: 'GESTURE_RETAKE_FIST' });
@@ -805,11 +866,14 @@ function KioskCapturePageContent() {
 
   // Initialize WebRTC Camera
   const initCamera = useCallback(async () => {
+    if (cameraInitInFlightRef.current) return;
+    cameraInitInFlightRef.current = true;
     try {
       if (currentStreamRef.current) {
         currentStreamRef.current.getTracks().forEach((track) => track.stop());
         currentStreamRef.current = null;
       }
+      lastVideoTimeRef.current = -1;
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('WebRTC not supported');
       }
@@ -849,17 +913,21 @@ function KioskCapturePageContent() {
           }
         };
         await videoRef.current.play().catch(() => {});
+        hadCameraActiveRef.current = true;
         setCameraActive(true);
       }
     } catch (err: any) {
       console.warn('WebRTC camera unavailable, using simulation mode:', err.message);
       setCameraActive(false);
+    } finally {
+      cameraInitInFlightRef.current = false;
     }
   }, []);
 
   // Keep callback refs continuously synced
   initCameraRef.current = initCamera;
   handleConfirmUploadRef.current = handleConfirmUpload;
+  takeCenterCropSnapshotRef.current = takeCenterCropSnapshot;
 
   useEffect(() => {
     initCamera();
@@ -906,6 +974,8 @@ function KioskCapturePageContent() {
       }
     }
 
+    let mpRetryTimer: NodeJS.Timeout | null = null;
+
     async function initMediaPipe() {
       try {
         const landmarker = await buildLandmarker();
@@ -916,7 +986,12 @@ function KioskCapturePageContent() {
           setIsAiVisionReady(true);
         }
       } catch (err) {
-        console.warn('MediaPipe initialization fallback (mouse/touch active):', err);
+        console.warn('MediaPipe initialization fallback (retrying in 6s):', err);
+        if (active) {
+          mpRetryTimer = setTimeout(() => {
+            if (active && !landmarkerRef.current) void initMediaPipe();
+          }, 6000);
+        }
       }
     }
 
@@ -949,15 +1024,16 @@ function KioskCapturePageContent() {
       if (!active) return;
       const stream = currentStreamRef.current;
       const track = stream?.getVideoTracks()?.[0];
-      if (cameraActiveRef.current && (!track || track.readyState === 'ended')) {
+      if (hadCameraActiveRef.current && (!track || track.readyState === 'ended')) {
         console.warn('[kiosk] Camera video track ended unexpectedly, reconnecting...');
-        initCameraRef.current();
+        void initCameraRef.current();
       }
     }, 5000);
 
     return () => {
       active = false;
       clearInterval(camWatchdog);
+      if (mpRetryTimer) clearTimeout(mpRetryTimer);
       if (landmarkerRef.current) {
         try {
           landmarkerRef.current.close();
@@ -1004,7 +1080,7 @@ function KioskCapturePageContent() {
         updatePreviewHoldUi(null, 0);
       }
 
-      if (video && video.readyState >= 2 && landmarker && !paused && !isResettingOptions) {
+      if ((idleOrDetecting || previewing) && video && video.readyState >= 2 && landmarker && !paused && !isResettingOptions) {
         if (video.currentTime !== lastVideoTimeRef.current) {
           lastVideoTimeRef.current = video.currentTime;
           try {
@@ -1020,13 +1096,12 @@ function KioskCapturePageContent() {
             lastAiLatencyRef.current = inferMs;
             consecutiveAiErrRef.current = 0;
 
-            // Enforce <= 1.5m floor in idle/start; in Preview allow compact FIST area (58%) at <=1.5m so closed fists aren't dropped
+            // Enforce <= 1.5m floor everywhere; pickNearestHandInCapture already applies 0.58x noise floor for closed fists in Preview
             const configuredThreshold = clampForegroundThreshold(handAreaThresholdRef.current);
-            const pickerThreshold = previewing ? Math.max(0.014, configuredThreshold * 0.58) : configuredThreshold;
 
             const pickIdx = results?.landmarks?.length
               ? pickNearestHandInCapture(results.landmarks, captureAreaOf(vw, vh, photoRatioRef.current), {
-                  minAreaRatio: pickerThreshold,
+                  minAreaRatio: configuredThreshold,
                   lockedPalm: holdStartTimeRef.current !== null ? lockedPalmRef.current : null,
                 })
               : -1;
@@ -1084,55 +1159,78 @@ function KioskCapturePageContent() {
                 const PREVIEW_GRACE_MS = 700;
                 const PREVIEW_HOLD_MS = 550;
                 const DROPOUT_GRACE_MS = 400;
+                const inFistRange = areaRatio >= configuredThreshold * 0.58;
 
                 if (timeInPreview > PREVIEW_GRACE_MS) {
-                  if (detected === 'FIST') {
+                  if (detected === 'FIST' && inFistRange) {
                     holdStartTimeRef.current = null;
+                    previewPalmHoldMsRef.current = 0;
+                    previewLastPalmFrameRef.current = 0;
                     lastPreviewPalmSeenTimeRef.current = 0;
-                    lastFistSeenTimeRef.current = nowPerf;
-                    if (fistHoldStartTimeRef.current === null) {
+
+                    if (previewLastFistFrameRef.current === 0 || nowPerf - lastFistSeenTimeRef.current > DROPOUT_GRACE_MS) {
                       fistHoldStartTimeRef.current = nowPerf;
+                      previewFistHoldMsRef.current = 0;
+                    } else {
+                      previewFistHoldMsRef.current += Math.min(120, Math.max(0, nowPerf - previewLastFistFrameRef.current));
                     }
-                    const fistHold = nowPerf - fistHoldStartTimeRef.current;
+                    previewLastFistFrameRef.current = nowPerf;
+                    lastFistSeenTimeRef.current = nowPerf;
+
+                    const fistHold = previewFistHoldMsRef.current;
                     updatePreviewHoldUi('FIST', (fistHold / PREVIEW_HOLD_MS) * 100);
                     if (fistHold >= PREVIEW_HOLD_MS) {
                       previewGestureLockRef.current = true;
                       fistHoldStartTimeRef.current = null;
+                      previewFistHoldMsRef.current = 0;
+                      previewLastFistFrameRef.current = 0;
                       updatePreviewHoldUi(null, 0);
                       handleRetake();
                     }
                   } else if (detected === 'OPEN_PALM' && areaRatio >= configuredThreshold * 0.85) {
                     fistHoldStartTimeRef.current = null;
+                    previewFistHoldMsRef.current = 0;
+                    previewLastFistFrameRef.current = 0;
                     lastFistSeenTimeRef.current = 0;
-                    lastPreviewPalmSeenTimeRef.current = nowPerf;
-                    if (holdStartTimeRef.current === null) {
+
+                    if (previewLastPalmFrameRef.current === 0 || nowPerf - lastPreviewPalmSeenTimeRef.current > DROPOUT_GRACE_MS) {
                       holdStartTimeRef.current = nowPerf;
+                      previewPalmHoldMsRef.current = 0;
+                    } else {
+                      previewPalmHoldMsRef.current += Math.min(120, Math.max(0, nowPerf - previewLastPalmFrameRef.current));
                     }
-                    const palmHold = nowPerf - holdStartTimeRef.current;
+                    previewLastPalmFrameRef.current = nowPerf;
+                    lastPreviewPalmSeenTimeRef.current = nowPerf;
+
+                    const palmHold = previewPalmHoldMsRef.current;
                     updatePreviewHoldUi('PALM', (palmHold / PREVIEW_HOLD_MS) * 100);
                     if (palmHold >= PREVIEW_HOLD_MS) {
                       previewGestureLockRef.current = true;
                       holdStartTimeRef.current = null;
+                      previewPalmHoldMsRef.current = 0;
+                      previewLastPalmFrameRef.current = 0;
                       updatePreviewHoldUi(null, 0);
                       handleConfirmUploadRef.current();
                     }
                   } else {
-                    // Dropout tolerance: tolerate brief 1-3 frame blips while attendee shifts hand
+                    // Dropout tolerance: pause hold progress on 1-3 frame blips, reset after DROPOUT_GRACE_MS
                     if (fistHoldStartTimeRef.current !== null) {
                       if (nowPerf - lastFistSeenTimeRef.current > DROPOUT_GRACE_MS) {
                         fistHoldStartTimeRef.current = null;
+                        previewFistHoldMsRef.current = 0;
+                        previewLastFistFrameRef.current = 0;
                         updatePreviewHoldUi(null, 0);
                       } else {
-                        const fistHold = nowPerf - fistHoldStartTimeRef.current;
-                        updatePreviewHoldUi('FIST', (fistHold / PREVIEW_HOLD_MS) * 100);
+                        updatePreviewHoldUi('FIST', (previewFistHoldMsRef.current / PREVIEW_HOLD_MS) * 100);
                       }
                     } else if (holdStartTimeRef.current !== null) {
                       if (nowPerf - lastPreviewPalmSeenTimeRef.current > DROPOUT_GRACE_MS) {
                         holdStartTimeRef.current = null;
+                        previewPalmHoldMsRef.current = 0;
+                        previewLastPalmFrameRef.current = 0;
                         updatePreviewHoldUi(null, 0);
                       } else {
-                        const palmHold = nowPerf - holdStartTimeRef.current;
-                        updatePreviewHoldUi('PALM', (palmHold / PREVIEW_HOLD_MS) * 100);
+                        updatePreviewHoldUi('PALM', (previewPalmHoldMsRef.current / PREVIEW_HOLD_MS) * 100);
                       }
                     }
                   }
@@ -1158,10 +1256,14 @@ function KioskCapturePageContent() {
                 const DROPOUT_GRACE_MS = 400;
                 if (fistHoldStartTimeRef.current !== null && nowPerf - lastFistSeenTimeRef.current > DROPOUT_GRACE_MS) {
                   fistHoldStartTimeRef.current = null;
+                  previewFistHoldMsRef.current = 0;
+                  previewLastFistFrameRef.current = 0;
                   updatePreviewHoldUi(null, 0);
                 }
                 if (holdStartTimeRef.current !== null && nowPerf - lastPreviewPalmSeenTimeRef.current > DROPOUT_GRACE_MS) {
                   holdStartTimeRef.current = null;
+                  previewPalmHoldMsRef.current = 0;
+                  previewLastPalmFrameRef.current = 0;
                   updatePreviewHoldUi(null, 0);
                 }
               }
@@ -1178,22 +1280,27 @@ function KioskCapturePageContent() {
                 }
               }
 
-              // Self-healing BlazePalm reset: flush stale internal VIDEO ROI tracking when idle finds no hands for >4.2s
+              // Self-healing BlazePalm reset: flush stale internal VIDEO ROI tracking when idle finds no hands for >15s (max every 20s)
               if (
                 idleOrDetecting &&
-                nowPerf - (lastAnyHandSeenRef.current || 0) >= 4200 &&
-                nowPerf - (lastTrackerResetRef.current || 0) >= 4800 &&
+                nowPerf - (lastAnyHandSeenRef.current || 0) >= 15000 &&
+                nowPerf - (lastTrackerResetRef.current || 0) >= 20000 &&
                 typeof landmarker.setOptions === 'function'
               ) {
                 lastTrackerResetRef.current = nowPerf;
                 trackerResetToggleRef.current = !trackerResetToggleRef.current;
                 isResettingOptions = true;
-                landmarker
-                  .setOptions({ minHandPresenceConfidence: trackerResetToggleRef.current ? 0.22 : 0.23 })
-                  .catch(() => {})
-                  .finally(() => {
-                    isResettingOptions = false;
-                  });
+                try {
+                  Promise.resolve(
+                    landmarker.setOptions({ minHandPresenceConfidence: trackerResetToggleRef.current ? 0.22 : 0.23 })
+                  )
+                    .catch(() => {})
+                    .finally(() => {
+                      isResettingOptions = false;
+                    });
+                } catch {
+                  isResettingOptions = false;
+                }
               }
             }
           } catch (err) {
@@ -1280,7 +1387,7 @@ function KioskCapturePageContent() {
         if (countdown > 1) {
           setCountdown((prev) => prev - 1);
         } else {
-          takeCenterCropSnapshot();
+          takeCenterCropSnapshotRef.current();
           send({ type: 'COUNTDOWN_COMPLETE' });
           playBeep(1200);
           setCountdown(defaultCountdownRef.current);
@@ -1290,7 +1397,7 @@ function KioskCapturePageContent() {
       setCountdown(defaultCountdownRef.current);
     }
     return () => clearTimeout(timer);
-  }, [isCountingDown, countdown, send, takeCenterCropSnapshot, playBeep]);
+  }, [isCountingDown, countdown, send, playBeep]);
 
   // Flash duration (150ms)
   useEffect(() => {
@@ -1311,6 +1418,10 @@ function KioskCapturePageContent() {
       previewGestureLockRef.current = false;
       holdStartTimeRef.current = null;
       fistHoldStartTimeRef.current = null;
+      previewFistHoldMsRef.current = 0;
+      previewPalmHoldMsRef.current = 0;
+      previewLastFistFrameRef.current = 0;
+      previewLastPalmFrameRef.current = 0;
       let remaining = 10;
       setPreviewSeconds(remaining);
 
@@ -1326,7 +1437,7 @@ function KioskCapturePageContent() {
       }, 1000);
     }
     return () => clearInterval(previewInterval);
-  }, [isPreviewing, handleConfirmUpload]);
+  }, [isPreviewing]);
 
   // Keyboard shortcut testing (P = Palm, F = Fist, S = Staff Trigger, R = Reset)
   useEffect(() => {

@@ -9,16 +9,32 @@ import { CloudflareR2Adapter, CloudSyncStatus, isR2Configured } from './Cloudfla
  *
  * Stored on globalThis so Next.js dev route bundles share one instance and one single-flight R2 sync lock.
  */
+const STORAGE_INSTANCE_VERSION = 2;
+
 const globalForStorage = globalThis as typeof globalThis & {
   __boothStorageInstance?: IPhotoStorage;
+  __boothStorageVersion?: number;
 };
 
+function isValidCachedInstance(instance: unknown, driver: string): instance is IPhotoStorage {
+  if (!instance || globalForStorage.__boothStorageVersion !== STORAGE_INSTANCE_VERSION) {
+    return false;
+  }
+  if (driver === 'r2') {
+    return (
+      instance instanceof CloudflareR2Adapter &&
+      typeof (instance as CloudflareR2Adapter).probeCloud === 'function'
+    );
+  }
+  return instance instanceof LocalStorageAdapter;
+}
+
 function getStorage(): IPhotoStorage {
-  if (globalForStorage.__boothStorageInstance) {
+  const driver = process.env.STORAGE_DRIVER || (isR2Configured() ? 'r2' : 'local');
+  if (isValidCachedInstance(globalForStorage.__boothStorageInstance, driver)) {
     return globalForStorage.__boothStorageInstance;
   }
 
-  const driver = process.env.STORAGE_DRIVER || (isR2Configured() ? 'r2' : 'local');
   if (driver === 'r2') {
     globalForStorage.__boothStorageInstance = new CloudflareR2Adapter();
   } else if (process.env.VERCEL) {
@@ -27,6 +43,7 @@ function getStorage(): IPhotoStorage {
   } else {
     globalForStorage.__boothStorageInstance = new LocalStorageAdapter();
   }
+  globalForStorage.__boothStorageVersion = STORAGE_INSTANCE_VERSION;
   return globalForStorage.__boothStorageInstance;
 }
 

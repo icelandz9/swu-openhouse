@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getR2Adapter } from '@/lib/storage/storageService';
+import { isValidShortCode } from '@/lib/mobile/shortCodeGenerator';
+import { isHostAllowed } from '@/lib/security/photoToken';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +11,7 @@ export const dynamic = 'force-dynamic';
 const MIN_HAND_THRESHOLD = 0.025;
 const MAX_HAND_THRESHOLD = 0.10;
 const REMOTE_CONTROL_KEY = '_system/kiosk-control.json';
+const REMOTE_KIOSK_TEL_KEY = '_system/kiosk-telemetry.json';
 const REMOTE_DISPLAY_TEL_KEY = '_system/display-telemetry.json';
 const REMOTE_PULL_COOLDOWN_MS = 950;
 
@@ -171,11 +174,28 @@ function writeSyncState(next: KioskSyncState): void {
   try {
     const filePath = getSharedSyncFilePath();
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, JSON.stringify(normalized), 'utf-8');
+    const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+    fs.writeFileSync(tmpPath, JSON.stringify(normalized), 'utf-8');
+    fs.renameSync(tmpPath, filePath);
   } catch {}
 }
 
-/** Pulls cross-machine state from Cloudflare R2 (disjoint keys prevent write conflicts). */
+function buildRemoteControlPayload(state: KioskSyncState) {
+  return {
+    config: state.config,
+    lastCommand: state.lastCommand,
+    displayAction: state.displayAction,
+    displayMuted: state.displayMuted,
+    displayUpdatedAt: state.displayUpdatedAt,
+    lastDeleted: state.lastDeleted,
+  };
+}
+
+function isSafeRelativeOrHttpUrl(url: unknown): url is string {
+  return typeof url === 'string' && /^(\/|https?:\/\/)/i.test(url.trim());
+}
+
+/** Pulls cross-machine state from Cloudflare R2 (disjoint keys prevent telemetry from overwriting commands). */
 async function mergeFromCloud(current: KioskSyncState): Promise<KioskSyncState> {
   const r2 = getR2Adapter();
   if (!r2) return current;
@@ -187,21 +207,36 @@ async function mergeFromCloud(current: KioskSyncState): Promise<KioskSyncState> 
   globalForSync.__lastRemoteSyncPullAt = now;
 
   try {
-    const [remoteControl, remoteDisplayTel] = await Promise.all([
+    const [remoteControl, remoteKioskTel, remoteDisplayTel] = await Promise.all([
       r2.readRemoteJson<Partial<KioskSyncState>>(REMOTE_CONTROL_KEY),
+      r2.readRemoteJson<{ kiosk?: KioskSyncState['telemetry']['kiosk'] }>(REMOTE_KIOSK_TEL_KEY),
       r2.readRemoteJson<{ display?: KioskSyncState['telemetry']['display'] }>(REMOTE_DISPLAY_TEL_KEY),
     ]);
 
+    // Re-read fresh local state after awaits so concurrent local POSTs are never overwritten
+    const latestLocal = readSyncState();
     let changed = false;
-    const next = normalizeState(current);
+    const next = normalizeState(latestLocal);
 
     if (remoteControl) {
       if ((remoteControl.config?.updatedAt || 0) > next.config.updatedAt && remoteControl.config) {
+        const candidateDomain = typeof remoteControl.config.publicDomain === 'string'
+          ? remoteControl.config.publicDomain.trim()
+          : '';
         next.config = {
           ...next.config,
           ...remoteControl.config,
+          publicDomain: !candidateDomain || isHostAllowed(candidateDomain) ? candidateDomain : next.config.publicDomain,
           handAreaThreshold: clampHandThreshold(remoteControl.config.handAreaThreshold),
         };
+        changed = true;
+      }
+      if (
+        remoteControl.lastCommand?.id &&
+        typeof remoteControl.lastCommand.timestamp === 'number' &&
+        remoteControl.lastCommand.timestamp > (next.lastCommand?.timestamp || 0)
+      ) {
+        next.lastCommand = remoteControl.lastCommand;
         changed = true;
       }
       if ((remoteControl.displayUpdatedAt || 0) > next.displayUpdatedAt) {
@@ -226,6 +261,14 @@ async function mergeFromCloud(current: KioskSyncState): Promise<KioskSyncState> 
         next.telemetry.kiosk = remoteControl.telemetry.kiosk;
         changed = true;
       }
+    }
+
+    if (
+      remoteKioskTel?.kiosk &&
+      remoteKioskTel.kiosk.lastSeen > (next.telemetry.kiosk?.lastSeen || 0)
+    ) {
+      next.telemetry.kiosk = remoteKioskTel.kiosk;
+      changed = true;
     }
 
     if (
@@ -265,6 +308,7 @@ export async function POST(req: NextRequest) {
     const now = Date.now();
     const r2 = getR2Adapter();
     let mirrorControlToR2 = false;
+    let mirrorKioskTelToR2 = false;
     let mirrorDisplayTelToR2 = false;
 
     // 1. Handle command from /admin or /kiosk
@@ -281,16 +325,76 @@ export async function POST(req: NextRequest) {
         cmd === 'PHOTO_READY' ||
         cmd === 'PHOTO_DELETED';
 
-      if (!isDisplayOnlyCmd) {
-        current.lastCommand = {
+      if (cmd === 'SET_PUBLIC_DOMAIN' && typeof val === 'string') {
+        const cleanDomain = val.trim();
+        if (cleanDomain && !isHostAllowed(cleanDomain)) {
+          return NextResponse.json(
+            { ok: false, error: 'Untrusted publicDomain host' },
+            { status: 400, headers: CORS_HEADERS }
+          );
+        }
+        current.config.publicDomain = cleanDomain;
+        current.config.updatedAt = now;
+        mirrorControlToR2 = true;
+      } else if (cmd === 'PUSH_TO_DISPLAY') {
+        const rawCode = typeof val?.code === 'string' ? val.code.trim().toUpperCase() : '';
+        if (!isValidShortCode(rawCode)) {
+          return NextResponse.json({ ok: false, error: 'Invalid short code' }, { status: 400, headers: CORS_HEADERS });
+        }
+        current.displayMuted = false;
+        current.displayAction = {
           id: cmdId,
-          command: cmd,
-          value: val,
+          type: 'PUSH_TO_DISPLAY',
+          photo: {
+            code: rawCode,
+            photoUrl: isSafeRelativeOrHttpUrl(val.photoUrl) ? val.photoUrl.trim() : `/api/photos/${rawCode}/file`,
+            qrUrl: isSafeRelativeOrHttpUrl(val.qrUrl) ? val.qrUrl.trim() : `/p/${rawCode}`,
+            createdAt: typeof val.createdAt === 'string' ? val.createdAt : new Date(now).toISOString(),
+            token: typeof val.token === 'string' ? val.token : undefined,
+          },
           timestamp: now,
         };
-      }
-
-      if (cmd === 'SET_COUNTDOWN' && typeof val === 'number' && val >= 1 && val <= 15) {
+        current.displayUpdatedAt = now;
+        mirrorControlToR2 = true;
+      } else if (cmd === 'PHOTO_READY') {
+        const rawCode = typeof val?.code === 'string' ? val.code.trim().toUpperCase() : '';
+        if (!isValidShortCode(rawCode)) {
+          return NextResponse.json({ ok: false, error: 'Invalid short code' }, { status: 400, headers: CORS_HEADERS });
+        }
+        current.displayAction = {
+          id: cmdId,
+          type: 'PHOTO_READY',
+          photo: {
+            code: rawCode,
+            photoUrl: isSafeRelativeOrHttpUrl(val.photoUrl) ? val.photoUrl.trim() : `/api/photos/${rawCode}/file`,
+            qrUrl: isSafeRelativeOrHttpUrl(val.qrUrl) ? val.qrUrl.trim() : `/p/${rawCode}`,
+            createdAt: typeof val.createdAt === 'string' ? val.createdAt : new Date(now).toISOString(),
+            token: typeof val.token === 'string' ? val.token : undefined,
+          },
+          timestamp: now,
+        };
+        current.displayUpdatedAt = now;
+        mirrorControlToR2 = true;
+      } else if (cmd === 'PHOTO_DELETED' && typeof val === 'string') {
+        const rawCode = val.trim().toUpperCase();
+        if (!isValidShortCode(rawCode)) {
+          return NextResponse.json({ ok: false, error: 'Invalid short code' }, { status: 400, headers: CORS_HEADERS });
+        }
+        current.lastDeleted = {
+          id: cmdId,
+          code: rawCode,
+          timestamp: now,
+        };
+        if (current.displayAction?.photo?.code === rawCode) {
+          current.displayAction = {
+            id: cmdId,
+            type: 'RESET_STANDBY',
+            timestamp: now,
+          };
+          current.displayUpdatedAt = now;
+        }
+        mirrorControlToR2 = true;
+      } else if (cmd === 'SET_COUNTDOWN' && typeof val === 'number' && val >= 1 && val <= 15) {
         current.config.countdownSeconds = val;
         current.config.updatedAt = now;
         mirrorControlToR2 = true;
@@ -320,41 +424,6 @@ export async function POST(req: NextRequest) {
         };
         current.displayUpdatedAt = now;
         mirrorControlToR2 = true;
-      } else if (cmd === 'SET_PUBLIC_DOMAIN' && typeof val === 'string') {
-        current.config.publicDomain = val.trim();
-        current.config.updatedAt = now;
-        mirrorControlToR2 = true;
-      } else if (cmd === 'PUSH_TO_DISPLAY' && val && typeof val.code === 'string') {
-        current.displayMuted = false;
-        current.displayAction = {
-          id: cmdId,
-          type: 'PUSH_TO_DISPLAY',
-          photo: {
-            code: val.code,
-            photoUrl: val.photoUrl || `/api/photos/${val.code}/file`,
-            qrUrl: val.qrUrl || `/p/${val.code}`,
-            createdAt: val.createdAt || new Date(now).toISOString(),
-            token: val.token,
-          },
-          timestamp: now,
-        };
-        current.displayUpdatedAt = now;
-        mirrorControlToR2 = true;
-      } else if (cmd === 'PHOTO_READY' && val && typeof val.code === 'string') {
-        current.displayAction = {
-          id: cmdId,
-          type: 'PHOTO_READY',
-          photo: {
-            code: val.code,
-            photoUrl: val.photoUrl || `/api/photos/${val.code}/file`,
-            qrUrl: val.qrUrl || `/p/${val.code}`,
-            createdAt: val.createdAt || new Date(now).toISOString(),
-            token: val.token,
-          },
-          timestamp: now,
-        };
-        current.displayUpdatedAt = now;
-        mirrorControlToR2 = true;
       } else if (cmd === 'MUTE_DISPLAY') {
         current.displayMuted = true;
         current.displayUpdatedAt = now;
@@ -363,34 +432,21 @@ export async function POST(req: NextRequest) {
         current.displayMuted = false;
         current.displayUpdatedAt = now;
         mirrorControlToR2 = true;
-      } else if (cmd === 'PHOTO_DELETED' && typeof val === 'string') {
-        current.lastDeleted = {
+      }
+
+      if (!isDisplayOnlyCmd) {
+        current.lastCommand = {
           id: cmdId,
-          code: val,
+          command: cmd,
+          value: val,
           timestamp: now,
         };
-        if (current.displayAction?.photo?.code === val) {
-          current.displayAction = {
-            id: cmdId,
-            type: 'RESET_STANDBY',
-            timestamp: now,
-          };
-          current.displayUpdatedAt = now;
-        }
         mirrorControlToR2 = true;
       }
 
       writeSyncState(current);
       if (mirrorControlToR2 && r2) {
-        // Upload cross-machine display/control state asynchronously (awaited briefly for critical display commands)
-        const remotePayload = {
-          config: current.config,
-          displayAction: current.displayAction,
-          displayMuted: current.displayMuted,
-          displayUpdatedAt: current.displayUpdatedAt,
-          lastDeleted: current.lastDeleted,
-          telemetry: { kiosk: current.telemetry.kiosk },
-        };
+        const remotePayload = buildRemoteControlPayload(current);
         if (isDisplayOnlyCmd || cmd === 'RESET_STANDBY' || cmd === 'SET_PUBLIC_DOMAIN') {
           await r2.writeRemoteJson(REMOTE_CONTROL_KEY, remotePayload).catch(() => false);
         } else {
@@ -401,7 +457,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, state: current }, { headers: CORS_HEADERS });
     }
 
-    // 2. Handle telemetry report from /kiosk or /display
+    // 2. Handle telemetry report from /kiosk or /display (stored under disjoint keys so telemetry never clobbers commands)
     if (body && body.telemetry) {
       if (body.telemetry.kiosk) {
         current.telemetry.kiosk = {
@@ -409,7 +465,7 @@ export async function POST(req: NextRequest) {
           threshold: clampHandThreshold(body.telemetry.kiosk.threshold),
           lastSeen: now,
         };
-        mirrorControlToR2 = true;
+        mirrorKioskTelToR2 = true;
       }
       if (body.telemetry.display) {
         current.telemetry.display = {
@@ -422,15 +478,10 @@ export async function POST(req: NextRequest) {
       writeSyncState(current);
 
       if (r2) {
-        if (mirrorControlToR2) {
+        if (mirrorKioskTelToR2 && current.telemetry.kiosk) {
           void r2
-            .writeRemoteJson(REMOTE_CONTROL_KEY, {
-              config: current.config,
-              displayAction: current.displayAction,
-              displayMuted: current.displayMuted,
-              displayUpdatedAt: current.displayUpdatedAt,
-              lastDeleted: current.lastDeleted,
-              telemetry: { kiosk: current.telemetry.kiosk },
+            .writeRemoteJson(REMOTE_KIOSK_TEL_KEY, {
+              kiosk: current.telemetry.kiosk,
             })
             .catch(() => false);
         }
